@@ -10,7 +10,6 @@ class Division(Base):
     __tablename__ = "divisions"
     division_id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
-    employee_count = Column(Integer, default=0)
 
     # One-to-many relationship with Employee
     employees = relationship("Employee", back_populates="division")

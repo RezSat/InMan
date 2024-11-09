@@ -17,3 +17,7 @@ def get_db():
         yield db
     finally:
         db.close()
+        
+def initialize_database():
+    Base.metadata.create_all(bind=engine)
+    print("Database initialized with SQLAlchemy.")

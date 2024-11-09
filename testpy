@@ -1,0 +1,49 @@
+# test.py
+
+from models.database import SessionLocal, initialize_database
+from controllers.crud import create_employee, create_division, create_item, get_all_employees, log_action
+from controllers.auth import create_user, authenticate_user
+
+def main():
+    # Initialize Database
+    initialize_database()
+
+    # Start a session
+    db = SessionLocal()
+
+    # Create Division
+    division = create_division(db, name="IT Department")
+    print(f"Created Division: {division.name}")
+
+    # Create Employee
+    employee = create_employee(db, emp_id="E001", name="Alice", division_id=division.division_id)
+    print(f"Created Employee: {employee.name}")
+
+    # Create Item
+    item = create_item(db, name="Laptop", unique_key="SN12345", is_common=False)
+    print(f"Created Item: {item.name}")
+
+    # Log an Action
+    log_entry = log_action(db, action_type="create", details="Created an item", user_id=None)
+    print(f"Log Entry: {log_entry.details}")
+
+    # Create User
+    user = create_user(db, username="manager", password="password123")
+    print(f"User Created: {user.username}")
+
+    # Authenticate User
+    auth_user = authenticate_user(db, username="manager", password="password123")
+    if auth_user:
+        print("Authentication successful")
+    else:
+        print("Authentication failed")
+
+    # Fetch all employees
+    employees = get_all_employees(db)
+    for emp in employees:
+        print(f"Employee: {emp.name}")
+
+    db.close()
+
+if __name__ == "__main__":
+    main()
