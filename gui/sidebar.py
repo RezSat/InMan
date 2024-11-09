@@ -6,11 +6,11 @@ def create_sidebar(window, app):
     sidebar.grid_propagate(False)
 
     # Logo label
-    logo_label = ctk.CTkLabel(sidebar, text="InMan", font=ctk.CTkFont(size=20, weight="bold"))
+    logo_label = ctk.CTkLabel(sidebar, text="InMan", font=ctk.CTkFont(size=60, weight="bold"))
     logo_label.grid(row=0, column=0, padx=20, pady=20)
 
     # Sidebar buttons
-    btn_dashboard = ctk.CTkButton(sidebar, text="Dashboard", command=app.show_dashboard)
+    btn_dashboard = ctk.CTkButton(sidebar, text="Dashboard", command=app.show_dashboard, border_color="white", border_width=1, height=40, width=140)
     btn_dashboard.grid(row=1, column=0, padx=20, pady=10)
 
     btn_add = ctk.CTkButton(sidebar, text="Add Item", command=app.show_add_item)
