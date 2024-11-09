@@ -8,7 +8,6 @@ from config import  COLORS
 
 class InventoryApp():
     def __init__(self):
-        self.test_text = "Inventory APP TEZT TEZT"
         # Initialize window
         self.window = ctk.CTk()
         self.window.title("InMan")
@@ -37,14 +36,21 @@ class InventoryApp():
         self.show_dashboard()
     
     def show_dashboard(self):
+        self.clear_main_frame()
         Dashboard(self.main_frame, self.inventory).display()
 
     def show_login(self):
+        self.clear_main_frame()
         LoginPage(self.main_frame, self.inventory).display()
 
     def show_inventory(self):
+        self.clear_main_frame()
         InventoryDisplay(self.main_frame, self.inventory).display()
 
     def run(self):
         self.window.mainloop()
+
+    def clear_main_frame(self):
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
 

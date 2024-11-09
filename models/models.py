@@ -21,7 +21,7 @@ class Employee(Base):
     name = Column(String, nullable=False)
     division_id = Column(Integer, ForeignKey("divisions.division_id"))
     item_count = Column(Integer, default=0)
-    date_joined = Column(Date, default=datetime.utcnow)
+    date_joined = Column(DateTime, default=datetime.utcnow)
 
     # Many-to-one relationship with Division
     division = relationship("Division", back_populates="employees")
@@ -36,10 +36,12 @@ class Item(Base):
     unique_key = Column(String, unique=True, nullable=False)
     is_common = Column(Boolean, default=False)
     status = Column(Enum("active", "retired", "lost"), default="active")
-    last_assigned = Column(Date, default=datetime.utcnow)
+    last_assigned = Column(DateTime, default=datetime.utcnow)
 
     # Many-to-many relationship with Employee through EmployeeItem
     employees = relationship("EmployeeItem", back_populates="item")
+    # Dynamic attributes for items
+    attributes = relationship("ItemAttribute", back_populates="item")
 
 # EmployeeItem Model (Associative Table)
 class EmployeeItem(Base):
@@ -48,12 +50,23 @@ class EmployeeItem(Base):
     emp_id = Column(String, ForeignKey("employees.emp_id"))
     item_id = Column(Integer, ForeignKey("items.item_id"))
     is_unique = Column(Boolean, default=False)
-    date_assigned = Column(Date, default=datetime.utcnow)
+    date_assigned = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text)
 
     # Many-to-one relationships with Employee and Item
     employee = relationship("Employee", back_populates="items")
     item = relationship("Item", back_populates="employees")
+
+#Item Attribut Model for dynamic item properties
+class ItemAttribute(Base):
+    __tablename__ = "item_attributes"
+    attribute_id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("items.item_id"))
+    name = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+
+    # Many-to-one relationship with Item
+    item = relationship("Item", back_populates="attributes")
 
 # User Model (System Manager)
 class User(Base):
