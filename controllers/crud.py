@@ -76,3 +76,59 @@ def log_action(db: Session, action_type: str, details: str, user_id: int = None)
     db.add(log_entry)
     db.commit()
     return log_entry
+
+# Item Assignment
+def assign_item_to_employee(db: Session, emp_id: str, item_id: int, is_unique: bool = False, notes: str = ""):
+    employee_item = EmployeeItem(
+        emp_id=emp_id,
+        item_id=item_id,
+        is_unique=is_unique,
+        date_assigned=datetime.utcnow(),
+        notes=notes
+    )
+    db.add(employee_item)
+    db.commit()
+
+    # Update item count and log assignment
+    employee = get_employee(db, emp_id)
+    employee.item_count += 1
+    db.commit()
+    log_action(db, action_type="assign_item", details=f"Assigned item {item_id} to employee {emp_id}")
+
+    return employee_item
+
+# Item Transfer
+def transfer_item(db: Session, from_emp_id: str, to_emp_id: str, item_id: int, notes: str = ""):
+    # Remove from current employee
+    current_assignment = db.query(EmployeeItem).filter(
+        EmployeeItem.emp_id == from_emp_id,
+        EmployeeItem.item_id == item_id
+    ).first()
+    
+    if current_assignment:
+        db.delete(current_assignment)
+        db.commit()
+
+        # Update item count for from_emp
+        from_employee = get_employee(db, from_emp_id)
+        from_employee.item_count -= 1
+        db.commit()
+    
+    # Assign to new employee
+    new_assignment = assign_item_to_employee(db, emp_id=to_emp_id, item_id=item_id, notes=notes)
+
+    # Log transfer
+    log_action(db, action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
+
+    # Update ItemTransferHistory
+    transfer_record = ItemTransferHistory(
+        item_id=item_id,
+        from_emp_id=from_emp_id,
+        to_emp_id=to_emp_id,
+        transfer_date=datetime.utcnow(),
+        notes=notes
+    )
+    db.add(transfer_record)
+    db.commit()
+
+    return new_assignment
