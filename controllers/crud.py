@@ -3,7 +3,7 @@
 # crud.py
 
 from sqlalchemy.orm import Session
-from models.models import Employee, Division, Item, EmployeeItem, Log
+from models.models import *
 from datetime import datetime
 
 # Division CRUD Operations

@@ -1,10 +1,11 @@
 # test.py
 
 from models.database import SessionLocal, initialize_database
-from controllers.crud import create_employee, create_division, create_item, get_all_employees, log_action
-from controllers.auth import create_user, authenticate_user
+from controllers.crud import *
+from controllers.auth import *
+from utils.search import *
 
-def main():
+def test1():
     # Initialize Database
     initialize_database()
 
@@ -45,5 +46,33 @@ def main():
 
     db.close()
 
+def test2():
+    db = SessionLocal()
+
+    # Create test division and employees
+    division = create_division(db, name="Finance")
+    emp1 = create_employee(db, emp_id="E002", name="Bob", division_id=division.division_id)
+    emp2 = create_employee(db, emp_id="E003", name="Charlie", division_id=division.division_id)
+    
+    # Create test items
+    item1 = create_item(db, name="Desktop", unique_key="DT56789", is_common=False)
+    item2 = create_item(db, name="Office Chair", unique_key="OC12345", is_common=True)
+
+    # Assign item to employee
+    assignment = assign_item_to_employee(db, emp_id=emp1.emp_id, item_id=item1.item_id, is_unique=True)
+    print(f"Assigned Item: {assignment.item_id} to Employee: {emp1.emp_id}")
+
+    # Transfer item from emp1 to emp2
+    transfer = transfer_item(db, from_emp_id=emp1.emp_id, to_emp_id=emp2.emp_id, item_id=item1.item_id)
+    print(f"Transferred Item: {item1.item_id} from Employee: {emp1.emp_id} to Employee: {emp2.emp_id}")
+
+    # Search Employees, Items, Divisions
+    print("Search Results for 'Bob':", search_employees(db, "Bob"))
+    print("Search Results for 'Desktop':", search_items(db, "Desktop"))
+    print("Search Results for 'Finance':", search_divisions(db, "Finance"))
+
+    db.close()
+
 if __name__ == "__main__":
-    main()
+    test1()
+    test2()

@@ -6,7 +6,7 @@ def search_employees(db: Session, query: str):
     return db.query(Employee).filter(
         (Employee.name.ilike(f"%{query}%")) |
         (Employee.emp_id.ilike(f"%{query}%")) |
-        (Employee.division.has(name.ilike(f"%{query}%")))
+        (Employee.division.has(Division.name.ilike(f"%{query}%")))
     ).all()
 
 # Search Items by name or unique_key
