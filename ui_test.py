@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import font
+from config import COLORS
 
 def show_available_fonts(window):
     # Get all available system fonts

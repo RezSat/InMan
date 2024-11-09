@@ -12,7 +12,6 @@ class InventoryApp():
         self.window = ctk.CTk()
         self.window.title("InMan")
         self.window.geometry("1200x700")
-        self.window.configure(fg_color=COLORS["ash"])
         
         # Set appearance
         ctk.set_appearance_mode("dark")
