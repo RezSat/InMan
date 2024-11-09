@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from config import COLORS
-import os
+from gui.manager import ManagerTools
 
 class LoginPage:
     def __init__(self, main_frame, app):
@@ -120,8 +120,15 @@ class LoginPage:
         username = self.entries["username"].get()
         password = self.entries["password"].get()
         # Add your login logic here
+        self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(text="Manger Tools")
+        self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(command=self.show_manager_tools)
+
+        print(self.app)
         print(f"Login attempt with username: {username}")
-        
+
+    def show_manager_tools(self):
+        ManagerTools(self.main_frame, self.app).display()
+              
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()

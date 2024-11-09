@@ -8,6 +8,7 @@ from config import  COLORS
 
 class InventoryApp():
     def __init__(self):
+        self.test_text = "Inventory APP TEZT TEZT"
         # Initialize window
         self.window = ctk.CTk()
         self.window.title("InMan")
@@ -16,8 +17,6 @@ class InventoryApp():
         # Set appearance
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-        
-        
         
         # Configure grid layout
         self.window.grid_columnconfigure(1, weight=1)

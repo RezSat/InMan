@@ -2,8 +2,8 @@ import customtkinter as ctk
 from config import COLORS
 
 def create_sidebar(window, app):
-    sidebar = ctk.CTkFrame(window, width=200, corner_radius=0)
-    sidebar.grid(row=0, column=0, rowspan=4, sticky="nsew")
+    sidebar = ctk.CTkFrame(window, width=200, corner_radius=6)
+    sidebar.grid(row=0, column=0, rowspan=4, padx=20, pady=20, sticky="nsew")
     sidebar.grid_propagate(False)
 
     # Logo container frame to ensure proper alignment
