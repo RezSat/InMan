@@ -1,5 +1,6 @@
 import json
 
+
 def load_inventory():
     try:
         with open('inventory.json', 'r') as file:

@@ -2,19 +2,23 @@ import customtkinter as ctk
 from .sidebar import create_sidebar
 from .inventory import InventoryDisplay
 from .dashboard import Dashboard
-from .add_item import AddItemForm
+from .login import LoginPage
 from .utils import load_inventory, save_inventory
+from config import  COLORS
 
-class InventoryApp:
+class InventoryApp():
     def __init__(self):
         # Initialize window
         self.window = ctk.CTk()
         self.window.title("InMan")
         self.window.geometry("1200x700")
+        self.window.configure(fg_color=COLORS["ash"])
         
         # Set appearance
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
+        
+        
         
         # Configure grid layout
         self.window.grid_columnconfigure(1, weight=1)
@@ -37,8 +41,8 @@ class InventoryApp:
     def show_dashboard(self):
         Dashboard(self.main_frame, self.inventory).display()
 
-    def show_add_item(self):
-        AddItemForm(self.main_frame, self.inventory).display()
+    def show_login(self):
+        LoginPage(self.main_frame, self.inventory).display()
 
     def show_inventory(self):
         InventoryDisplay(self.main_frame, self.inventory).display()
