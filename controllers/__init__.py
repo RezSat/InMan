@@ -13,7 +13,9 @@ from .crud import (
     delete_employee,
     log_action,
     assign_item_to_employee,
-    transfer_item
+    transfer_item,
+    update_employee,
+    remove_item_from_employee
 )
 
 from .auth import hash_password, verify_password, create_user, authenticate_user
@@ -34,6 +36,8 @@ __all__ = [
     'log_action',
     'assign_item_to_employee',
     'transfer_item',
+    'update_employee',
+    'remove_item_from_employee'
 
     'hash_password', 
     'verify_password', 

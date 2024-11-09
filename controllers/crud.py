@@ -132,3 +132,37 @@ def transfer_item(db: Session, from_emp_id: str, to_emp_id: str, item_id: int, n
     db.commit()
 
     return new_assignment
+
+# Update Employee Info
+def update_employee(db: Session, emp_id: str, new_name: str = None, new_division_id: int = None):
+    employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+    if employee:
+        if new_name:
+            employee.name = new_name
+        if new_division_id:
+            employee.division_id = new_division_id
+        db.commit()
+        db.refresh(employee)
+        log_action(db, action_type="update_employee", details=f"Updated employee {emp_id} details")
+        return employee
+    return None
+
+# Remove item from an employee’s list (does not delete item from DB)
+def remove_item_from_employee(db: Session, emp_id: str, item_id: int):
+    assignment = db.query(EmployeeItem).filter(
+        EmployeeItem.emp_id == emp_id,
+        EmployeeItem.item_id == item_id
+    ).first()
+
+    if assignment:
+        db.delete(assignment)
+        db.commit()
+
+        # Update item count for employee
+        employee = get_employee(db, emp_id)
+        employee.item_count -= 1
+        db.commit()
+
+        log_action(db, action_type="remove_item", details=f"Removed item {item_id} from employee {emp_id}")
+        return True
+    return False
