@@ -122,11 +122,14 @@ class LoginPage:
         # Add your login logic here
         self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(text="Manger Tools")
         self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(command=self.show_manager_tools)
+        self.clear_main_frame()
+        self.show_manager_tools()
 
         print(self.app)
         print(f"Login attempt with username: {username}")
 
     def show_manager_tools(self):
+        self.clear_main_frame()
         ManagerTools(self.main_frame, self.app).display()
               
     def clear_main_frame(self):

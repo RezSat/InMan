@@ -6,16 +6,12 @@ class ManagerTools():
         self.main_frame = main_frame
         self.inventory = inventory
         self.tools = [
-            ("Add Items", self.placeholder_command),
-            ("Add Employees", self.placeholder_command),
-            ("Add Divisions", self.placeholder_command),
-            ("Tranfer items", self.placeholder_command),
-            ("Remove Items", self.placeholder_command),
-            ("Remove employees", self.placeholder_command),
-            ("Remove Divisions", self.placeholder_command),
-            ("Edit Items", self.placeholder_command),
-            ("Edit Employees", self.placeholder_command),
-            ("Edit Divisions", self.placeholder_command),
+            ("Add Items", self.placeholder_command), ("Add Employees", self.placeholder_command), ("Add Divisions", self.placeholder_command),
+            ("Remove Items", self.placeholder_command),("Remove employees", self.placeholder_command),("Remove Divisions", self.placeholder_command),
+            ("Edit Items", self.placeholder_command),("Edit Employees", self.placeholder_command),("Edit Divisions", self.placeholder_command),
+            ("Tranfer items", self.placeholder_command), ("Tranfer Employees", self.placeholder_command),
+            
+            
 
         ]
 
@@ -44,10 +40,11 @@ class ManagerTools():
             card,
             text=text,
             command=command,
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=16, weight="bold", family="futura"),
             fg_color="transparent",
+            hover_color=COLORS['pink'],
             height=80,
-            width=150
+            width=150,
         )
         button.pack(expand=True, fill="both", padx=10, pady=10)
 
