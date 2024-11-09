@@ -9,7 +9,7 @@ db = SessionLocal()
 
 # Initialize the customtkinter window
 app = ctk.CTk()
-app.title("Inventory Management System")
+app.title("InMan")
 app.geometry("900x600")
 app.configure(bg="#f0f0f0")
 

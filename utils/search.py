@@ -19,3 +19,7 @@ def search_items(db: Session, query: str):
 # Search Divisions by name
 def search_divisions(db: Session, query: str):
     return db.query(Division).filter(Division.name.ilike(f"%{query}%")).all()
+
+# Get item by its unique key
+def get_item_by_key(db: Session, unique_key: str):
+    return db.query(Item).filter(Item.unique_key == unique_key).first()
