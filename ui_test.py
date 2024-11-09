@@ -6,7 +6,7 @@ class InventoryApp:
     def __init__(self):
         # Initialize window
         self.window = ctk.CTk()
-        self.window.title("Inventory Management System")
+        self.window.title("InMan")
         self.window.geometry("1200x700")
         
         # Set appearance
@@ -31,7 +31,7 @@ class InventoryApp:
         sidebar.grid_propagate(False)
         
         # Logo label
-        logo_label = ctk.CTkLabel(sidebar, text="Inventory\nManager", font=ctk.CTkFont(size=20, weight="bold"))
+        logo_label = ctk.CTkLabel(sidebar, text="InMan", font=ctk.CTkFont(size=20, weight="bold"))
         logo_label.grid(row=0, column=0, padx=20, pady=20)
         
         # Sidebar buttons
@@ -47,6 +47,9 @@ class InventoryApp:
         # Version label at bottom
         version_label = ctk.CTkLabel(sidebar, text="v1.0")
         version_label.grid(row=4, column=0, padx=20, pady=20, sticky="s")
+
+        btn_update = ctk.CTkButton(sidebar, text="Check for Updates", command=print('checking for updates'))
+        btn_update.grid(row=5, column=0, padx=20, pady=10)
         
     def create_main_frame(self):
         # Main content frame

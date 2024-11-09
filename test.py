@@ -124,7 +124,10 @@ def test3():
     db.close()
 
 if __name__ == "__main__":
-    test1()
-    test2()
-    test3()
+    app = InventoryApp()
+    app.run()
+
+    #test1()
+    #test2()
+    #test3()
     #main_loop()
