@@ -11,6 +11,7 @@ def search_employees(db: Session, query: str):
 
 # Search Items by name or unique_key
 def search_items(db: Session, query: str):
+    # need to update as there is no unique key in the Item anymore it moved to EmployeeItem
     return db.query(Item).filter(
         (Item.name.ilike(f"%{query}%")) |
         (Item.unique_key.ilike(f"%{query}%"))
@@ -22,6 +23,7 @@ def search_divisions(db: Session, query: str):
 
 # Get item by its unique key
 def get_item_by_key(db: Session, unique_key: str):
+    # update needed as there is no unique key in the Item anymore it moved to EmployeeItem
     return db.query(Item).filter(Item.unique_key == unique_key).first()
 
 # Search Items by Attribute Key and Value

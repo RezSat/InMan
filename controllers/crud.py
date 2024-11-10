@@ -95,12 +95,12 @@ def delete_item_attribute(db: Session, item_id: int, name: str):
     db.commit()
 
 # Item CRUD Operations (Updated)
-def create_item(db: Session, name: str, unique_key: str, is_common: bool, attributes=None):
+def create_item(db: Session, name: str, is_common: bool, attributes=None):
     """
     Create a new item, optionally with attributes.
     `attributes` is a dictionary with key-value pairs for item properties.
     """
-    item = Item(name=name, unique_key=unique_key, is_common=is_common)
+    item = Item(name=name, is_common=is_common)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -141,14 +141,14 @@ def log_action(db: Session, action_type: str, details: str, user_id: int = None)
     return log_entry
 
 # Item Assignment (Updated to log attributes)
-def assign_item_to_employee(db: Session, emp_id: str, item_id: int, is_unique: bool = False, notes: str = ""):
+def assign_item_to_employee(db: Session, emp_id: str, item_id: int, unique_key: str, notes: str = ""):
     """
     Assign an item to an employee and include attributes in the log.
     """
     employee_item = EmployeeItem(
         emp_id=emp_id,
         item_id=item_id,
-        is_unique=is_unique,
+        unique_key=unique_key,
         date_assigned=datetime.utcnow(),
         notes=notes
     )

@@ -20,6 +20,7 @@ def get_item_transfer_history(db: Session):
 
 # Generate a report of all items assigned to an employee
 def generate_employee_report(db: Session, emp_id: str):
+    # need to update as there is no unique key in the Item anymore it moved to EmployeeItem
     employee = get_employee(db, emp_id)
     if not employee:
         return "Employee not found."
@@ -37,6 +38,7 @@ def generate_employee_report(db: Session, emp_id: str):
 
 # Generate a report of all items in the system
 def generate_item_report(db: Session):
+    # need to update as there is no unique key in the Item anymore it moved to EmployeeItem
     items = get_all_items(db)
     report = "System-wide Item Report\n\n"
     
@@ -50,6 +52,7 @@ def generate_item_report(db: Session):
 
 # Generate a detailed report of items assigned to an employee, including attributes
 def generate_detailed_employee_report(db: Session, emp_id: str):
+    # need to update as there is no unique key in the Item anymore it moved to EmployeeItem
     employee = get_employee(db, emp_id)
     if not employee:
         return "Employee not found."
@@ -70,6 +73,7 @@ def generate_detailed_employee_report(db: Session, emp_id: str):
 
 # Generate a report of items with specific attribute details
 def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
+    # need to update as there is no unique key in the Item anymore it moved to EmployeeItem
     """
     Generate a report of items that match a specific attribute key-value pair.
     """
