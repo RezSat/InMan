@@ -1,4 +1,6 @@
+#utils/summary.py
 from controllers.crud import *
+from .search  import search_items_by_attribute
 
 # Get all items assigned to an employee
 def get_employee_items(db: Session, emp_id: str):
@@ -42,5 +44,45 @@ def generate_item_report(db: Session):
     else:
         for item in items:
             report += f"Item Name: {item.name}, Unique Key: {item.unique_key}, Is Common: {'Yes' if item.is_common else 'No'}\n"
+    
+    return report
+
+# Generate a detailed report of items assigned to an employee, including attributes
+def generate_detailed_employee_report(db: Session, emp_id: str):
+    employee = get_employee(db, emp_id)
+    if not employee:
+        return "Employee not found."
+    
+    items = get_employee_items(db, emp_id)
+    report = f"Report for Employee: {employee.name} ({emp_id})\n\n"
+    
+    if not items:
+        report += "No items assigned.\n"
+    else:
+        for item in items:
+            report += f"Item Name: {item.name}, Unique Key: {item.unique_key}\n"
+            attributes = get_item_attributes(db, item.item_id)
+            for attr in attributes:
+                report += f"  - {attr.key}: {attr.value}\n"
+    
+    return report
+
+# Generate a report of items with specific attribute details
+def generate_attribute_filtered_item_report(db: Session, key: str, value: str):
+    """
+    Generate a report of items that match a specific attribute key-value pair.
+    """
+    items = search_items_by_attribute(db, key, value)
+    report = f"Items Report with Attribute {key} = {value}\n\n"
+    
+    if not items:
+        report += "No items found with the specified attribute.\n"
+    else:
+        for item in items:
+            report += f"Item Name: {item.name}, Unique Key: {item.unique_key}\n"
+            attributes = get_item_attributes(db, item.item_id)
+            for attr in attributes:
+                report += f"  - {attr.key}: {attr.value}\n"
+            report += "\n"
     
     return report
