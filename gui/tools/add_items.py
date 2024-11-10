@@ -1,4 +1,7 @@
 import customtkinter as ctk
+from collections import defaultdict
+
+from controllers.crud import create_item
 from config import COLORS
 
 class AddItems:
@@ -6,6 +9,7 @@ class AddItems:
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         self.attribute_rows = []
+        self.collect_attributes = defaultdict()
         
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -107,7 +111,7 @@ class AddItems:
         
         section_title = ctk.CTkLabel(
             info_section,
-            text="Basic Information",
+            text="Enter item details to create:",
             font=ctk.CTkFont(size=20, weight="bold")
         )
         section_title.pack(anchor="w", pady=(0, 20))
@@ -118,21 +122,21 @@ class AddItems:
         info_grid.grid_columnconfigure(1, weight=1)
         
         # Create input fields
-        self.create_input_field(info_grid, "Item Name:", 0)
+        self.item_name = self.create_input_field(info_grid, "Item Name:", 0)
         
         # Common Item Row
         common_frame = ctk.CTkFrame(info_section, fg_color="transparent")
         common_frame.pack(fill="x", pady=20)
         
         # Common item checkbox
-        common_checkbox = ctk.CTkCheckBox(
+        self.common_checkbox = ctk.CTkCheckBox(
             common_frame,
             text="Is Common Item",
             font=ctk.CTkFont(size=16),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"]
         )
-        common_checkbox.pack(side="left", padx=(0, 40))
+        self.common_checkbox.pack(side="left", padx=(0, 40))
         
 
         # Attributes Section
@@ -175,7 +179,8 @@ class AddItems:
             font=ctk.CTkFont(size=16, weight="bold"),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
-            height=50
+            height=50,
+            command=self.add_item
         )
         submit_button.pack(fill="x", pady=(30, 0))
 
@@ -261,6 +266,12 @@ class AddItems:
                     attribute_combo.pack(side="left", padx=(0, 10))
                 value_entry.pack(side="left", padx=(0, 10))
             
+            # update the collect_attributes dictionary
+            if choice == "Create New":
+                self.collect_attributes[name_entry] = value_entry
+            else:
+                self.collect_attributes[attribute_combo] = value_entry
+            
         attribute_combo.configure(command=on_attribute_select)
         self.attribute_rows.append(row_frame)
 
@@ -272,3 +283,17 @@ class AddItems:
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+
+    def add_item(self):
+        print("Attributes:")
+        for attribute, value_entry in self.collect_attributes.items():
+            # Determine if the attribute is created new or selected
+            if attribute.winfo_manager():  # Check if the name_entry is visible
+                attribute_name = attribute.get()  # This is the name_entry
+            else:
+                attribute_name = attribute.get()  # This is the attribute_combo
+
+            print(f"Name: {attribute_name}, Value: {value_entry.get()}")
+
+        print("Common Item:", self.common_checkbox.get())
+        print("Item Name:", self.item_name.get())
