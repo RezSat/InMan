@@ -1,3 +1,4 @@
+#gui/ui.py
 import customtkinter as ctk
 from .sidebar import create_sidebar
 from .inventory import InventoryDisplay

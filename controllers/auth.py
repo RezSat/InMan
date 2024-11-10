@@ -1,4 +1,4 @@
-# auth.py
+# controllers/auth.py
 
 from models.models import User
 from sqlalchemy.orm import Session

@@ -1,3 +1,4 @@
+# gui/login.py
 import customtkinter as ctk
 from config import COLORS
 from gui.manager import ManagerTools

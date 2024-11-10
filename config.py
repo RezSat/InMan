@@ -1,3 +1,5 @@
+# config.py
+
 import pathlib
 
 # Get the current working directory

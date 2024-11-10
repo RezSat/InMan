@@ -1,3 +1,4 @@
+# gui/inventory.py
 import customtkinter as ctk
 
 class InventoryDisplay:

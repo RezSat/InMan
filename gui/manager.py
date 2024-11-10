@@ -1,20 +1,28 @@
+# gui/manager.py
 import customtkinter as ctk
 from config import COLORS
+from gui.tools.add_items import AddItems
 
 class ManagerTools():
     def __init__(self, main_frame, inventory):
         self.main_frame = main_frame
         self.inventory = inventory
         self.tools = [
-            ("Add Items", self.placeholder_command), ("Add Employees", self.placeholder_command), ("Add Divisions", self.placeholder_command),
+            ("Add Items", self.add_item_cmd), ("Add Employees", self.placeholder_command), ("Add Divisions", self.placeholder_command),
             ("Remove Items", self.placeholder_command),("Remove employees", self.placeholder_command),("Remove Divisions", self.placeholder_command),
             ("Edit Items", self.placeholder_command),("Edit Employees", self.placeholder_command),("Edit Divisions", self.placeholder_command),
             ("Tranfer items", self.placeholder_command), ("Tranfer Employees", self.placeholder_command),
-            
-            
 
         ]
 
+    def return_to_manager_function(self):
+        self.clear_main_frame()
+        self.display()
+
+    def add_item_cmd(self):
+        add_items = AddItems(self.main_frame, self.return_to_manager_function)
+        add_items.display()
+        
     def placeholder_command(self):
         print("Button clicked!")
 
@@ -57,7 +65,7 @@ class ManagerTools():
         title = ctk.CTkLabel(
             self.main_frame, 
             text="Manager Tools", 
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold", family="Verdana"),
         )
         title.pack(pady=(20, 10))  # Reduced bottom padding
 

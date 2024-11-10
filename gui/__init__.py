@@ -5,6 +5,7 @@ from .dashboard import Dashboard
 from .inventory import InventoryDisplay
 from .sidebar import create_sidebar
 from .manager import ManagerTools
+from .tools import *
 
 __all__ = [
     "InventoryApp", 

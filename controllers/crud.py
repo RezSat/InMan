@@ -1,7 +1,5 @@
 # controllers/crud.py
 
-# crud.py
-
 from sqlalchemy.orm import Session
 from models.models import *
 from datetime import datetime
