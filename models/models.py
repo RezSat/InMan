@@ -33,7 +33,6 @@ class Item(Base):
     __tablename__ = "items"
     item_id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    unique_key = Column(String, unique=True, nullable=False)
     is_common = Column(Boolean, default=False)
     status = Column(Enum("active", "retired", "lost"), default="active")
     last_assigned = Column(DateTime, default=datetime.utcnow)
@@ -49,7 +48,7 @@ class EmployeeItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     emp_id = Column(String, ForeignKey("employees.emp_id"))
     item_id = Column(Integer, ForeignKey("items.item_id"))
-    is_unique = Column(Boolean, default=False)
+    unique_key = Column(String, nullable=True)
     date_assigned = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text)
 
