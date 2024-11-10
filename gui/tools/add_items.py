@@ -1,3 +1,5 @@
+# gui/tools/add_items.py
+
 import customtkinter as ctk
 from collections import defaultdict
 
