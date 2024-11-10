@@ -50,11 +50,11 @@ def delete_employee(db: Session, emp_id: str):
 
 # --- New CRUD functions for Item Attributes ---
 
-def add_item_attribute(db: Session, item_id: int, key: str, value: str):
+def add_item_attribute(db: Session, item_id: int, name: str, value: str):
     """
     Add an attribute to an item.
     """
-    attribute = ItemAttribute(item_id=item_id, key=key, value=value)
+    attribute = ItemAttribute(item_id=item_id, name=name, value=value)
     db.add(attribute)
     db.commit()
     return attribute
@@ -65,13 +65,13 @@ def get_item_attributes(db: Session, item_id: int):
     """
     return db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
 
-def update_item_attribute(db: Session, item_id: int, key: str, new_value: str):
+def update_item_attribute(db: Session, item_id: int, name: str, new_value: str):
     """
     Update an attribute of an item.
     """
     attribute = db.query(ItemAttribute).filter(
         ItemAttribute.item_id == item_id,
-        ItemAttribute.key == key
+        ItemAttribute.name == name
     ).first()
 
     if attribute:
@@ -86,13 +86,13 @@ def delete_item_attributes(db: Session, item_id: int):
     db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
     db.commit()
 
-def delete_item_attribute(db: Session, item_id: int, key: str):
+def delete_item_attribute(db: Session, item_id: int, name: str):
     """
     Delete a specific attribute of an item.
     """
     db.query(ItemAttribute).filter(
         ItemAttribute.item_id == item_id,
-        ItemAttribute.key == key
+        ItemAttribute.name == name
     ).delete()
     db.commit()
 
@@ -109,8 +109,8 @@ def create_item(db: Session, name: str, unique_key: str, is_common: bool, attrib
 
     # Add attributes if provided
     if attributes:
-        for key, value in attributes.items():
-            add_item_attribute(db, item_id=item.item_id, key=key, value=value)
+        for name, value in attributes.items():
+            add_item_attribute(db, item_id=item.item_id, name=name, value=value)
 
     return item
 
@@ -164,7 +164,7 @@ def assign_item_to_employee(db: Session, emp_id: str, item_id: int, is_unique: b
 
     # Log the action along with item attributes
     item = get_item(db, item_id)
-    attribute_details = ", ".join(f"{attr.key}: {attr.value}" for attr in item.attributes)
+    attribute_details = ", ".join(f"{attr.name}: {attr.value}" for attr in item.attributes)
     log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
     log_action(db, action_type="assign_item", details=log_details)
 

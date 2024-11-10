@@ -25,22 +25,22 @@ def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).filter(Item.unique_key == unique_key).first()
 
 # Search Items by Attribute Key and Value
-def search_items_by_attribute(db: Session, key: str, value: str):
+def search_items_by_attribute(db: Session, name: str, value: str):
     """
     Search for items with a specific attribute key-value pair.
     """
     return db.query(Item).join(ItemAttribute).filter(
-        ItemAttribute.key == key,
+        ItemAttribute.name == name,
         ItemAttribute.value.ilike(f"%{value}%")
     ).all()
 
 # Search Employees by Items with Specific Attributes
-def search_employees_by_item_attribute(db: Session, key: str, value: str):
+def search_employees_by_item_attribute(db: Session, name: str, value: str):
     """
     Search for employees who have been assigned items with a specific attribute.
     """
     return db.query(Employee).join(EmployeeItem).join(Item).join(ItemAttribute).filter(
-        ItemAttribute.key == key,
+        ItemAttribute.name == name,
         ItemAttribute.value.ilike(f"%{value}%")
     ).all()
 

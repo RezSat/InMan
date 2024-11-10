@@ -9,7 +9,7 @@ from gui.ui import *
 
 def test1():
     # Initialize Database
-    initialize_database()
+    #initialize_database()
 
     # Start a session
     db = SessionLocal()
@@ -49,6 +49,7 @@ def test1():
     db.close()
 
 def test2():
+    #initialize_database()
     db = SessionLocal()
 
     # Create test division and employees
@@ -76,6 +77,7 @@ def test2():
     db.close()
 
 def test3():
+    #initialize_database()
     db = SessionLocal()
 
     # Create test division and employees
@@ -123,6 +125,62 @@ def test3():
 
     db.close()
 
+
+def test4():
+    initialize_database()
+    # updated test case after the new database model.
+    db = SessionLocal()
+
+    # Create a test division
+    division = create_division(db, name="Engineering")
+    print(f"Created Division: {division.name}")
+
+    # Create test employees
+    emp1 = create_employee(db, emp_id="E006", name="Frank", division_id=division.division_id)
+    emp2 = create_employee(db, emp_id="E007", name="Grace", division_id=division.division_id)
+    print(f"Created Employee: {emp1.name}, ID: {emp1.emp_id}")
+    print(f"Created Employee: {emp2.name}, ID: {emp2.emp_id}")
+
+    # Create test items with attributes
+    item1 = create_item(db, name="Laptop", unique_key="LT12345", is_common=False)
+    item2 = create_item(db, name="Router", unique_key="RT54321", is_common=True)
+    print(f"Created Item: {item1.name}, Unique Key: {item1.unique_key}")
+    print(f"Created Item: {item2.name}, Unique Key: {item2.unique_key}")
+
+    # Add attributes to items
+    add_item_attribute(db, item_id=item1.item_id, name="brand", value="Dell")
+    add_item_attribute(db, item_id=item1.item_id, name="model", value="Latitude 5400")
+    add_item_attribute(db, item_id=item2.item_id, name="brand", value="Cisco")
+    add_item_attribute(db, item_id=item2.item_id, name="model", value="RV340")
+
+    # Assign items to employees
+    assign_item_to_employee(db, emp_id=emp1.emp_id, item_id=item1.item_id, is_unique=True)
+    assign_item_to_employee(db, emp_id=emp2.emp_id, item_id=item2.item_id, is_unique=False)
+    print(f"Assigned Item {item1.name} to Employee {emp1.name}")
+    print(f"Assigned Item {item2.name} to Employee {emp2.name}")
+
+    # Test searching items by attribute
+    laptops = search_items_by_attribute(db, name="brand", value="Dell")
+    print(f"Items with brand 'Dell':", [item.name for item in laptops])
+
+    # Test searching employees by item attribute
+    employees_with_dell = search_employees_by_item_attribute(db, name="brand", value="Dell")
+    print(f"Employees with Dell items:", [emp.name for emp in employees_with_dell])
+
+    # Test searching employees by item name
+    employees_with_laptops = search_employees_by_item_name(db, item_name="Laptop")
+    print(f"Employees with Laptops:", [emp.name for emp in employees_with_laptops])
+
+    # Generate detailed employee report
+    detailed_report = generate_detailed_employee_report(db, emp_id=emp1.emp_id)
+    print("Detailed Employee Report:\n", detailed_report)
+
+    # Generate attribute-filtered item report
+    attribute_report = generate_attribute_filtered_item_report(db, name="brand", value="Cisco")
+    print("Attribute-Filtered Item Report:\n", attribute_report)
+
+    db.close()
+
 if __name__ == "__main__":
     app = InventoryApp()
     app.run()
@@ -130,4 +188,5 @@ if __name__ == "__main__":
     #test1()
     #test2()
     #test3()
+    #test4()
     #main_loop()

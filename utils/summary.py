@@ -63,17 +63,17 @@ def generate_detailed_employee_report(db: Session, emp_id: str):
             report += f"Item Name: {item.name}, Unique Key: {item.unique_key}\n"
             attributes = get_item_attributes(db, item.item_id)
             for attr in attributes:
-                report += f"  - {attr.key}: {attr.value}\n"
+                report += f"  - {attr.name}: {attr.value}\n"
     
     return report
 
 # Generate a report of items with specific attribute details
-def generate_attribute_filtered_item_report(db: Session, key: str, value: str):
+def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
     """
     Generate a report of items that match a specific attribute key-value pair.
     """
-    items = search_items_by_attribute(db, key, value)
-    report = f"Items Report with Attribute {key} = {value}\n\n"
+    items = search_items_by_attribute(db, name, value)
+    report = f"Items Report with Attribute {name} = {value}\n\n"
     
     if not items:
         report += "No items found with the specified attribute.\n"
@@ -82,7 +82,7 @@ def generate_attribute_filtered_item_report(db: Session, key: str, value: str):
             report += f"Item Name: {item.name}, Unique Key: {item.unique_key}\n"
             attributes = get_item_attributes(db, item.item_id)
             for attr in attributes:
-                report += f"  - {attr.key}: {attr.value}\n"
+                report += f"  - {attr.name}: {attr.value}\n"
             report += "\n"
     
     return report
