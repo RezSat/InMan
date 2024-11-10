@@ -1,19 +1,4 @@
 # config.py
-
-import pathlib
-
-# Get the current working directory
-cwd = pathlib.Path.cwd()
-
-# Find the assets folder
-assets_folder = cwd / 'assets'
-
-# Check if the assets folder exists
-if not assets_folder.exists():
-    raise ValueError(f'Assets folder not found: {assets_folder}')
-
-ICON = assets_folder / 'icon.ico'
-
 COLORS = {
     'black': '#2c363f',
     'pink': '#e75a7c',
