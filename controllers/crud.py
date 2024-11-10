@@ -48,27 +48,92 @@ def delete_employee(db: Session, emp_id: str):
         db.commit()
     return employee
 
-# Item CRUD Operations
-def create_item(db: Session, name: str, unique_key: str, is_common: bool):
+# --- New CRUD functions for Item Attributes ---
+
+def add_item_attribute(db: Session, item_id: int, key: str, value: str):
+    """
+    Add an attribute to an item.
+    """
+    attribute = ItemAttribute(item_id=item_id, key=key, value=value)
+    db.add(attribute)
+    db.commit()
+    return attribute
+
+def get_item_attributes(db: Session, item_id: int):
+    """
+    Retrieve all attributes of an item.
+    """
+    return db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
+
+def update_item_attribute(db: Session, item_id: int, key: str, new_value: str):
+    """
+    Update an attribute of an item.
+    """
+    attribute = db.query(ItemAttribute).filter(
+        ItemAttribute.item_id == item_id,
+        ItemAttribute.key == key
+    ).first()
+
+    if attribute:
+        attribute.value = new_value
+        db.commit()
+    return attribute
+
+def delete_item_attributes(db: Session, item_id: int):
+    """
+    Delete all attributes for a given item.
+    """
+    db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
+    db.commit()
+
+def delete_item_attribute(db: Session, item_id: int, key: str):
+    """
+    Delete a specific attribute of an item.
+    """
+    db.query(ItemAttribute).filter(
+        ItemAttribute.item_id == item_id,
+        ItemAttribute.key == key
+    ).delete()
+    db.commit()
+
+# Item CRUD Operations (Updated)
+def create_item(db: Session, name: str, unique_key: str, is_common: bool, attributes=None):
+    """
+    Create a new item, optionally with attributes.
+    `attributes` is a dictionary with key-value pairs for item properties.
+    """
     item = Item(name=name, unique_key=unique_key, is_common=is_common)
     db.add(item)
     db.commit()
     db.refresh(item)
+
+    # Add attributes if provided
+    if attributes:
+        for key, value in attributes.items():
+            add_item_attribute(db, item_id=item.item_id, key=key, value=value)
+
     return item
 
 def get_item(db: Session, item_id: int):
-    return db.query(Item).filter(Item.item_id == item_id).first()
+    item = db.query(Item).filter(Item.item_id == item_id).first()
+    if item:
+        # Retrieve attributes for this item
+        item.attributes = get_item_attributes(db, item_id)
+    return item
 
 def get_all_items(db: Session):
     return db.query(Item).all()
 
 def delete_item(db: Session, item_id: int):
+    # Delete attributes first
+    delete_item_attributes(db, item_id)
+
+    # Delete item
     item = get_item(db, item_id)
     if item:
         db.delete(item)
         db.commit()
     return item
-
 
 # Log Action
 def log_action(db: Session, action_type: str, details: str, user_id: int = None):
@@ -77,8 +142,11 @@ def log_action(db: Session, action_type: str, details: str, user_id: int = None)
     db.commit()
     return log_entry
 
-# Item Assignment
+# Item Assignment (Updated to log attributes)
 def assign_item_to_employee(db: Session, emp_id: str, item_id: int, is_unique: bool = False, notes: str = ""):
+    """
+    Assign an item to an employee and include attributes in the log.
+    """
     employee_item = EmployeeItem(
         emp_id=emp_id,
         item_id=item_id,
@@ -89,11 +157,16 @@ def assign_item_to_employee(db: Session, emp_id: str, item_id: int, is_unique: b
     db.add(employee_item)
     db.commit()
 
-    # Update item count and log assignment
+    # Update item count and log assignment with item attributes
     employee = get_employee(db, emp_id)
     employee.item_count += 1
     db.commit()
-    log_action(db, action_type="assign_item", details=f"Assigned item {item_id} to employee {emp_id}")
+
+    # Log the action along with item attributes
+    item = get_item(db, item_id)
+    attribute_details = ", ".join(f"{attr.key}: {attr.value}" for attr in item.attributes)
+    log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
+    log_action(db, action_type="assign_item", details=log_details)
 
     return employee_item
 
