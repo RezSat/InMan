@@ -44,55 +44,7 @@ inventory_management_app/
 └── README.md                      # Documentation for setup, usage, etc.
 ```
 
-### To-Do List
-
-1. **Set Up Project Environment**
-   - Set up a virtual environment.
-   - Install required packages (`customtkinter`, `Flask`, database connector like `sqlite3` or `SQLAlchemy`).
-   - Initialize a Git repository for version control.
-
-2. **Configure Database Structure**
-   - Create `database.py` for database connections and initialize tables (items, users, etc.).
-   - Design `item_model.py` and `user_model.py` with methods for database CRUD operations.
-   - Define JSON/SQL structures for offline storage in `sync_controller.py`.
-
-3. **Define Configurations**
-   - In `config/config.py`, define configurations like paths, API endpoints, synchronization intervals, and other constants.
-
-4. **Build Basic GUI Structure**
-   - Set up `main_view.py` to create the main application layout.
-   - In `navigation_bar.py`, design a navigation bar for easy access to inventory, user management, and sync status.
-   - Build placeholders for `item_view.py`, `user_view.py`, and `sync_view.py`.
-
-5. **Implement Item Management**
-   - Develop `item_model.py` with CRUD functions for item data.
-   - Add functions in `item_controller.py` for adding, updating, and deleting items.
-   - Design `item_view.py` to list items and handle item addition and editing.
-   - Create a custom item card widget in `item_card.py` to visually represent each item in the inventory.
-
-6. **User Authentication and Role Management**
-   - Implement `user_model.py` with user creation and retrieval logic.
-   - In `user_controller.py`, add authentication and user role validation.
-   - Create `user_view.py` with login and user management forms.
-
-7. **Build Synchronization Features**
-   - Implement sync logic in `sync_controller.py` for online/offline data handling and syncing.
-   - Add status views in `sync_view.py` to display sync progress or alerts for network issues.
-   - Develop helper functions in `sync_utils.py` to streamline syncing and error handling.
-
-8. **Enhance the GUI with Custom Widgets**
-   - Create additional widgets like `user_avatar.py` and style them using `styles.py` to make the interface visually consistent and intuitive.
-
-9. **Input Validation and Logging**
-   - Implement validators in `validators.py` for form inputs (e.g., item names, quantities, user credentials).
-   - Set up logging in `logger.py` for application events and debugging.
-
-10. **Testing and Final Adjustments**
-    - Test each module individually for functionality and bugs.
-    - Ensure modules work together seamlessly in `main.py`.
-    - Polish UI and ensure it’s user-friendly, using consistent styling from `styles.py`.
-    - Prepare and finalize the `README.md` for instructions on installation, usage, and future development steps.
-
+alerts for network issues.
 
 
 Database Schema
