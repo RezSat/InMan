@@ -8,6 +8,8 @@ class TransferItemBetweenEmployees:
         self.return_to_manager = return_to_manager
         self.selected_source_user = None
         self.selected_destination_user = None
+        self.source_selected_button = None
+        self.destination_selected_button = None
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -138,10 +140,15 @@ class TransferItemBetweenEmployees:
         self.bind_search_events()
 
     def open_item_selection_window(self, user):
-        # Create a new top-level window for item selection
-        item_window = ctk.CTkToplevel()
+        # Ensure the window is modal and prevents interaction with the main window
+        item_window = ctk.CTkToplevel(self.main_frame)
         item_window.title(f"Select Items for {user}")
         item_window.geometry("600x500")
+        item_window.transient(self.main_frame)  # Set as a child of main window
+        item_window.grab_set()  # Make the window modal
+
+        # Prevent the window from being closed immediately
+        item_window.protocol("WM_DELETE_WINDOW", lambda: None)
 
         # Frame for items
         items_frame = ctk.CTkScrollableFrame(
@@ -161,8 +168,18 @@ class TransferItemBetweenEmployees:
         )
         title.pack(pady=(0, 20))
 
-        # Example items (you'll replace this with actual items)
-        items = ["Laptop", "Monitor", "Keyboard", "Mouse", "Headphones"]
+        # Fetch actual items (replace with your data retrieval method)
+        try:
+            items = self.get_user_items(user)
+        except Exception as e:
+            items = []
+            error_label = ctk.CTkLabel(
+                items_frame,
+                text=f"Error fetching items: {str(e)}",
+                text_color="red"
+            )
+            error_label.pack(pady=20)
+
         selected_items = []
 
         for item in items:
@@ -172,8 +189,9 @@ class TransferItemBetweenEmployees:
                 text=item, 
                 variable=var,
                 font=ctk.CTkFont(size=14),
-                checkbox_color=COLORS["pink"],
-                hover_color=COLORS["darker_pink"]
+                # Replace checkbox_color with other supported color parameters
+                fg_color=COLORS["pink"],  # This sets the checked state color
+                hover_color=COLORS["darker_pink"]  # This sets the hover color
             )
             checkbox.pack(anchor="w", padx=20, pady=5)
             selected_items.append((item, var))
@@ -211,6 +229,11 @@ class TransferItemBetweenEmployees:
             font=ctk.CTkFont(size=14, weight="bold")
         )
         cancel_button.pack(side="right", padx=10)
+
+    def get_user_items(self, user):
+        # Placeholder method to fetch user items
+        # Replace with actual data retrieval logic
+        return ["Laptop", "Monitor", "Keyboard", "Mouse", "Headphones"]
 
     def transfer_items(self):
         if self.selected_source_user and self.selected_destination_user:
@@ -261,7 +284,7 @@ class TransferItemBetweenEmployees:
         select_button = ctk.CTkButton(
             row_frame,
             text="Select",
-            command=lambda: self.select_user(user, is_source),
+            command=lambda: self.select_user(user, is_source, select_button),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
             width=80,
@@ -270,13 +293,35 @@ class TransferItemBetweenEmployees:
         )
         select_button.pack(side="right", padx=5)
 
-    def select_user(self, user, is_source):
+    def select_user(self, user, is_source, button):
+        # Reset previous selection
         if is_source:
+            if self.source_selected_button:
+                self.source_selected_button.configure(
+                    fg_color=COLORS["pink"], 
+                    text="Select",
+                    state="normal"
+                )
             self.selected_source_user = user["name"]
-            print(f"Selected Source User: {self.selected_source_user}")
+            self.source_selected_button = button
         else:
+            if self.destination_selected_button:
+                self.destination_selected_button.configure(
+                    fg_color=COLORS["pink"], 
+                    text="Select",
+                    state="normal"
+                )
             self.selected_destination_user = user["name"]
-            print(f"Selected Destination User: {self.selected_destination_user}")
+            self.destination_selected_button = button
+
+        # Update selected button
+        button.configure(
+            fg_color=COLORS["green"], 
+            text="Selected",
+            state="disabled"
+        )
+
+        print(f"Selected {'Source' if is_source else 'Destination'} User: {user['name']}")
 
     def bind_search_events(self):
         self.source_search_input.bind("<Return>", lambda event: self.search_user(self.source_search_input.get(), is_source=True))
