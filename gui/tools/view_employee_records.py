@@ -1,3 +1,5 @@
+# gui/tools/view_employee_records.py
+
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS

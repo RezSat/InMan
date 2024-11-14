@@ -12,6 +12,7 @@ from .view_employee_records import ViewEmployeeRecords
 from .remove_employee import RemoveEmployee
 from .update_division import UpdateDivision
 from .remove_division import RemoveDivision
+from .view_division_structure import ViewDivisionStructure
 
 __all__ = [
     'AddItems',

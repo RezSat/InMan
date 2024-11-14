@@ -9,10 +9,10 @@ class ViewDivisionStructure:
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample Division Data matching the model structure
+        # Sample Division Data (you'll replace this with actual data source)
         self.divisions = [
             {
-                "division_id": 1, 
+                "division_id": "DIV001", 
                 "name": "IT Department", 
                 "employee_count": 15,
                 "items": [
@@ -22,13 +22,23 @@ class ViewDivisionStructure:
                 ]
             },
             {
-                "division_id": 2, 
+                "division_id": "DIV002", 
                 "name": "HR Department", 
                 "employee_count": 10,
                 "items": [
                     {"name": "Printer", "count": 5},
                     {"name": "Scanner", "count": 3},
                     {"name": "Conference Phone", "count": 2}
+                ]
+            },
+            {
+                "division_id": "DIV003", 
+                "name": "Finance Department", 
+                "employee_count": 12,
+                "items": [
+                    {"name": "Calculator", "count": 12},
+                    {"name": "Accounting Software License", "count": 10},
+                    {"name": "Safe", "count": 8}
                 ]
             }
         ]
@@ -38,7 +48,6 @@ class ViewDivisionStructure:
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
         
-        # Back Button
         back_button = ctk.CTkButton(
             header_frame,
             text="<- Back to Manager Tools",
@@ -50,8 +59,7 @@ class ViewDivisionStructure:
             font=ctk.CTkFont(size=14, weight="bold")
         )
         back_button.pack(side="left")
-        
-        # Title
+
         title = ctk.CTkLabel(
             header_frame,
             text="Division Structure",
@@ -59,32 +67,6 @@ class ViewDivisionStructure:
             text_color=COLORS["white"]
         )
         title.pack(side="left", padx=20)
-
-        # Search and Filter Section
-        search_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        search_frame.pack(side="right")
-        
-        self.search_entry = ctk.CTkEntry(
-            search_frame,
-            placeholder_text="Search divisions...",
-            width=200,
-            height=40,
-            font=ctk.CTkFont(size=14),
-            fg_color=COLORS["black"],
-            border_color=COLORS["ash"]
-        )
-        self.search_entry.pack(side="left", padx=5)
-        
-        search_button = ctk.CTkButton(
-            search_frame,
-            text="Search",
-            command=self.perform_search,
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=100,
-            height=40
-        )
-        search_button.pack(side="left", padx=5)
 
     def create_divisions_view(self):
         # Main Container
@@ -189,7 +171,7 @@ class ViewDivisionStructure:
             self.items_window, 
             text=f"Items in {division['name']}",
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color= COLORS["white"]
+            text_color=COLORS["white"]
         )
         title.pack(pady=10)
 
@@ -236,6 +218,11 @@ class ViewDivisionStructure:
         )
         close_button.pack(pady=10)
 
-        # Initialize the UI components
+    def display(self):
+        self.clear_main_frame()
         self.create_header()
-        self.create_divisions_view() 
+        self.create_divisions_view()
+
+    def clear_main_frame(self):
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
