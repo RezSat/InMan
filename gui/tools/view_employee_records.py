@@ -229,10 +229,10 @@ class ViewEmployeeRecords:
 
     def show_item_details(self, item):
         # Create a popup window for item details
-        details_window = ctk.CTkToplevel(self.main_frame)
-        details_window.title(f"Item Details: {item['item_id']}")
-        details_window.geometry("400x300")
-        details_window.configure(fg_color=COLORS["secondary_bg"])
+        self.details_window = ctk.CTkToplevel(self.main_frame)
+        self.details_window.title(f"Item Details: {item['item_id']}")
+        self.details_window.geometry("400x300")
+        self.details_window.configure(fg_color=COLORS["secondary_bg"])
 
         # Make the popup modal and prevent interaction with the main window
         self.popup.grab_set()
@@ -242,12 +242,12 @@ class ViewEmployeeRecords:
         self.popup.focus_force()
 
         # Prevent the popup from being closed by the window manager's close button
-        self.popup.protocol("WM_DELETE_WINDOW", self.popup.destroy)
+        self.popup.protocol("WM_DELETE_WINDOW", self.details_window.destroy)
     
 
         # Title
         ctk.CTkLabel(
-            details_window,
+            self.details_window,
             text=item['name'],
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COLORS["white"]
@@ -255,7 +255,7 @@ class ViewEmployeeRecords:
 
         # Item ID
         ctk.CTkLabel(
-            details_window,
+            self.details_window,
             text=f"Item ID: {item['item_id']}",
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
@@ -263,7 +263,7 @@ class ViewEmployeeRecords:
 
         # Status
         ctk.CTkLabel(
-            details_window,
+            self.details_window,
             text=f"Status: {'Active' if item.get('is_common', False) else 'Individual'}",
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
@@ -271,9 +271,9 @@ class ViewEmployeeRecords:
 
         # Close Button
         close_button = ctk.CTkButton(
-            details_window,
+            self.details_window,
             text="Close",
-            command=details_window.destroy,
+            command=self.details_window.destroy,
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
             width=100
