@@ -226,12 +226,9 @@ class RemoveItem:
         # Remove item from data source
         self.items_data = [i for i in self.items_data if i["item_id"] != item["item_id"]]
         self.filtered_items = self.items_data.copy()
+                
+        self.display()
         
-        # Refresh the item view
-        for widget in self.items_scroll.winfo_children():
-            widget.destroy()
-        
-        self.create_items_view()
 
     def display(self):
         self.clear_main_frame()
