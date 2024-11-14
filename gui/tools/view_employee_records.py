@@ -182,6 +182,7 @@ class ViewEmployeeRecords:
 
         # Bind click event to show employee items
         employee_frame.bind("<Button-1>", lambda e, emp=employee: self.show_employee_items(emp))
+        info_frame.bind("<Button-1>", lambda e, emp=employee: self.show_employee_items(emp))  # Added this line
         employee_frame.bind("<Enter>", lambda e: employee_frame.configure(fg_color=COLORS["pink"]))
         employee_frame.bind("<Leave>", lambda e: employee_frame.configure(fg_color=COLORS["black"]))
 
