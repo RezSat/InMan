@@ -9,6 +9,7 @@ from .update_item_details import UpdateItemDetails
 from .remove_items import RemoveItem
 from .update_employee_details import UpdateEmployeeDetail
 from .view_employee_records import ViewEmployeeRecords
+from .remove_employee import RemoveEmployee
 
 __all__ = [
     'AddItems',
@@ -22,4 +23,5 @@ __all__ = [
     'RemoveItem',
     'UpdateEmployeeDetail',
     'ViewEmployeeRecords',
+    'RemoveEmployee'
 ]

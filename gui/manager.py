@@ -11,7 +11,8 @@ from gui.tools import (
     UpdateItemDetails,
     RemoveItem,
     UpdateEmployeeDetail,
-    ViewEmployeeRecords
+    ViewEmployeeRecords,
+    RemoveEmployee
 )
 
 class ManagerTools():
@@ -32,7 +33,7 @@ class ManagerTools():
                 ("Add Employee", self.add_employee_cmd),
                 ("Bulk Import Employees", self.bulk_employee_import_cmd),
                 ("Update Employee Info", self.update_employee_details_cmd),
-                ("Remove Employee", self.placeholder_command),
+                ("Remove Employee", self.remove_employee_cmd),
                 ("View Employee Records", self.view_employee_records_cmd),
             ],
             "Division Management": [
@@ -102,6 +103,10 @@ class ManagerTools():
     def view_employee_records_cmd(self):
         view_employee_records = ViewEmployeeRecords(self.main_frame, self.return_to_manager_function)
         view_employee_records.display()
+
+    def remove_employee_cmd(self):
+        remove_employee = RemoveEmployee(self.main_frame, self.return_to_manager_function)
+        remove_employee.display()
 
     def placeholder_command(self):
         print("Button clicked!")

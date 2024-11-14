@@ -13,7 +13,21 @@ class InventoryApp():
         self.window = ctk.CTk()
         self.window.title("InMan")
         self.window.geometry("1200x700")
-        
+
+        # centering the window
+        self.window.update_idletasks()
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+
+        window_width = 1200
+        window_height = 700
+
+        # calculate position x and y coordinates
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+
+        self.window.geometry(f'{window_width}x{window_height}+{x}+{y-20}')
+
         # Set appearance
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
