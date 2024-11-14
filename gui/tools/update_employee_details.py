@@ -181,16 +181,25 @@ class UpdateEmployeeDetail:
 
     def open_update_dialog(self, employee):
         # Create a top-level window for updating employee details
-        update_window = ctk.CTkToplevel(self.main_frame)
-        update_window.title(f"Update Employee: {employee['emp_id']}")
-        update_window.geometry("500x400")
-        update_window.configure(fg_color=COLORS["secondary_bg"])
+        self.update_window = ctk.CTkToplevel(self.main_frame)
+        self.update_window.title(f"Update Employee: {employee['emp_id']}")
+        self.update_window.geometry("500x400")
+        self.update_window.configure(fg_color=COLORS["secondary_bg"])
+        # Make the popup modal and prevent interaction with the main window
+        self.update_window.grab_set()
+
+        # Ensure the popup is on top of other windows
+        self.update_window.lift()
+        self.update_window.focus_force()
+
+        # Prevent the popup from being closed by the window manager's close button
+        self.update_window.protocol("WM_DELETE_WINDOW", self.update_window.destroy)
 
         # Name Entry
-        name_label = ctk.CTkLabel(update_window, text="Name:", font=ctk.CTkFont(size=14))
+        name_label = ctk.CTkLabel(self.update_window, text="Name:", font=ctk.CTkFont(size=14))
         name_label.pack(pady=(20, 5))
         name_entry = ctk.CTkEntry(
-            update_window, 
+            self.update_window, 
             width=300, 
             height=40, 
             font=ctk.CTkFont(size=14),
@@ -201,10 +210,10 @@ class UpdateEmployeeDetail:
         name_entry.pack(pady=5)
 
         # Division Dropdown
-        division_label = ctk.CTkLabel(update_window, text="Division:", font=ctk.CTkFont(size=14))
+        division_label = ctk.CTkLabel(self.update_window, text="Division:", font=ctk.CTkFont(size=14))
         division_label.pack(pady=(10, 5))
         division_dropdown = ctk.CTkComboBox(
-            update_window,
+            self.update_window,
             width=300,
             height=40,
             font=ctk.CTkFont(size=14),
@@ -223,9 +232,9 @@ class UpdateEmployeeDetail:
 
         # Update Button
         update_btn = ctk.CTkButton(
-            update_window,
+            self.update_window,
             text="Update",
-            command=lambda: self.update_employee(employee['emp_id'], name_entry.get(), division_dropdown.get(), update_window),
+            command=lambda: self.update_employee(employee['emp_id'], name_entry.get(), division_dropdown.get(), self.update_window),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
             width=120,
