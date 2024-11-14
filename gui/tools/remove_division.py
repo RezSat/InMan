@@ -149,7 +149,7 @@ class RemoveDivision:
         self.create_divisions_view()
 
     def clear_main_frame(self):
-        for widget in self.divisions_scroll.winfo_children():
+        for widget in self.main_frame.winfo_children():
             widget.destroy()
 
     def remove_division(self, division_id):
