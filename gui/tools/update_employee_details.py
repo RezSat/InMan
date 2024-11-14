@@ -1,33 +1,51 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
-from controllers.crud import get_all_employees, update_employee
 
 class UpdateEmployeeDetail:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Fetch existing employees
-        self.employees = self.fetch_employees()
+        # Sample Employee Data
+        self.employees = [
+            {
+                "emp_id": "EMP001", 
+                "name": "John Doe", 
+                "division": "IT",
+                "date_joined": "2022-01-15",
+                "item_count": 5
+            },
+            {
+                "emp_id": "EMP002", 
+                "name": "Jane Smith", 
+                "division": "HR",
+                "date_joined": "2021-11-20",
+                "item_count": 3
+            },
+            {
+                "emp_id": "EMP003", 
+                "name": "Mike Johnson", 
+                "division": "Finance",
+                "date_joined": "2023-03-10",
+                "item_count": 2
+            },
+            {
+                "emp_id": "EMP004", 
+                "name": "Sarah Williams", 
+                "division": "Marketing",
+                "date_joined": "2022-07-05",
+                "item_count": 4
+            },
+            {
+                "emp_id": "EMP005", 
+                "name": "David Brown", 
+                "division": "Sales",
+                "date_joined": "2021-05-12",
+                "item_count": 6
+            }
+        ]
         self.filtered_employees = self.employees.copy()
-
-    def fetch_employees(self):
-        # Use the get_all_employees function from your CRUD controller
-        try:
-            employees = get_all_employees()
-            return [
-                {
-                    "emp_id": emp.emp_id,
-                    "name": emp.name,
-                    "division": emp.division.name,  # Assuming division is related
-                    "date_joined": emp.date_joined.strftime("%Y-%m-%d"),
-                    "item_count": emp.item_count
-                } for emp in employees
-            ]
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not fetch employees: {str(e)}")
-            return []
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -82,19 +100,23 @@ class UpdateEmployeeDetail:
         search_button.pack(side="left", padx=5)
 
     def create_employees_view(self):
+        # Destroy existing container if it exists
+        if hasattr(self, 'container'):
+            self.container.destroy()
+
         # Main Container
-        container = ctk.CTkFrame(
+        self.container = ctk.CTkFrame(
             self.main_frame,
             fg_color=COLORS["secondary_bg"],
             corner_radius=15,
             border_width=2,
             border_color=COLORS["white"]
         )
-        container.pack(fill="both", expand=True, padx=20, pady=10)
+        self.container.pack(fill="both", expand=True, padx=20, pady=10)
         
         # Scrollable Frame
         self.employees_scroll = ctk.CTkScrollableFrame(
-            container,
+            self.container,
             fg_color="transparent",
             scrollbar_button_color=COLORS["pink"],
             scrollbar_button_hover_color=COLORS["darker_pink"]
@@ -174,7 +196,7 @@ class UpdateEmployeeDetail:
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
             border_color=COLORS["ash"],
-            default_value=employee['name']
+            placeholder_text=employee['name']
         )
         name_entry.pack(pady=5)
 
@@ -189,13 +211,15 @@ class UpdateEmployeeDetail:
             fg_color=COLORS["black"],
             border_color=COLORS["ash"],
             button_color=COLORS["pink"],
-            button_hover_color=COLORS ["darker_pink"],
+            button_hover_color=COLORS["darker_pink"],
             dropdown_fg_color=COLORS["black"],
             values=["IT", "HR", "Finance", "Operations", "Marketing", "Sales"],
-            state="readonly",
-            default_value=employee['division']
+            state="readonly"
         )
         division_dropdown.pack(pady=5)
+
+        # Set the current value of the dropdown
+        division_dropdown.set(employee['division'])
 
         # Update Button
         update_btn = ctk.CTkButton(
@@ -211,14 +235,10 @@ class UpdateEmployeeDetail:
         update_btn.pack(pady=(20, 10))
 
     def update_employee(self, emp_id, name, division, window):
-        # Call the update_employee function from your CRUD controller
-        try:
-            update_employee(emp_id, name, division)
-            messagebox.showinfo("Success", "Employee details updated successfully.")
-            window.destroy()
-            self.create_employees_view()  # Refresh the employee view
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not update employee: {str(e)}")
+        # Simulate updating employee details
+        messagebox.showinfo("Success", f"Employee {emp_id} updated successfully.")
+        window.destroy()
+        self.create_employees_view()  # Refresh the employee view
 
     def perform_search(self):
         search_term = self.search_entry.get().lower()
