@@ -104,6 +104,9 @@ class RemoveDivision:
                 font=ctk.CTkFont(size=14, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=10, pady=8)
+
+        for i in range(len(headers)):
+            self.divisions_scroll.grid_columnconfigure(i, weight=1)
         
         # Add Divisions
         for idx, division in enumerate(self.filtered_divisions, 1):
