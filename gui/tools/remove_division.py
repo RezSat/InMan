@@ -115,26 +115,26 @@ class RemoveDivision:
             ("division_id", 100), 
             ("name", 200)
         ]):
-            cell_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["ash"])
+            cell_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["black"])
             cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
             
             ctk.CTkLabel(
                 cell_frame,
                 text=division[key],
                 font=ctk.CTkFont(size=12),
-                text_color=COLORS["black"]
+                text_color=COLORS["white"]
             ).pack(padx=10, pady=5)
 
         # Action Button
-        action_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["ash"])
+        action_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["black"])
         action_frame.grid(row=row_idx, column=2, padx=2, pady=2, sticky="nsew")
         
         remove_button = ctk.CTkButton(
             action_frame,
             text="Remove",
-            command=lambda div_id=division["division_id"]: self.remove_division(div_id),
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"]
+            command=lambda div=division: self.confirm_remove_division(division),
+            fg_color=COLORS["darker_pink"],
+            hover_color=COLORS["pink"]
         )
         remove_button.pack(padx=10, pady=5)
 
@@ -142,6 +142,20 @@ class RemoveDivision:
         search_term = self.search_entry.get().lower()
         self.filtered_divisions = [div for div in self.divisions if search_term in div["name"].lower()]
         self.display()
+
+    def confirm_remove_division(self, division):
+        confirm = messagebox.askyesno(
+            "Confirm Removal", 
+            f"Are you sure you want to remove the Division:\n{division['division_id']} - {division['name']}?"
+        )
+
+        if confirm:
+            self.remove_division(division)
+
+    def remove_division(self, division):
+        # Call the delete function from the controller
+        self.divisions = [ div for div in self.div_data if div['division_id'] != division['division_id']]
+        self.filtered_divisions = self.divisions.copy()
 
     def display(self):
         self.clear_main_frame()
@@ -151,9 +165,3 @@ class RemoveDivision:
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
-
-    def remove_division(self, division_id):
-        # Call the delete function from the controller
-        delete_division(division_id)
-        messagebox.showinfo("Success", f"Division {division_id} has been removed.")
-        self.display()  # Refresh the view after removal
