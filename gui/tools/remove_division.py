@@ -3,7 +3,7 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
-#from controllers.crud import delete_division
+# from controllers.crud import delete_division 
 
 class RemoveDivision:
     def __init__(self, main_frame, return_to_manager):
@@ -115,7 +115,7 @@ class RemoveDivision:
             ("division_id", 100), 
             ("name", 200)
         ]):
-            cell_frame = ctk.CTkFrame(self.divisions_scroll , fg_color=COLORS["ash"])
+            cell_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["ash"])
             cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
             
             ctk.CTkLabel(
