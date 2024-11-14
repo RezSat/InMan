@@ -185,6 +185,8 @@ class ViewEmployeeRecords:
         info_frame.bind("<Button-1>", lambda e, emp=employee: self.show_employee_items(emp))  # Added this line
         employee_frame.bind("<Enter>", lambda e: employee_frame.configure(fg_color=COLORS["pink"]))
         employee_frame.bind("<Leave>", lambda e: employee_frame.configure(fg_color=COLORS["black"]))
+        info_frame.bind("<Enter>", lambda e: employee_frame.configure(fg_color=COLORS["pink"]))
+        info_frame.bind("<Leave>", lambda e: employee_frame.configure(fg_color=COLORS["black"]))
 
     def show_employee_items(self, employee):
         # Clear previous items
