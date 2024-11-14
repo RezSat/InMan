@@ -235,14 +235,14 @@ class ViewEmployeeRecords:
         self.details_window.configure(fg_color=COLORS["secondary_bg"])
 
         # Make the popup modal and prevent interaction with the main window
-        self.popup.grab_set()
+        self.details_window.grab_set()
 
         # Ensure the popup is on top of other windows
-        self.popup.lift()
-        self.popup.focus_force()
+        self.details_window.lift()
+        self.details_window.focus_force()
 
         # Prevent the popup from being closed by the window manager's close button
-        self.popup.protocol("WM_DELETE_WINDOW", self.details_window.destroy)
+        self.details_window.protocol("WM_DELETE_WINDOW", self.details_window.destroy)
     
 
         # Title
