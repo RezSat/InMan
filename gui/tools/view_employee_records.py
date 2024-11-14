@@ -279,9 +279,7 @@ class ViewEmployeeRecords:
         ]
         
         # Refresh the employee view
-        self.clear_main_frame()
-        self.create_header()
-        self.create_employees_view()
+        self.display()
 
     def display(self):
         self.clear_main_frame()
