@@ -7,30 +7,38 @@ class ViewEmployeeRecords:
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample Employee Data with Items
+        # Placeholder for employee data - you'll replace this with actual database query
         self.employees = [
             {
-                "emp_id": "EMP001",
-                "name": "John Doe",
+                "emp_id": "EMP001", 
+                "name": "John Doe", 
                 "division": "IT",
-                "date_joined": "2022-01-15",
-                "item_count": 2,
                 "items": [
-                    {"item_id": 1, "name": "Laptop", "unique_key": "LAP123"},
-                    {"item_id": 2, "name": "Mouse", "unique_key": "MOU456"}
+                    {"item_id": "ITM001", "name": "Dell XPS Laptop"},
+                    {"item_id": "ITM002", "name": "HP Monitor"}
+                ]
+            },
+            # Add more sample employees as needed
+            {
+                "emp_id": "EMP002", 
+                "name": "Jane Smith", 
+                "division": "HR",
+                "items": [
+                    {"item_id": "ITM003", "name": "Logitech Mouse"},
+                    {"item_id": "ITM004", "name": "HP Printer"}
                 ]
             },
             {
-                "emp_id": "EMP002",
-                "name": "Jane Smith",
-                "division": "HR",
-                "date_joined": "2021-11-20",
-                "item_count": 1,
+                "emp_id": "EMP003", 
+                "name": "Bob Johnson", 
+                "division": "IT",
                 "items": [
-                    {"item_id": 3, "name": "Office Chair", "unique_key": "CHA789"}
+                    {"item_id": "ITM005", "name": "Dell Keyboard"},
+                    {"item_id": "ITM006", "name": "HP Scanner"}
                 ]
             }
         ]
+        self.filtered_employees = self.employees.copy()
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -52,113 +60,194 @@ class ViewEmployeeRecords:
         # Title
         title = ctk.CTkLabel(
             header_frame,
-            text="View Employee Records",
+            text="Employee Records",
             font=ctk.CTkFont(size=24, weight="bold"),
             text_color=COLORS["white"]
         )
         title.pack(side="left", padx=20)
 
-    def create_employee_view(self):
+        # Search and Filter Section
+        search_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        search_frame.pack(side="right")
+        
+        self.search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="Search employees...",
+            width=200,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            fg_color=COLORS["black"],
+            border_color=COLORS["ash"]
+        )
+        self.search_entry.pack(side="left", padx=5)
+        
+        search_button = ctk.CTkButton(
+            search_frame,
+            text="Search",
+            command=self.perform_search,
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=100,
+            height=40
+        )
+        search_button.pack(side="left", padx=5)
+
+    def create_employees_view(self):
         # Main Container
-        container = ctk.CTkFrame(
+        self.container = ctk.CTkFrame(
             self.main_frame,
             fg_color=COLORS["secondary_bg"],
             corner_radius=15,
             border_width=2,
             border_color=COLORS["white"]
         )
-        container.pack(fill="both", expand=True, padx=20, pady=10)
+        self.container.pack(fill="both", expand=True, padx=20, pady=10)
         
-        # Scrollable Frame
+        # Split into two main sections
+        self.employees_list_frame = ctk.CTkFrame(
+            self.container, 
+            fg_color="transparent", 
+            corner_radius=10
+        )
+        self.employees_list_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        
+        self.items_details_frame = ctk.CTkFrame(
+            self.container, 
+            fg_color=COLORS["black"], 
+            corner_radius=10
+        )
+        self.items_details_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+        # Employees List
+        employees_title = ctk.CTkLabel(
+            self.employees_list_frame, 
+            text="Employees",
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        employees_title.pack(pady=(0,10))
+
+        # Scrollable Employees List
         self.employees_scroll = ctk.CTkScrollableFrame(
-            container,
+            self.employees_list_frame,
             fg_color="transparent",
             scrollbar_button_color=COLORS["pink"],
             scrollbar_button_hover_color=COLORS["darker_pink"]
         )
-        self.employees_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+        self.employees_scroll.pack(fill="both", expand=True)
 
-        # Configure grid columns
-        for i in range(5):  # 5 columns
-            self.employees_scroll.grid_columnconfigure(i, weight=1)
+        # Populate Employees
+        for employee in self.filtered_employees:
+            self.create_employee_row(employee)
 
-        # Create Headers
-        headers = ["Emp ID", "Name", "Division", "Date Joined", "Items"]
-        for col, header in enumerate(headers):
-            header_frame = ctk.CTkFrame(self.employees_scroll, fg_color=COLORS["black"])
-            header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
-            
-            ctk.CTkLabel(
-                header_frame,
-                text=header,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
-        
-        # Add Employees
-        for idx, employee in enumerate(self.employees, 1):
-            self.create_employee_row(idx, employee)
+        # Items Details Section
+        items_title = ctk.CTkLabel(
+            self.items_details_frame, 
+            text="Employee Items",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=COLORS["white"]
+        )
+        items_title.pack(pady=(0,10))
 
-    def create_employee_row(self, row_idx, employee):
-        # Employee Details Cells
-        details = [
-            ("emp_id", 100),
-            ("name", 200),
-            ("division", 150),
-            ("date_joined", 150)
-        ]
+        # Scrollable Items List
+        self.items_scroll = ctk.CTkScrollableFrame(
+            self.items_details_frame,
+            fg_color="transparent",
+            scrollbar_button_color=COLORS["pink"],
+            scrollbar_button_hover_color=COLORS["darker_pink"]
+        )
+        self.items_scroll.pack(fill="both", expand=True)
 
-        for col, (key, width) in enumerate(details):
-            cell_frame = ctk.CTkFrame(self.employees_scroll, fg_color=COLORS["black"])
-            cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
-            
-            ctk.CTkLabel(
-                cell_frame,
-                text=str(employee.get(key, "N/A")),
-                font =ctk.CTkFont(size=12),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
+    def create_employee_row(self, employee):
+        employee_frame = ctk.CTkFrame(
+            self.employees_scroll, 
+            fg_color=COLORS["black"],
+            corner_radius=10
+        )
+        employee_frame.pack(fill="x", pady=5)
 
-        # Items Cell
-        items_frame = ctk.CTkFrame(self.employees_scroll, fg_color=COLORS["black"])
-        items_frame.grid(row=row_idx, column=4, padx=2, pady=2, sticky="nsew")
+        # Employee Info
+        info_frame = ctk.CTkFrame(employee_frame, fg_color="transparent")
+        info_frame.pack(padx=10, pady=10, fill="x")
 
-        items_list = ctk.CTkScrollableFrame(items_frame, fg_color="transparent")
-        items_list.pack(fill="both", expand=True)
+        ctk.CTkLabel(
+            info_frame, 
+            text=f"{employee['emp_id']} - {employee['name']}",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(side="left")
 
-        for item in employee['items']:
-            item_button = ctk.CTkButton(
-                items_list,
-                text=f"{item['name']} ({item['unique_key']})",
-                command=lambda item=item: self.show_item_details(item),
-                fg_color=COLORS["pink"],
-                hover_color=COLORS["darker_pink"],
-                width=150,
-                height=30,
-                font=ctk.CTkFont(size=12)
-            )
-            item_button.pack(pady=5)
+        ctk.CTkLabel(
+            info_frame, 
+            text=employee['division'],
+            font=ctk.CTkFont(size=12)
+        ).pack(side="right")
+
+        # Bind click event to show employee items
+        employee_frame.bind("<Button-1>", lambda e, emp=employee: self.show_employee_items(emp))
+
+    def show_employee_items(self, employee):
+        # Clear previous items
+        for widget in self.items_scroll.winfo_children():
+            widget.destroy()
+
+        # Title with employee name
+        ctk.CTkLabel(
+            self.items_scroll, 
+            text=f"Items for {employee['name']} ({employee['emp_id']})",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["white"]
+        ).pack(pady=(0,10))
+
+        # Show items
+        for item in employee.get('items', []):
+            self.create_item_row(item)
+
+    def create_item_row(self, item):
+        item_frame = ctk.CTkFrame(
+            self.items_scroll, 
+            fg_color=COLORS["secondary_bg"],
+            corner_radius=10
+        )
+        item_frame.pack(fill="x", pady=5)
+
+        ctk.CTkLabel(
+            item_frame, 
+            text=f"{item['item_id']} - {item['name']}",
+            font=ctk.CTkFont(size=14)
+        ).pack(padx=10, pady=10)
+
+        # Bind click event to show item details
+        item_frame.bind("<Button-1>", lambda e, i=item: self.show_item_details(i))
 
     def show_item_details(self, item):
+        # Create a popup window for item details
         details_window = ctk.CTkToplevel(self.main_frame)
-        details_window.title(f"Item Details: {item['name']}")
+        details_window.title(f"Item Details: {item['item_id']}")
         details_window.geometry("400x300")
         details_window.configure(fg_color=COLORS["secondary_bg"])
 
-        # Item Name
-        name_label = ctk.CTkLabel(details_window, text="Item Name:", font=ctk.CTkFont(size=14))
-        name_label.pack(pady=(20, 5))
-        name_value = ctk.CTkLabel(details_window, text=item['name'], font=ctk.CTkFont(size=14, weight="bold"))
-        name_value.pack(pady=5)
+        # Title
+        ctk.CTkLabel(
+            details_window,
+            text=item['name'],
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=COLORS["white"]
+        ).pack(pady=(10, 10))
 
-        # Unique Key
-        unique_key_label = ctk.CTkLabel(details_window, text="Unique Key:", font=ctk.CTkFont(size=14))
-        unique_key_label.pack(pady=(10, 5))
-        unique_key_value = ctk.CTkLabel(details_window, text=item['unique_key'], font=ctk.CTkFont(size=14, weight="bold"))
-        unique_key_value.pack(pady=5)
+        # Item ID
+        ctk.CTkLabel(
+            details_window,
+            text=f"Item ID: {item['item_id']}",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["white"]
+        ).pack(pady=(5, 5))
 
-        # Additional Item Details (if any)
-        # You can add more details here based on your requirements
+        # Status
+        ctk.CTkLabel(
+            details_window,
+            text=f"Status: {'Active' if item.get('is_common', False) else 'Individual'}",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["white"]
+        ).pack(pady=(5, 5))
 
         # Close Button
         close_button = ctk.CTkButton(
@@ -167,12 +256,27 @@ class ViewEmployeeRecords:
             command=details_window.destroy,
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
-            width=100,
-            height=30,
-            font=ctk.CTkFont(size=12)
+            width=100
         )
         close_button.pack(pady=(20, 10))
 
+    def perform_search(self):
+        search_term = self.search_entry.get().lower()
+        self.filtered_employees = [
+            emp for emp in self.employees 
+            if (search_term in emp["emp_id"].lower() or 
+                search_term in emp["name"].lower() or 
+                search_term in emp["division"].lower())
+        ]
+        
+        # Refresh the employee view
+        self.create_employees_view()
+
     def display(self):
+        self.clear_main_frame()
         self.create_header()
-        self.create_employee_view()
+        self.create_employees_view()
+
+    def clear_main_frame(self):
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()

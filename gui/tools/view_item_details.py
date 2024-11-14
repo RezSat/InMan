@@ -238,19 +238,6 @@ class ViewItemDetails:
         # Configure column weights to distribute space
         for j in range(max_columns):
             attrs_container.grid_columnconfigure(j, weight=1)        
-  
-        """
-        # Add hover effect to all frames in the row
-        for frame in [id_frame, name_frame, status_frame, type_frame, attrs_frame]:
-            def on_hover_enter(e, f=frame):
-                f.configure(fg_color=COLORS["secondary_bg"])
-            
-            def on_hover_leave(e, f=frame):
-                f.configure(fg_color=COLORS["black"])
-            
-            frame.bind("<Enter>", on_hover_enter)
-            frame.bind("<Leave>", on_hover_leave)
-        """
 
     def display(self):
         self.clear_main_frame()
