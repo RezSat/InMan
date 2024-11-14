@@ -239,7 +239,7 @@ class ViewItemDetails:
         for j in range(max_columns):
             attrs_container.grid_columnconfigure(j, weight=1)        
   
-
+        """
         # Add hover effect to all frames in the row
         for frame in [id_frame, name_frame, status_frame, type_frame, attrs_frame]:
             def on_hover_enter(e, f=frame):
@@ -250,6 +250,7 @@ class ViewItemDetails:
             
             frame.bind("<Enter>", on_hover_enter)
             frame.bind("<Leave>", on_hover_leave)
+        """
 
     def display(self):
         self.clear_main_frame()
