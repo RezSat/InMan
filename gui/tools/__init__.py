@@ -27,5 +27,5 @@ __all__ = [
     'ViewEmployeeRecords',
     'RemoveEmployee',
     'UpdateDivision',
-    'RemoveDivison'
+    'RemoveDivision'
 ]
