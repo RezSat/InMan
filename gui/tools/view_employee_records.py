@@ -234,6 +234,17 @@ class ViewEmployeeRecords:
         details_window.geometry("400x300")
         details_window.configure(fg_color=COLORS["secondary_bg"])
 
+        # Make the popup modal and prevent interaction with the main window
+        self.popup.grab_set()
+
+        # Ensure the popup is on top of other windows
+        self.popup.lift()
+        self.popup.focus_force()
+
+        # Prevent the popup from being closed by the window manager's close button
+        self.popup.protocol("WM_DELETE_WINDOW", self.popup.destroy)
+    
+
         # Title
         ctk.CTkLabel(
             details_window,
