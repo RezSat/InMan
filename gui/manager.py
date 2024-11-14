@@ -24,7 +24,7 @@ class ManagerTools():
         self.tool_categories = {
             "Inventory Management": [
                 ("Add Single Item", self.add_item_cmd),
-                ("Bulk Import Items", self.placeholder_command),
+                #("Bulk Import Items", self.placeholder_command),
                 ("Update Item Details", self.update_item_details_cmd),
                 ("Remove Items", self.remove_item_cmd),
                 ("View Item History", self.view_item_details_cmd),
@@ -45,7 +45,7 @@ class ManagerTools():
             "Asset Assignment": [
                 ("Assign Items to Employee", self.assign_items_cmd),
                 ("Transfer Items Between Employees", self.transfer_items_cmd),
-                ("Bulk Asset Transfer", self.placeholder_command),
+                #("Bulk Asset Transfer", self.placeholder_command),
                 ("View Asset Assignments", self.placeholder_command),
             ],
             "Reports & Analytics": [
