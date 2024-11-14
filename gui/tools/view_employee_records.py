@@ -228,7 +228,7 @@ class ViewEmployeeRecords:
             hover_color=COLORS["darker_pink"],
             width=120
         )
-        view_button.pack(side="right", padx=10)
+        view_button.pack(pady=15)
 
     def show_item_details(self, item):
         # Create a popup window for item details
