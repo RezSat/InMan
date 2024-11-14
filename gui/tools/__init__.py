@@ -11,6 +11,7 @@ from .update_employee_details import UpdateEmployeeDetail
 from .view_employee_records import ViewEmployeeRecords
 from .remove_employee import RemoveEmployee
 from .update_division import UpdateDivision
+from .remove_division import RemoveDivision
 
 __all__ = [
     'AddItems',
@@ -25,5 +26,6 @@ __all__ = [
     'UpdateEmployeeDetail',
     'ViewEmployeeRecords',
     'RemoveEmployee',
-    'UpdateDivision'
+    'UpdateDivision',
+    'RemoveDivison'
 ]
