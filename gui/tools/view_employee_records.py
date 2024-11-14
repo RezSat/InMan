@@ -18,7 +18,6 @@ class ViewEmployeeRecords:
                     {"item_id": "ITM002", "name": "HP Monitor"}
                 ]
             },
-            # Add more sample employees as needed
             {
                 "emp_id": "EMP002", 
                 "name": "Jane Smith", 
@@ -116,7 +115,7 @@ class ViewEmployeeRecords:
             fg_color=COLORS["black"], 
             corner_radius=10
         )
-        self.items_details_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+        self.items_details_frame.pack(side ="right", fill="both", expand=True, padx=10, pady=10)
 
         # Employees List
         employees_title = ctk.CTkLabel(
@@ -183,6 +182,8 @@ class ViewEmployeeRecords:
 
         # Bind click event to show employee items
         employee_frame.bind("<Button-1>", lambda e, emp=employee: self.show_employee_items(emp))
+        employee_frame.bind("<Enter>", lambda e: employee_frame.configure(fg_color=COLORS["pink"]))
+        employee_frame.bind("<Leave>", lambda e: employee_frame.configure(fg_color=COLORS["black"]))
 
     def show_employee_items(self, employee):
         # Clear previous items
@@ -215,8 +216,16 @@ class ViewEmployeeRecords:
             font=ctk.CTkFont(size=14)
         ).pack(padx=10, pady=10)
 
-        # Bind click event to show item details
-        item_frame.bind("<Button-1>", lambda e, i=item: self.show_item_details(i))
+        # View More Details Button
+        view_button = ctk.CTkButton(
+            item_frame,
+            text="View More Details",
+            command=lambda i=item: self.show_item_details(i),
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=120
+        )
+        view_button.pack(side="right", padx=10)
 
     def show_item_details(self, item):
         # Create a popup window for item details
@@ -270,6 +279,8 @@ class ViewEmployeeRecords:
         ]
         
         # Refresh the employee view
+        self.clear_main_frame()
+        self.create_header()
         self.create_employees_view()
 
     def display(self):
