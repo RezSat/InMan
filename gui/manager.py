@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from config import COLORS
-from gui.tools import AddItems, AddEmployee, AddDivision, BulkEmployeeImport, AssignItemsToEmployees, TransferItemBetweenEmployees
+from gui.tools import AddItems, AddEmployee, AddDivision, BulkEmployeeImport, AssignItemsToEmployees, TransferItemBetweenEmployees, ViewItemDetails
 
 class ManagerTools():
     def __init__(self, main_frame, inventory):
@@ -14,7 +14,7 @@ class ManagerTools():
                 ("Bulk Import Items", self.placeholder_command),
                 ("Update Item Details", self.placeholder_command),
                 ("Remove Items", self.placeholder_command),
-                ("View Item History", self.placeholder_command),
+                ("View Item History", self.view_item_details_cmd),
             ],
             "Employee Management": [
                 ("Add Employee", self.add_employee_cmd),
@@ -70,6 +70,10 @@ class ManagerTools():
     def transfer_items_cmd(self):
         transfer_items = TransferItemBetweenEmployees(self.main_frame, self.return_to_manager_function)
         transfer_items.display()
+
+    def view_item_details_cmd(self):
+        view_item_details = ViewItemDetails(self.main_frame, self.return_to_manager_function)
+        view_item_details.display()
 
     def placeholder_command(self):
         print("Button clicked!")
