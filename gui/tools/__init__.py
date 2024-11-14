@@ -7,6 +7,7 @@ from .transfer_items import TransferItemBetweenEmployees
 from .view_item_details import ViewItemDetails
 from .update_item_details import UpdateItemDetails
 from .remove_items import RemoveItem
+from .update_employee_details import UpdateEmployeeDetail
 
 __all__ = [
     'AddItems',
@@ -18,4 +19,5 @@ __all__ = [
     'ViewItemDetails',
     'UpdateItemDetails',
     'RemoveItem',
+    'UpdateEmployeeDetail'
 ]
