@@ -115,7 +115,7 @@ class RemoveDivision:
             ("division_id", 100), 
             ("name", 200)
         ]):
-            cell_frame = ctk.CTkFrame(self.divisions_scroll , fg_color=COLORS["light_gray"])
+            cell_frame = ctk.CTkFrame(self.divisions_scroll , fg_color=COLORS["ash"])
             cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
             
             ctk.CTkLabel(
@@ -126,7 +126,7 @@ class RemoveDivision:
             ).pack(padx=10, pady=5)
 
         # Action Button
-        action_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["light_gray"])
+        action_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["ash"])
         action_frame.grid(row=row_idx, column=2, padx=2, pady=2, sticky="nsew")
         
         remove_button = ctk.CTkButton(
