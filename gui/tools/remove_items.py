@@ -1,3 +1,5 @@
+# gui/tools/remove_items.py
+
 import customtkinter as ctk
 from config import COLORS
 import tkinter.messagebox as messagebox

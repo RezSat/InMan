@@ -1,3 +1,5 @@
+# gui/tools/transfer_items.py
+
 import customtkinter as ctk
 from config import COLORS
 import tkinter as tk

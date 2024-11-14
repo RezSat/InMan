@@ -1,3 +1,5 @@
+# gui/tools/assign_items_to_employees.py
+
 import customtkinter as ctk
 from config import COLORS
 

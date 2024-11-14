@@ -1,3 +1,5 @@
+# gui/tools/update_employee_details.py
+
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS

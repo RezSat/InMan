@@ -1,3 +1,5 @@
+# gui/tools/update_item_details.py
+
 import customtkinter as ctk
 from config import COLORS
 
