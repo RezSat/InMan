@@ -141,15 +141,19 @@ class RemoveDivision:
     def perform_search(self):
         search_term = self.search_entry.get().lower()
         self.filtered_divisions = [div for div in self.divisions if search_term in div["name"].lower()]
-        self.refresh_divisions_view()
+        self.display()
 
-    def refresh_divisions_view(self):
+    def display(self):
+        self.clear_main_frame()
+        self.create_header()
+        self.create_divisions_view()
+
+    def clear_main_frame(self):
         for widget in self.divisions_scroll.winfo_children():
             widget.destroy()
-        self.create_divisions_view()
 
     def remove_division(self, division_id):
         # Call the delete function from the controller
         delete_division(division_id)
         messagebox.showinfo("Success", f"Division {division_id} has been removed.")
-        self.refresh_divisions_view()  # Refresh the view after removal
+        self.display()  # Refresh the view after removal
