@@ -12,7 +12,8 @@ from gui.tools import (
     RemoveItem,
     UpdateEmployeeDetail,
     ViewEmployeeRecords,
-    RemoveEmployee
+    RemoveEmployee,
+    UpdateDivision
 )
 
 class ManagerTools():
@@ -38,7 +39,7 @@ class ManagerTools():
             ],
             "Division Management": [
                 ("Create Division", self.add_division_cmd),
-                ("Update Division", self.placeholder_command),
+                ("Update Division", self.update_division_cmd),
                 ("Remove Division", self.placeholder_command),
                 ("View Division Structure", self.placeholder_command),
             ],
@@ -107,6 +108,10 @@ class ManagerTools():
     def remove_employee_cmd(self):
         remove_employee = RemoveEmployee(self.main_frame, self.return_to_manager_function)
         remove_employee.display()
+
+    def update_division_cmd(self):
+        update_division = UpdateDivision(self.main_frame, self.return_to_manager_function)
+        update_division.display()
 
     def placeholder_command(self):
         print("Button clicked!")
