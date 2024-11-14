@@ -1,3 +1,6 @@
+# An Inventory Management System
+Crafted to manage inventory owned by employees at E.T.F.B ( My father's work place).
+
 ### Project Structure
 
 ```
