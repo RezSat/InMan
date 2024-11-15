@@ -1,4 +1,5 @@
 # config.py
+
 COLORS = {
     'black': '#2c363f',
     'pink': '#e75a7c',

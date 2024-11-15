@@ -1,5 +1,5 @@
 from .models import Division, Employee, Item, EmployeeItem, User, Log, ItemTransferHistory
-from .database import get_db
+from .database import get_db, initialize_database, SessionLocal
 
 __all__ = [
     'Division',
@@ -11,4 +11,7 @@ __all__ = [
     'ItemTransferHistory',
 
     'get_db',
+    'initialize_database',
+    'SessionLocal'
+
 ]

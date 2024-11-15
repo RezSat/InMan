@@ -3,7 +3,8 @@
 import customtkinter as ctk
 from collections import defaultdict
 
-from controllers.crud import create_item
+from controllers import create_item
+from models import SessionLocal
 from config import COLORS
 
 class AddItems:
@@ -288,14 +289,18 @@ class AddItems:
 
     def add_item(self):
         print("Attributes:")
+        attrs = {}
         for attribute, value_entry in self.collect_attributes.items():
             # Determine if the attribute is created new or selected
             if attribute.winfo_manager():  # Check if the name_entry is visible
                 attribute_name = attribute.get()  # This is the name_entry
+                attrs[attribute_name] = value_entry.get()
             else:
                 attribute_name = attribute.get()  # This is the attribute_combo
-
-            print(f"Name: {attribute_name}, Value: {value_entry.get()}")
+                attrs[attribute_name] = value_entry.get()
+                # UI is messed up, its the other way around so that need to fixed.
 
         print("Common Item:", self.common_checkbox.get())
         print("Item Name:", self.item_name.get())
+        print("Attributes:", attrs)
+        #create_item(SessionLocal, self.item_name.get(), self.common_checkbox.get(), self.collect_attributes)
