@@ -115,7 +115,8 @@ class UpdateItemDetails:
             scrollbar_button_hover_color=COLORS["darker_pink"]
         )
         self.items_scroll.pack(fill="both", expand=True, padx=5, pady=5)
-        
+        for i in range(3):
+            self.items_scroll.grid_columnconfigure(i, weight=1)
         # Create headers
         headers = ["Item ID", "Item Name", "Action"]
         for col, header in enumerate(headers):
