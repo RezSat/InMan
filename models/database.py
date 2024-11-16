@@ -1,6 +1,6 @@
 # models/database.py
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -17,7 +17,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def is_database_initialized():
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    return len(tables) > 0
         
 def initialize_database():
-    Base.metadata.create_all(bind=engine)
-    print("Database initialized with SQLAlchemy.")
+    if is_database_initialized():
+        print("Database already initialized.")
+        return None
+    else:
+        Base.metadata.create_all(bind=engine)
+        print("Database initialized with SQLAlchemy.")
+        return None
