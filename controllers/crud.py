@@ -1,8 +1,8 @@
 # controllers/crud.py
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models.models import *
-from models.database import session_scope
+from models.database import session_scope, SessionLocal
 from datetime import datetime
 
 # Division CRUD Operations
@@ -118,9 +118,12 @@ def get_item(item_id: int):
             item.attributes = get_item_attributes(item_id)
         return item
 
-def get_all_items(db: Session):
-    with session_scope() as db:
-        return db.query(Item).all()
+def get_all_items():
+    db = SessionLocal()
+    # Use joinedload to eagerly load the attribute along with the items
+    items =  db.query(Item).options(joinedload(Item.attributes)).all()
+    db.close()
+    return items
 
 def delete_item(item_id: int):
     with session_scope() as db:

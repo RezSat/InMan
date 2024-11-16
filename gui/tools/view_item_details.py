@@ -1,56 +1,13 @@
 import customtkinter as ctk
 from config import COLORS
+from controllers import get_all_items
 
 class ViewItemDetails:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
+        self.items_data = get_all_items()
         
-        # Sample data for demonstration
-        self.items_data = [
-            {
-                "item_id": "ITM001",
-                "name": "Dell XPS 15 Laptop with Extended Battery Pack and Carrying Case",
-                "status": "active",
-                "is_common": False,
-                "attributes": [
-                    {"name": "Serial", "value": "DLL-001"},
-                    {"name": "Model", "value": "XPS 15 9520"},
-                    {"name": "Serial", "value": "DLL-001"},
-                    {"name": "Model", "value": "XPS 15 9520"},
-                    {"name": "Serial", "value": "DLL-001"},
-                    {"name": "Model", "value": "XPS 15 9520"},
-                    {"name": "Serial", "value": "DLL-001"},
-                    {"name": "Model", "value": "XPS 15 9520"},
-
-                    {"name": "RAM", "value": "32GB"}
-                ]
-            },
-            {
-                "item_id": "ITM002",
-                "name": "HP Monitor 27\"",
-                "status": "active",
-                "is_common": True,
-                "attributes": [
-                    {"name": "Serial", "value": "HP-MON-002"},
-                    {"name": "Resolution", "value": "2K"},
-                    {"name": "Serial", "value": "HP-MON-002"},
-                    {"name": "Resolution", "value": "2K"},
-                    {"name": "Panel", "value": "IPS"}
-                ]
-            },
-            {
-                "item_id": "ITM003",
-                "name": "Logitech MX Master",
-                "status": "lost",
-                "is_common": False,
-                "attributes": [
-                    {"name": "Serial", "value": "LOG-003"},
-                    {"name": "Type", "value": "Wireless Mouse"},
-                    {"name": "DPI", "value": "4000"}
-                ]
-            }
-        ]
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -155,7 +112,7 @@ class ViewItemDetails:
         id_frame.grid(row=row_idx, column=0, padx=2, pady=2, sticky="nsew")
         ctk.CTkLabel(
             id_frame,
-            text=item["item_id"],
+            text=item.item_id,
             font=ctk.CTkFont(size=13),
         ).pack(padx=10, pady=8)
         
@@ -164,7 +121,7 @@ class ViewItemDetails:
         name_frame.grid(row=row_idx, column=1, padx=2, pady=2, sticky="nsew")
         ctk.CTkLabel(
             name_frame,
-            text=item["name"],
+            text=item.name,
             font=ctk.CTkFont(size=13),
             wraplength=300  # Allow text to wrap
         ).pack(padx=10, pady=8, fill="x")
@@ -179,13 +136,13 @@ class ViewItemDetails:
                 "active": "#4CAF50",
                 "retired": "#FFA726",
                 "lost": "#EF5350"
-            }.get(item["status"], COLORS["black"]),
+            }.get(item.status, COLORS["black"]),
             corner_radius=6
         )
         status_tag.pack(padx=10, pady=8)
         ctk.CTkLabel(
             status_tag,
-            text=item["status"].upper(),
+            text=item.status.upper(),
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["white"]
         ).pack(padx=8, pady=2)
@@ -196,13 +153,13 @@ class ViewItemDetails:
         
         type_tag = ctk.CTkFrame(
             type_frame,
-            fg_color=COLORS["pink"] if item["is_common"] else COLORS["green"],
+            fg_color=COLORS["pink"] if item.is_common else COLORS["green"],
             corner_radius=6
         )
         type_tag.pack(padx=10, pady=8)
         ctk.CTkLabel(
             type_tag,
-            text="Common" if item["is_common"] else "Individual",
+            text="Common" if item.is_common else "Individual",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["white"]
         ).pack(padx=8, pady=2)
@@ -216,7 +173,7 @@ class ViewItemDetails:
         
         # Configure the container to have multiple columns
         max_columns = 3  # Adjust this to control how many attributes per row
-        for i, attr in enumerate(item["attributes"]):
+        for i, attr in enumerate(item.attributes):
             attr_tag = ctk.CTkFrame(
                 attrs_container,
                 fg_color=COLORS["secondary_bg"],
@@ -230,7 +187,7 @@ class ViewItemDetails:
             
             ctk.CTkLabel(
                 attr_tag,
-                text=f"{attr['name']}: {attr['value']}",
+                text=f"{attr.name}: {attr.value}",
                 font=ctk.CTkFont(size=12),
                 text_color=COLORS["white"]
             ).pack(padx=6, pady=4)

@@ -3,8 +3,10 @@
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
-from contextlib import contextmanager
+from contextlib import contextmanager 
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 # Database Configuration
 DATABASE_URL = "sqlite:///inventory.db"
@@ -40,6 +42,7 @@ def session_scope():
     """Provide a transactional scope around a series of operations."""
     session = Session()
     try:
+        
         yield session # yield the sessio to the caller
         session.commit()
     except Exception:

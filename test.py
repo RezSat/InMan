@@ -1,11 +1,12 @@
 # test.py
 
-from models.database import SessionLocal, initialize_database
+from models.database import SessionLocal, initialize_database, session_scope
 from controllers.crud import *
 from controllers.auth import *
 from utils.search import *
 from utils.summary import *
 from gui.ui import *
+from models.models import *
 
 def test1():
     # Initialize Database
@@ -187,10 +188,52 @@ def login_user_creation_test():
     create_user(db, username="manager", password="password123")
     db.close()
 
+def get_all_items_():
+    db = SessionLocal()
+        # Use joinedload to eagerly load the attribute along with the items
+    items = db.query(Item).options(joinedload(Item.attributes)).all()
+    db.close()
+    return items
+
+
+items = get_all_items_()
+
+def convert_items_to_dicts(items):
+    items_data = []
+    for item in items:
+        item_dict = {
+            "item_id": item.item_id,
+            "name": item.name,
+            "status": item.status,
+            "is_common": item.is_common,
+            "attributes": []
+        }
+        
+        # Add attributes
+        for attr in item.attributes:
+            item_dict["attributes"].append({
+                "name": attr.name,
+                "value": attr.value
+            })
+        
+        items_data.append(item_dict)
+    
+    return items_data
+
+
+# Call the functions together within the same session context
+def testsomething():
+    items = get_all_items_()  # Fetch items
+    items_data = convert_items_to_dicts(items)  # Convert items to dicts
+    print(items_data)
+
 if __name__ == "__main__":
+    testsomething()
+
+#if __name__ == "__main__":
     #app = InventoryApp()
     #app.run()
-    login_user_creation_test()
+    # get_all_items()
 
     #test1()
     #test2()
