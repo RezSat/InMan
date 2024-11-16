@@ -181,9 +181,16 @@ def test4():
 
     db.close()
 
+
+def login_user_creation_test():
+    db = SessionLocal()
+    create_user(db, username="manager", password="password123")
+    db.close()
+
 if __name__ == "__main__":
-    app = InventoryApp()
-    app.run()
+    #app = InventoryApp()
+    #app.run()
+    login_user_creation_test()
 
     #test1()
     #test2()
