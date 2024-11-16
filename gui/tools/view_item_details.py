@@ -47,6 +47,8 @@ class ViewItemDetails:
             border_color=COLORS["ash"]
         )
         self.search_entry.pack(side="left", padx=5)
+
+        self.search_entry.bind('<Return>', self.filter_items)
         
         self.status_filter = ctk.CTkComboBox(
             search_frame,
@@ -194,7 +196,26 @@ class ViewItemDetails:
         
         # Configure column weights to distribute space
         for j in range(max_columns):
-            attrs_container.grid_columnconfigure(j, weight=1)        
+            attrs_container.grid_columnconfigure(j, weight=1)
+
+    def filter_items(self, event=None):
+        search_term = self.search_entry.get().lower()
+        filtered_items = []
+
+        for item in self.items_data:
+            if (search_term in item.name.lower() or
+                search_term in str(item.item_id).lower() or
+                search_term in item.status.lower()):
+                filtered_items.append(item)
+
+        self.update_items_view(filtered_items)
+
+    def update_items_view(self, items):
+        for widget in self.items_scroll.winfo_children():
+            widget.destroy()
+
+        for idx,item in enumerate(items, 1):
+            self.create_item_row(idx, item)
 
     def display(self):
         self.clear_main_frame()
