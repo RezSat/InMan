@@ -2,6 +2,8 @@
 import customtkinter as ctk
 from config import COLORS
 from gui.manager import ManagerTools
+from controllers import authenticate_user
+from tkinter import messagebox
 
 class LoginPage:
     def __init__(self, main_frame, app):
@@ -121,13 +123,20 @@ class LoginPage:
         username = self.entries["username"].get()
         password = self.entries["password"].get()
         # Add your login logic here
-        self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(text="Manger Tools")
-        self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(command=self.show_manager_tools)
-        self.clear_main_frame()
-        self.show_manager_tools()
 
         print(self.app)
         print(f"Login attempt with username: {username}")
+        user = authenticate_user(self.db, username, password)
+        if user:
+            self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(text="Manger Tools")
+            self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(command=self.show_manager_tools)
+            self.clear_main_frame()
+            self.show_manager_tools()
+        else:
+            print("Invalid username or password")
+            messagebox.showerror("Error", "Invalid username or password")
+
+
 
     def show_manager_tools(self):
         self.clear_main_frame()

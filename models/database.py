@@ -2,12 +2,15 @@
 
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
+from contextlib import contextmanager
+
 
 # Database Configuration
 DATABASE_URL = "sqlite:///inventory.db"
 engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Session = scoped_session(SessionLocal)
 Base = declarative_base()
 
 # Dependency for database session
@@ -31,3 +34,16 @@ def initialize_database():
         Base.metadata.create_all(bind=engine)
         print("Database initialized with SQLAlchemy.")
         return None
+
+@contextmanager
+def session_scope():
+    """Provide a transactional scope around a series of operations."""
+    session = Session()
+    try:
+        yield session # yield the sessio to the caller
+        session.commit()
+    except Exception:
+        session.rollback() # rollback in case of error
+        raise
+    finally:
+        session.close()

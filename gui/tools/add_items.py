@@ -4,15 +4,15 @@ import customtkinter as ctk
 from collections import defaultdict
 
 from controllers import create_item
-from models import SessionLocal
 from config import COLORS
 
 class AddItems:
-    def __init__(self, main_frame, return_to_manager):
+    def __init__(self, main_frame, return_to_manager, db):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         self.attribute_rows = []
         self.collect_attributes = defaultdict()
+        self.db = db
         
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -169,7 +169,7 @@ class AddItems:
             text="+ Add Another Attribute",
             command=self.add_attribute_row,
             fg_color=COLORS["pink"],
-            hover_color=COLORS["ash"],
+            hover_color=COLORS["darker_pink"],
             height=40,
             font=ctk.CTkFont(size=14)
         )
@@ -213,7 +213,7 @@ class AddItems:
         # Existing attributes dropdown
         attribute_combo = ctk.CTkComboBox(
             row_frame,
-            values=["Select Existing", "Create New", "Brand", "Model", "Serial Number"],
+            values=["Brand", "Model", "Serial Number", "Create New"],
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
             border_color=COLORS["ash"],
@@ -252,8 +252,8 @@ class AddItems:
             width=40,
             height=40,
             font=ctk.CTkFont(size=16),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
             command=lambda: row_frame.destroy()
         )
         remove_btn.pack(side="left")
@@ -261,8 +261,11 @@ class AddItems:
         def on_attribute_select(choice):
             if choice == "Create New":
                 attribute_combo.pack_forget()
+                value_entry.pack_forget()
                 name_entry.pack(side="left", padx=(0, 10))
                 value_entry.pack(side="left", padx=(0, 10))
+                remove_btn.pack_forget()
+                remove_btn.pack(side="left")
             else:
                 if name_entry.winfo_manager():  # If name_entry is visible
                     name_entry.pack_forget()
@@ -303,4 +306,5 @@ class AddItems:
         print("Common Item:", self.common_checkbox.get())
         print("Item Name:", self.item_name.get())
         print("Attributes:", attrs)
-        #create_item(SessionLocal, self.item_name.get(), self.common_checkbox.get(), self.collect_attributes)
+        item = create_item(, self.item_name.get(), self.common_checkbox.get(), attrs)
+        print(item)

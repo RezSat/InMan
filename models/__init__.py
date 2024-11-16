@@ -1,5 +1,5 @@
 from .models import Division, Employee, Item, EmployeeItem, User, Log, ItemTransferHistory
-from .database import get_db, initialize_database, SessionLocal
+from .database import get_db, initialize_database, SessionLocal, session_scope
 
 __all__ = [
     'Division',
@@ -12,6 +12,7 @@ __all__ = [
 
     'get_db',
     'initialize_database',
-    'SessionLocal'
+    'SessionLocal',
+    'session_scope',
 
 ]
