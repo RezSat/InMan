@@ -145,8 +145,8 @@ class RemoveEmployee:
             action_frame,
             text="Remove",
             command=lambda emp=employee: self.confirm_remove_employee(emp),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
             width=100
         )
         remove_button.pack(padx=10, pady=8)

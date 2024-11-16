@@ -136,8 +136,8 @@ class RemoveDivision:
             action_frame,
             text="Remove",
             command=lambda div=division: self.confirm_remove_division(division),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"]
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"]
         )
         remove_button.pack(padx=10, pady=5)
 

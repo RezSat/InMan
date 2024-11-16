@@ -147,8 +147,8 @@ class ViewDivisionStructure:
             action_frame,
             text="View Items",
             command=lambda d=division: self.show_division_items(d),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
             width=100
         )
         view_button.pack(padx=10, pady=8)

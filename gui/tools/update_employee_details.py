@@ -175,8 +175,8 @@ class UpdateEmployeeDetail:
             action_frame,
             text="Update",
             command=lambda e=employee: self.open_update_dialog(e),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
             width=100
         )
         update_button.pack(padx=10, pady=8)

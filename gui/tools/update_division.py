@@ -153,8 +153,8 @@ class UpdateDivision:
             action_frame,
             text="Update",
             command=lambda d=division: self.open_update_dialog(d),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
             width=100
         )
         update_button.pack(padx=10, pady=8)
