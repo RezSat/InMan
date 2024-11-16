@@ -64,7 +64,7 @@ class ManagerTools():
         self.display()
 
     def add_item_cmd(self):
-        add_items = AddItems(self.main_frame, self.return_to_manager_function, self.db)
+        add_items = AddItems(self.main_frame, self.return_to_manager_function)
         add_items.display()
 
     def add_employee_cmd(self):

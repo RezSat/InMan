@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 from models.models import *
-from models.databse import session_scope
+from models.database import session_scope
 from datetime import datetime
 
 # Division CRUD Operations
@@ -105,8 +105,10 @@ def create_item(name: str, is_common: bool, attributes=None):
         # Add attributes if provided
         if attributes:
             for name, value in attributes.items():
-                add_item_attribute(item_id=item.item_id, name=name, value=value)
-
+                attribute = ItemAttribute(item_id=item.item_id, name=name, value=value)
+                db.add(attribute)
+        
+        db.commit()
         return item
 
 def get_item(item_id: int):

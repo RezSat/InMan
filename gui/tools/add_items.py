@@ -1,18 +1,18 @@
 # gui/tools/add_items.py
 
 import customtkinter as ctk
+from tkinter import messagebox
 from collections import defaultdict
 
 from controllers import create_item
 from config import COLORS
 
 class AddItems:
-    def __init__(self, main_frame, return_to_manager, db):
+    def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         self.attribute_rows = []
         self.collect_attributes = defaultdict()
-        self.db = db
         
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -306,5 +306,9 @@ class AddItems:
         print("Common Item:", self.common_checkbox.get())
         print("Item Name:", self.item_name.get())
         print("Attributes:", attrs)
-        item = create_item(, self.item_name.get(), self.common_checkbox.get(), attrs)
-        print(item)
+        item = create_item(self.item_name.get(), self.common_checkbox.get(), attrs)
+        if item:
+            messagebox.showinfo("Success", f"Successfully created an item name:{self.item_name.get()}")
+            self.display()
+        else:
+            messgaebox.showerror("Failed", f"Failed to create an item name:{self.item_name.get()}")

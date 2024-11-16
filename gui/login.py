@@ -126,7 +126,7 @@ class LoginPage:
 
         print(self.app)
         print(f"Login attempt with username: {username}")
-        user = authenticate_user(self.db, username, password)
+        user = authenticate_user( username, password)
         if user:
             self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(text="Manger Tools")
             self.main_frame.master.winfo_children()[0].winfo_children()[2].configure(command=self.show_manager_tools)
