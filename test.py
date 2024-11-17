@@ -228,8 +228,22 @@ def testsomething():
         for div in divisions:
             print(div.name)  # Accessing attributes while in the session context
 
-if __name__ == "__main__":
-    testsomething()
+import pandas as pd
+
+# Create a DataFrame with the test data
+data = {
+    'EMP_ID': [101, 102, 103, 104, 105, 106],
+    'Name': ['Alice Smith', 'Bob Johnson', 'Charlie Lee', 'David Brown', 'Eva White', 'Frank Black'],
+    'Division': ['IT', 'HR', '', 'Sales', '', 'Finance']  # Missing division for Eva White
+}
+
+df = pd.DataFrame(data)
+
+# Save the DataFrame to an Excel file
+file_name = 'employee_import_test.xlsx'
+df.to_excel(file_name, index=False)
+
+print(f"Excel file '{file_name}' created successfully.")
 
 #if __name__ == "__main__":
     #app = InventoryApp()

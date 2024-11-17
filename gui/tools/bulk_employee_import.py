@@ -4,6 +4,7 @@ import customtkinter as ctk
 import pandas as pd
 from tkinter import filedialog, messagebox
 from config import COLORS
+from controllers.crud import create_employee, get_all_divisions
 
 class BulkEmployeeImport:
     def __init__(self, main_frame, return_to_manager):
@@ -12,6 +13,8 @@ class BulkEmployeeImport:
         self.row_frames = []
         self.default_division = "Not Assigned"  # Default value for division
         self.current_rows = 0
+        self.division_dict = {div['name']: div['division_id'] for div in get_all_divisions()}
+        self.divisions = [div['name'] for div in get_all_divisions()]
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -106,6 +109,10 @@ class BulkEmployeeImport:
                 name = row.get("Name", "")
                 division = row.get("Division", self.default_division)
 
+                if not division or division == self.default_division:
+                    messagebox.showerror("Error", f"Division is not specified for employee '{name}' (ID: {emp_id}). PLEASE SELECT AN DIVISION FROM THE DROPDOWN, IT WIL BE LABALLED AS 'NaN'.")
+                if division not in self.divisions:
+                    messagebox.showerror("Error", f"Division: {division} is not found in the database. Please select an available division from the dropdown for the employee : {emp_id} - {name}" )
                 self.add_row(emp_id, name, division)
 
         except Exception as e:
@@ -148,7 +155,7 @@ class BulkEmployeeImport:
             button_color=COLORS["pink"],
             button_hover_color=COLORS["darker_pink"],
             dropdown_fg_color=COLORS["black"],
-            values=["IT", "HR", "Finance", "Operations", "Marketing", "Sales"],
+            values=self.divisions,
             state="readonly"
         )
         division_entry.grid(row=self.current_rows, column=2, padx=5, pady=5, sticky="ew")
@@ -159,21 +166,20 @@ class BulkEmployeeImport:
         self.current_rows += 1  # Increment the row count
 
     def submit_employees(self):
-        employees_data = []
+        x = []
         for emp_id_entry, name_entry, division_entry in self.row_frames:
             emp_id = emp_id_entry.get()
             name = name_entry.get()
             division = division_entry.get()
-            if emp_id and name:  # Only collect filled rows
-                employees_data.append({
-                    "emp_id": emp_id,
-                    "name": name,
-                    "division": division
-                })
+            if emp_id and name:
+                c = create_employee(emp_id, name, self.division_dict[division])
+                x.append(c)
         
-        print("Collected Employee Data:", employees_data)
-        # Here you would typically save this data to your database
-        # For now, we'll just print it
+        if False not in x:
+            messagebox.showinfo("Employee Create", "Employees created successfully.")
+        else:
+            messagebox.showerror("Employee Create", "There were some errors!")
+        
 
     def display(self):
         self.clear_main_frame()
