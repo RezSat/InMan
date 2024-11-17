@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from config import COLORS
-from controllers import get_all_items_with_no_attrs, get_all_employees
+from controllers import get_all_items_with_no_attrs, get_all_employees, assign_item_to_employee
 
 class AssignItemsToEmployees:
     def __init__(self, main_frame, return_to_manager):
@@ -250,6 +250,7 @@ class AssignItemsToEmployees:
                     "item": item_dropdown.get(),
                     "serial_number": serial_entry.get()
                 })
+                assign_item_to_employee(employee["emp_id"], item_dropdown.get(), serial_entry.get())
         
         # Here you would typically save the assignments to your database
         print("Assigned items:", assigned_items)

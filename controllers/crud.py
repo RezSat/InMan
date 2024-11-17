@@ -1,5 +1,6 @@
 # controllers/crud.py
 
+from venv import logger
 from sqlalchemy.orm import Session, joinedload
 from models.models import *
 from models.database import session_scope, SessionLocal

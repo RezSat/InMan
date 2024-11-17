@@ -32,7 +32,7 @@ class Employee(Base):
 class Item(Base):
     __tablename__ = "items"
     item_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, unique=True)
     is_common = Column(Boolean, default=False)
     status = Column(Enum("active", "retired", "lost"), default="active")
     last_assigned = Column(DateTime, default=datetime.utcnow)
