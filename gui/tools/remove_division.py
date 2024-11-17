@@ -3,21 +3,14 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
-# from controllers.crud import delete_division 
+from controllers.crud import delete_division, get_all_divisions
 
 class RemoveDivision:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample Division Data (you'll replace this with actual data source)
-        self.divisions = [
-            {"division_id": "DIV001", "name": "IT Department"},
-            {"division_id": "DIV002", "name": "HR Department"},
-            {"division_id": "DIV003", "name": "Finance Department"},
-            {"division_id": "DIV004", "name": "Marketing Department"},
-            {"division_id": "DIV005", "name": "Sales Department"}
-        ]
+        self.divisions = get_all_divisions()
         self.filtered_divisions = self.divisions.copy()
 
     def create_header(self):
@@ -157,7 +150,8 @@ class RemoveDivision:
 
     def remove_division(self, division):
         # Call the delete function from the controller
-        self.divisions = [ div for div in self.div_data if div['division_id'] != division['division_id']]
+        action = delete_division(division['division_id'])
+        self.divisions = get_all_divisions()
         self.filtered_divisions = self.divisions.copy()
 
     def display(self):

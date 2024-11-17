@@ -26,7 +26,13 @@ def get_division(division_id: int):
 
 def get_all_divisions():
     with session_scope() as db:
-        return db.query(Division).all()
+        divisions = db.query(Division).all()
+        return [
+            {
+                'division_id': div.division_id,
+                'name': div.name,
+            } for div in divisions
+        ]
 
 def get_division_details_with_counts(division_id: int):
     with session_scope() as db:
@@ -63,7 +69,7 @@ def get_division_details_with_counts(division_id: int):
             return division_details
         else:
             return None
-            
+
 def get_all_divisions_with_counts():
     with session_scope() as db:
         # Get all divisions

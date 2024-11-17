@@ -223,7 +223,10 @@ def convert_items_to_dicts(items):
 
 # Call the functions together within the same session context
 def testsomething():
-    print(get_all_divisions_with_counts())
+    with session_scope() as db:
+        divisions = get_all_divisions()  # This will still be in the session context
+        for div in divisions:
+            print(div.name)  # Accessing attributes while in the session context
 
 if __name__ == "__main__":
     testsomething()
