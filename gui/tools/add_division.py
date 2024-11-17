@@ -2,6 +2,7 @@
 
 import customtkinter as ctk
 from collections import defaultdict
+from tkinter import messagebox
 
 from controllers.crud import create_division  # Assuming you have a similar function for divisions
 from config import COLORS
@@ -81,7 +82,7 @@ class AddDivision:
         # Add Row button
         add_row_btn = ctk.CTkButton(
             buttons_frame,
-            text="+ Add Division",
+            text="+",
             command=self.add_row,
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
@@ -94,7 +95,7 @@ class AddDivision:
         # Submit button
         submit_btn = ctk.CTkButton(
             buttons_frame,
-            text="Submit",
+            text="Create Divisions",
             command=self.submit_divisions,
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
@@ -130,16 +131,17 @@ class AddDivision:
         self.row_frames[-1].focus()
 
     def submit_divisions(self):
-        divisions_data = []
+        message = "Operations Completed:\n\n"
         for division_name in self.row_frames:
             if division_name.get():  # Only collect filled rows
-                divisions_data.append({
-                    "name": division_name.get()
-                })
+                d = create_division(division_name.get())
+                if d:
+                    message += f"Created Division: {division_name.get()}\n"
+                else:
+                    message += f"Failed to create Division (already exists) : {division_name.get()}\n"
 
-        print("Collected Division Data:", divisions_data)
-        # Here you would typically save this data to your database
-        # For now, we'll just print it
+        messagebox.showinfo("Division Create", message)
+
 
     def display(self):
         self.clear_main_frame()

@@ -4,16 +4,20 @@ from sqlalchemy.orm import Session, joinedload
 from models.models import *
 from models.database import session_scope, SessionLocal
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 # Division CRUD Operations
-def create_division(db: Session, name: str):
-    with session_scope() as db:
-        division = Division(name=name)
-        db.add(division)
-        db.commit()
-        db.refresh(division)
-        db.close()
-        return division
+def create_division(name: str):
+    try:
+        with session_scope() as db:
+            division = Division(name=name)
+            db.add(division)
+            db.commit()
+            db.refresh(division)
+            db.close()
+            return division
+    except IntegrityError:
+        return False
 
 def get_division(division_id: int):
     with session_scope() as db:
