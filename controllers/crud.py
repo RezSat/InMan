@@ -5,6 +5,7 @@ from models.models import *
 from models.database import session_scope, SessionLocal
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 
 # Division CRUD Operations
 def create_division(name: str):
@@ -26,6 +27,80 @@ def get_division(division_id: int):
 def get_all_divisions():
     with session_scope() as db:
         return db.query(Division).all()
+
+def get_division_details_with_counts(division_id: int):
+    with session_scope() as db:
+        # Get the division
+        division = db.query(Division).filter(Division.division_id == division_id).first()
+        
+        if division:
+            # Count employees in the division
+            employee_count = db.query(Employee).filter(Employee.division_id == division_id).count()
+            
+            # Count items owned by employees in the division
+            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division_id).count()
+            
+            # Prepare items data
+            items_data = db.query(Item.name, func.count(EmployeeItem.id).label('count')) \
+                .join(EmployeeItem) \
+                .join(Employee) \
+                .filter(Employee.division_id == division_id) \
+                .group_by(Item.name) \
+                .all()
+            
+            # Format items data
+            items_list = [{"name": item.name, "count": item.count} for item in items_data]
+            
+            # Prepare the details to return
+            division_details = {
+                "division_id": division.division_id,
+                "name": division.name,
+                "employee_count": employee_count,
+                "item_count": item_count,
+                "items": items_list
+            }
+            
+            return division_details
+        else:
+            return None
+            
+def get_all_divisions_with_counts():
+    with session_scope() as db:
+        # Get all divisions
+        divisions = db.query(Division).all()
+        
+        division_details_list = []
+        
+        for division in divisions:
+            # Count employees in the division
+            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
+            
+            # Count items owned by employees in the division
+            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division.division_id).count()
+            
+            # Prepare items data
+            items_data = db.query(Item.name, Item.item_id, func.count(EmployeeItem.id).label('count')) \
+                .join(EmployeeItem) \
+                .join(Employee) \
+                .filter(Employee.division_id == division.division_id) \
+                .group_by(Item.name, Item.item_id) \
+                .all()
+            
+            # Format items data
+            items_list = [{"name": item.name, "count": item.count} for item in items_data]
+            
+            # Prepare the details for the division
+            division_details = {
+                "division_id": division.division_id,
+                "name": division.name,
+                "employee_count": employee_count,
+                "item_count": item_count,
+                "items": items_list
+            }
+            
+            division_details_list.append(division_details)
+        
+        return division_details_list
 
 def delete_division(division_id: int):
     with session_scope() as db:

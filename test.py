@@ -223,9 +223,7 @@ def convert_items_to_dicts(items):
 
 # Call the functions together within the same session context
 def testsomething():
-    items = get_all_items_()  # Fetch items
-    items_data = convert_items_to_dicts(items)  # Convert items to dicts
-    print(items_data)
+    print(get_all_divisions_with_counts())
 
 if __name__ == "__main__":
     testsomething()

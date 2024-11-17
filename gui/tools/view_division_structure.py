@@ -3,45 +3,14 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
+from controllers import get_all_divisions_with_counts
 
 class ViewDivisionStructure:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample Division Data (you'll replace this with actual data source)
-        self.divisions = [
-            {
-                "division_id": "DIV001", 
-                "name": "IT Department", 
-                "employee_count": 15,
-                "items": [
-                    {"name": "Laptop", "count": 20},
-                    {"name": "Desktop", "count": 10},
-                    {"name": "Monitor", "count": 15}
-                ]
-            },
-            {
-                "division_id": "DIV002", 
-                "name": "HR Department", 
-                "employee_count": 10,
-                "items": [
-                    {"name": "Printer", "count": 5},
-                    {"name": "Scanner", "count": 3},
-                    {"name": "Conference Phone", "count": 2}
-                ]
-            },
-            {
-                "division_id": "DIV003", 
-                "name": "Finance Department", 
-                "employee_count": 12,
-                "items": [
-                    {"name": "Calculator", "count": 12},
-                    {"name": "Accounting Software License", "count": 10},
-                    {"name": "Safe", "count": 8}
-                ]
-            }
-        ]
+        self.divisions = get_all_divisions_with_counts()
         self.filtered_divisions = self.divisions.copy()
 
     def create_header(self):
