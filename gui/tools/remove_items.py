@@ -3,7 +3,7 @@
 import customtkinter as ctk
 from config import COLORS
 import tkinter.messagebox as messagebox
-from controllers import get_all_items
+from controllers import get_all_items, delete_item
 
 class RemoveItem:
     def __init__(self, main_frame, return_to_manager):
@@ -199,7 +199,7 @@ class RemoveItem:
         # Create confirmation popup
         confirm = messagebox.askyesno(
             "Confirm Removal", 
-            f"Are you sure you want to remove the item:\n{item['item_id']} - {item['name']}?"
+            f"Are you sure you want to remove the item:\n{item.item_id} - {item.name}?"
         )
         
         if confirm:
@@ -207,7 +207,8 @@ class RemoveItem:
 
     def remove_item(self, item):
         # Remove item from data source
-        self.items_data = [i for i in self.items_data if i["item_id"] != item["item_id"]]
+        q = delete_item(item.item_id)
+        self.items_data = get_all_items()
         self.filtered_items = self.items_data.copy()
                 
         self.display()

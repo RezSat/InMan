@@ -127,16 +127,15 @@ def get_all_items():
 
 def delete_item(item_id: int):
     with session_scope() as db:
-        # Delete attributes first
-        delete_item_attributes(item_id)
-
-        # Delete item
-        item = get_item(item_id)
+        item = db.query(Item).options(joinedload(Item.attributes)).filter(Item.item_id == item_id).first()
         if item:
+            # Delete all associated attributes
+            for attribute in item.attributes:
+                db.delete(attribute)
             db.delete(item)
             db.commit()
-
-        return item
+            return True
+    return False
 
 # Log Action
 def log_action(action_type: str, details: str, user_id: int = None):
