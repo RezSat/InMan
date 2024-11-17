@@ -63,6 +63,7 @@ class ViewItemDetails:
             dropdown_fg_color=COLORS["black"]
         )
         self.status_filter.pack(side="left", padx=5)
+        self.status_filter.bind('<<ComboboxSelected>>', self.filter_items)
 
     def create_items_view(self):
         # Main container
@@ -200,12 +201,18 @@ class ViewItemDetails:
 
     def filter_items(self, event=None):
         search_term = self.search_entry.get().lower()
+        selected_status = self.status_filter.get()
         filtered_items = []
 
         for item in self.items_data:
-            if (search_term in item.name.lower() or
-                search_term in str(item.item_id).lower() or
-                search_term in item.status.lower()):
+            matches_search = (search_term in item.name.lower() or
+                          search_term in str(item.item_id).lower() or
+                          search_term in item.status.lower())
+        
+            matches_status = (selected_status == "All Status" or
+                          item.status.capitalize() == selected_status)
+
+            if matches_search and matches_status:
                 filtered_items.append(item)
 
         self.update_items_view(filtered_items)
@@ -213,6 +220,19 @@ class ViewItemDetails:
     def update_items_view(self, items):
         for widget in self.items_scroll.winfo_children():
             widget.destroy()
+
+        # Create headers
+        headers = ["Item ID", "Name", "Status", "Type", "Attributes"]
+        for col, header in enumerate(headers):
+            header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
+            header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
+            
+            ctk.CTkLabel(
+                header_frame,
+                text=header,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=10, pady=8)
 
         for idx,item in enumerate(items, 1):
             self.create_item_row(idx, item)
