@@ -228,7 +228,8 @@ def testsomething():
         for div in divisions:
             print(div.name)  # Accessing attributes while in the session context
 
-import pandas as pd
+
+"""import pandas as pd
 
 # Create a DataFrame with the test data
 data = {
@@ -244,7 +245,7 @@ file_name = 'employee_import_test.xlsx'
 df.to_excel(file_name, index=False)
 
 print(f"Excel file '{file_name}' created successfully.")
-
+"""
 #if __name__ == "__main__":
     #app = InventoryApp()
     #app.run()

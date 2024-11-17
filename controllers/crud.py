@@ -21,8 +21,8 @@ def create_division(name: str):
         return False
 
 def get_division(division_id: int):
-    with session_scope() as db:
-        return db.query(Division).filter(Division.division_id == division_id).first()
+    db = SessionLocal()
+    return db.query(Division).filter(Division.division_id == division_id).first()
 
 def get_all_divisions():
     with session_scope() as db:
@@ -134,7 +134,15 @@ def get_employee(emp_id: str):
 
 def get_all_employees():
     with session_scope() as db:
-        return db.query(Employee).all()
+        employees = db.query(Employee).all()
+        return [
+            {
+                'emp_id': emp.emp_id,
+                'name': emp.name,
+                'division_id': emp.division_id,
+                'division': str(get_division(emp.division_id).name)
+            } for emp in employees
+        ]
 
 def delete_employee(emp_id: str):
     with session_scope() as db:

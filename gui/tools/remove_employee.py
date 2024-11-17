@@ -1,30 +1,14 @@
 import customtkinter as ctk
 from config import COLORS
 import tkinter.messagebox as messagebox
+from controllers.crud import get_all_employees, delete_employee
 
 class RemoveEmployee:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample data (you'll replace this with actual database fetch)
-        self.employees_data = [
-            {
-                "emp_id": "EMP001", 
-                "name": "John Doe", 
-                "division": "IT"
-            },
-            {
-                "emp_id": "EMP002", 
-                "name": "Jane Smith", 
-                "division": "HR"
-            },
-            {
-                "emp_id": "EMP003", 
-                "name": "Bob Johnson", 
-                "division": "IT"
-            }
-        ]
+        self.employees_data = get_all_employees()
         self.filtered_employees = self.employees_data.copy()
 
     def create_header(self):
@@ -179,7 +163,8 @@ class RemoveEmployee:
 
     def remove_employee(self, employee):
         # Remove employee from data source
-        self.employees_data = [emp for emp in self.employees_data if emp["emp_id"] != employee["emp_id"]]
+        d = delete_employee(employee["emp_id"])
+        self.employees_data = get_all_employees()
         self.filtered_employees = self.employees_data.copy()
         
         # Refresh the employee view
