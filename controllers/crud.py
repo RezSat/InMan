@@ -118,12 +118,15 @@ def delete_division(division_id: int):
 
 # Employee CRUD Operations
 def create_employee(emp_id: str, name: str, division_id: int):
-    with session_scope() as db:
-        employee = Employee(emp_id=emp_id, name=name, division_id=division_id)
-        db.add(employee)
-        db.commit()
-        db.refresh(employee)
-        return employee
+    try:
+        with session_scope() as db:
+            employee = Employee(emp_id=emp_id, name=name, division_id=division_id)
+            db.add(employee)
+            db.commit()
+            db.refresh(employee)
+            return employee
+    except IntegrityError:
+        return False
 
 def get_employee(emp_id: str):
     with session_scope() as db:

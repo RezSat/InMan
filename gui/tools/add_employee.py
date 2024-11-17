@@ -2,8 +2,8 @@
 
 import customtkinter as ctk
 from collections import defaultdict
-
-from controllers.crud import create_employee
+from tkinter import messagebox
+from controllers.crud import create_employee, get_all_divisions
 from config import COLORS
 
 class AddEmployee:
@@ -13,6 +13,8 @@ class AddEmployee:
         self.row_frames = []
         self.current_rows = 0
         self.min_rows = 5  # Minimum number of rows to show
+        self.divisions = [div['name'] for div in get_all_divisions()]
+        self.division_dict = {div['name']: div['division_id'] for div in get_all_divisions()}
         
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -149,7 +151,7 @@ class AddEmployee:
             button_color=COLORS["pink"],
             button_hover_color=COLORS["darker_pink"],
             dropdown_fg_color=COLORS["black"],
-            values=["IT", "HR", "Finance", "Operations", "Marketing", "Sales"],
+            values=self.divisions,
             state="readonly"
         )
         division.grid(row=row_number-1, column=2, padx=5, pady=5, sticky="ew")
@@ -158,19 +160,16 @@ class AddEmployee:
         self.row_frames.append((emp_id, name, division))
 
     def submit_employees(self):
-        employees_data = []
+        message = "Operations Completed:\n\n"
         for emp_id, name, division in self.row_frames:
-            if emp_id.get() and name.get() and division.get():  # Only collect filled rows
-                employees_data.append({
-                    "emp_id": emp_id.get(),
-                    "name": name.get(),
-                    "division": division.get()
-                })
-        
-        print("Collected Employee Data:", employees_data)
-        # Here you would typically save this data to your database
-        # For now, we'll just print it
-        
+            if emp_id.get() and name.get() and division.get():
+                c = create_employee(emp_id.get(), name.get(), self.division_dict[division.get()])
+                if c:
+                    message += f"Created Employee: {name.get()}\n"
+                else:
+                    message += f"Failed to create Employee (already exists) : {name.get()}\n"
+        messagebox.showinfo("Employee Create", message)
+
     def display(self):
         self.clear_main_frame()
         self.create_header()
