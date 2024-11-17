@@ -3,6 +3,7 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
+from controllers import get_employee_details_with_items
 
 class ViewEmployeeRecords:
     def __init__(self, main_frame, return_to_manager):
@@ -10,35 +11,7 @@ class ViewEmployeeRecords:
         self.return_to_manager = return_to_manager
         
         # Placeholder for employee data - you'll replace this with actual database query
-        self.employees = [
-            {
-                "emp_id": "EMP001", 
-                "name": "John Doe", 
-                "division": "IT",
-                "items": [
-                    {"item_id": "ITM001", "name": "Dell XPS Laptop"},
-                    {"item_id": "ITM002", "name": "HP Monitor"}
-                ]
-            },
-            {
-                "emp_id": "EMP002", 
-                "name": "Jane Smith", 
-                "division": "HR",
-                "items": [
-                    {"item_id": "ITM003", "name": "Logitech Mouse"},
-                    {"item_id": "ITM004", "name": "HP Printer"}
-                ]
-            },
-            {
-                "emp_id": "EMP003", 
-                "name": "Bob Johnson", 
-                "division": "IT",
-                "items": [
-                    {"item_id": "ITM005", "name": "Dell Keyboard"},
-                    {"item_id": "ITM006", "name": "HP Scanner"}
-                ]
-            }
-        ]
+        self.employees = get_employee_details_with_items()
         self.filtered_employees = self.employees.copy()
 
     def create_header(self):

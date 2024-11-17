@@ -229,6 +229,9 @@ def testsomething():
             print(div.name)  # Accessing attributes while in the session context
 
 
+
+print(get_employee_details_with_items())
+
 """import pandas as pd
 
 # Create a DataFrame with the test data

@@ -143,6 +143,48 @@ def get_all_employees():
                 'division': str(get_division(emp.division_id).name)
             } for emp in employees
         ]
+def get_employee_details_with_items():
+    """
+    Retrieve all employee details along with their associated items
+    
+    Returns:
+        List of dictionaries containing employee and item information
+    """
+    try:
+        with session_scope() as db:
+            # Query employees with their items in a single query
+            employees = (
+                db.query(Employee)
+                .options(joinedload(Employee.items))  # Efficiently load related items
+                .all()
+            )
+            
+            # Transform query results into desired format
+            employee_details = []
+            for emp in employees:
+                # Get division name
+                division_name = get_division(emp.division_id).name if emp.division_id else "Unassigned"
+                
+                # Prepare employee data
+                emp_data = {
+                    "emp_id": emp.emp_id,
+                    "name": emp.name,
+                    "division": division_name,
+                    "items": [
+                        {
+                            "item_id": item.item_id, 
+                            "name": item.name
+                        } for item in emp.items
+                    ]
+                }
+                employee_details.append(emp_data)
+            
+            return employee_details
+    
+    except Exception as e:
+        # Log the error
+        logger.error(f"Error retrieving employee details: {str(e)}")
+        raise
 
 def delete_employee(emp_id: str):
     with session_scope() as db:
