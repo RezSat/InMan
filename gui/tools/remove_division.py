@@ -153,6 +153,7 @@ class RemoveDivision:
         action = delete_division(division['division_id'])
         self.divisions = get_all_divisions()
         self.filtered_divisions = self.divisions.copy()
+        self.display()
 
     def display(self):
         self.clear_main_frame()
