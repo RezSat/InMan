@@ -263,6 +263,45 @@ def get_all_items():
     db.close()
     return items
 
+def get_all_items_with_no_attrs():
+    """
+    Retrieve a list of all item names from the database
+    
+    Returns:
+        List of item names
+    """
+    try:
+        with session_scope() as db:
+            # Query to select only item names
+            items = db.query(Item.name).all()
+            
+            # Extract names from the query result
+            item_names = [item.name for item in items]
+            
+            return item_names
+    
+    except Exception as e:
+        # Log the error
+        logger.error(f"Error retrieving item names: {str(e)}")
+        return []
+
+# Alternative implementations:
+
+def get_all_items_names_set():
+    """
+    Retrieve unique item names as a set
+    
+    Returns:
+        Set of unique item names
+    """
+    try:
+        with session_scope() as db:
+            return set(db.query(Item.name).distinct().all())
+    except Exception as e:
+        logger.error(f"Error retrieving unique item names: {str(e)}")
+        return set()
+
+
 def delete_item(item_id: int):
     with session_scope() as db:
         item = db.query(Item).options(joinedload(Item.attributes)).filter(Item.item_id == item_id).first()

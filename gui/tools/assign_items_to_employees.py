@@ -1,16 +1,24 @@
-# gui/tools/assign_items_to_employees.py
-
 import customtkinter as ctk
 from config import COLORS
+from controllers import get_all_items_with_no_attrs
 
 class AssignItemsToEmployees:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
-        self.row_frames = []
-        self.current_rows = 0
-        self.min_rows = 5  # Minimum number of rows to show
-        self.available_items = ["Item A", "Item B", "Item C", "Item D", "Item E"]  # Example items
+        self.available_items = get_all_items_with_no_attrs()
+        self.employee_data = [
+            {"emp_id": "EMP001", "name": "John Doe"},
+            {"emp_id": "EMP002", "name": "Jane Smith"},
+            {"emp_id": "EMP003", "name": "Emily Johnson"},
+            {"emp_id": "EMP004", "name": "Michael Brown"},
+        ]
+        self.create_ui()
+
+    def create_ui(self):
+        self.clear_main_frame()
+        self.create_header()
+        self.create_employee_grid()
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -38,20 +46,16 @@ class AssignItemsToEmployees:
         )
         title.pack(side="left", padx=20)
 
-        # Save button
-        save_button = ctk.CTkButton(
+        # Search box
+        self.search_entry = ctk.CTkEntry(
             header_frame,
-            text="Save Changes",
-            command=self.save_changes,
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=150,
-            height=40,
-            font=ctk.CTkFont(size=14, weight="bold")
+            placeholder_text="Search Employees...",
+            width=200,
+            font=ctk.CTkFont(size=14)
         )
-        save_button.pack(side="right", padx=20)
+        self.search_entry.pack(side="right", padx=20)
 
-    def create_spreadsheet(self):
+    def create_employee_grid(self):
         # Main container frame
         outer_frame = ctk.CTkFrame(
             self.main_frame,
@@ -63,64 +67,122 @@ class AssignItemsToEmployees:
         outer_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Create headers container
-        headers_frame = ctk.CTkFrame(outer_frame, fg_color=COLORS["black"], height=50)
-        headers_frame.pack(fill="x", padx=5, pady=5)
+        headers_frame = ctk.CTkFrame(outer_frame, fg_color=COLORS["black"])
+        headers_frame.grid(row=0, column=0, sticky="nsew")
 
         # Create column headers
-        headers = ["EMP ID", "NAME", "ITEM", "SERIAL NUMBER"]
-        for i, header in enumerate(headers):
+        headers = ["EMP ID", "NAME", "ASSIGN ITEMS"]
+        for col, header in enumerate(headers):
             header_label = ctk.CTkLabel(
                 headers_frame,
                 text=header,
                 font=ctk.CTkFont(size=16, weight="bold"),
                 text_color=COLORS["white"]
             )
-            header_label.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
+            header_label.grid(row=0, column=col, padx=5, pady=5, sticky="nsew")  # Adjusted padding
 
-        # Configure the grid columns for the headers
-        headers_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        # Configure grid weights for responsiveness
+        for i in range(len(headers)):
+            headers_frame.grid_columnconfigure(i, weight=1)
 
-        # Create scrollable frame for rows
-        self.scrollable_frame = ctk.CTkScrollableFrame(
-            outer_frame,
-            fg_color="transparent",
-            scrollbar_button_color=COLORS["pink"],
-            scrollbar_button_hover_color=COLORS["darker_pink"]
-        )
-        self.scrollable_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        # Employee rows
+        for idx, emp in enumerate(self.employee_data, 1):
+            self.add_employee_row(outer_frame, emp, idx)
 
-        # Configure grid columns for the scrollable frame
-        self.scrollable_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+    def add_employee_row(self, outer_frame, emp, row_idx):
+        row_frame = ctk.CTkFrame(outer_frame, fg_color=COLORS["black"])
+        row_frame.grid(row=row_idx, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Add initial rows
-        for _ in range(self.min_rows):
-            self.add_row()
+        # Configure grid weights for the row
+        row_frame.grid_columnconfigure(0, weight=1)
+        row_frame.grid_columnconfigure(1, weight=1)
+        row_frame.grid_columnconfigure(2, weight=1)
 
-    def add_row(self):
-        self.current_rows += 1
-        row_number = self.current_rows
-
-        # Employee ID (non-editable)
-        emp_id = ctk.CTkLabel(
-            self.scrollable_frame,
-            text=f"EMP{row_number:03d}",
+        # Employee ID Cell
+        emp_id_label = ctk.CTkLabel(
+            row_frame,
+            text=emp['emp_id'],
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
         )
-        emp_id.grid(row=row_number - 1, column=0, padx=5, pady=5, sticky="ew")
+        emp_id_label.grid(row=0, column=0, padx=5, pady=5, sticky="ew")  # Adjusted padding
 
-        # Name (non-editable)
-        name = ctk. CTkLabel(
-            self.scrollable_frame,
-            text=f"Employee {row_number}",
+        # Name Cell
+        name_label = ctk.CTkLabel(
+            row_frame,
+            text=emp['name'],
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
         )
-        name.grid(row=row_number - 1, column=1, padx=5, pady=5, sticky="ew")
+        name_label.grid(row=0, column=1, padx=5, pady=5, sticky="ew")  # Adjusted padding
+
+        # Assign Items Button
+        assign_button = ctk.CTkButton(
+            row_frame,
+            text="Assign Items",
+            command=lambda: self.open_assign_items_window(emp),
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        assign_button.grid(row=0, column=2, padx=5, pady=5, sticky="ew")  # Adjusted padding
+
+    def open_assign_items_window(self, emp):
+        assign_window = ctk.CTkToplevel(self.main_frame)
+        assign_window.title(f"Assign Items to {emp['name']}")
+        assign_window.geometry("400x400")
+
+        # Create dropdowns and entry fields for item assignment
+        self.item_rows = []
+        self.add_item_row(assign_window)
+
+        # Add button to create more item rows
+        add_button = ctk.CTkButton(
+            assign_window,
+            text="+ Add Item",
+            command=lambda: self.add_item_row(assign_window),
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        add_button.pack(pady=10)
+
+        # Save and Cancel buttons
+        save_button = ctk.CTkButton(
+            assign_window,
+            text="Save",
+            command=lambda: self.save_assigned_items(emp),
+            fg_color=COLORS["green"],
+            hover_color=COLORS["darker_green"],
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        save_button.pack(side="left", padx=20, pady=10)
+
+        cancel_button = ctk.CTkButton(
+            assign_window,
+            text="Cancel",
+            command=assign_window.destroy,
+            fg_color=COLORS["red"],
+            hover_color=COLORS["darker_red"],
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        cancel_button.pack(side="right", padx=20, pady=10)
+
+    def add_item_row(self, parent):
+        item_frame = ctk.CTkFrame(parent)
+        item_frame.pack(fill="x", padx=5, pady=5)
 
         # Item Dropdown
         item_dropdown = ctk.CTkComboBox(
-            self.scrollable_frame,
+            item_frame,
             height=35,
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
@@ -131,11 +193,11 @@ class AssignItemsToEmployees:
             values=self.available_items,
             state="readonly"
         )
-        item_dropdown.grid(row=row_number - 1, column=2, padx=5, pady=5, sticky="ew")
+        item_dropdown.grid(row=0, column=0, padx=5, pady=5)
 
         # Serial Number Entry
         serial_entry = ctk.CTkEntry(
-            self.scrollable_frame,
+            item_frame,
             height=35,
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
@@ -143,28 +205,23 @@ class AssignItemsToEmployees:
             border_width=2,
             placeholder_text="Enter Serial Number"
         )
-        serial_entry.grid(row=row_number - 1, column=3, padx=5, pady=5, sticky="ew")
+        serial_entry.grid(row=0, column=1, padx=5, pady=5)
 
         # Store the row's widgets for later access
-        self.row_frames.append((emp_id, name, item_dropdown, serial_entry))
+        self.item_rows.append((item_dropdown, serial_entry))
 
-    def save_changes(self):
+    def save_assigned_items(self, emp):
         assigned_items_data = []
-        for emp_id, name, item_dropdown, serial_entry in self.row_frames:
+        for item_dropdown, serial_entry in self.item_rows:
             assigned_items_data.append({
-                "emp_id": emp_id.cget("text"),
-                "name": name.cget("text"),
+                "emp_id": emp['emp_id'],
+                "name": emp['name'],
                 "item": item_dropdown.get(),
                 "serial_number": serial_entry.get()
             })
         
         print("Assigned Items Data:", assigned_items_data)
         # Here you would typically save this data to your database
-
-    def display(self):
-        self.clear_main_frame()
-        self.create_header()
-        self.create_spreadsheet()
 
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
