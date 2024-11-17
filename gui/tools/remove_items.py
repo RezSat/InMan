@@ -3,33 +3,14 @@
 import customtkinter as ctk
 from config import COLORS
 import tkinter.messagebox as messagebox
+from controllers import get_all_items
 
 class RemoveItem:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample data (you'll replace this with actual database fetch)
-        self.items_data = [
-            {
-                "item_id": "ITM001", 
-                "name": "Dell XPS 15 Laptop", 
-                "status": "active",
-                "location": "Office A"
-            },
-            {
-                "item_id": "ITM002", 
-                "name": "HP Monitor 27\"", 
-                "status": "active",
-                "location": "Office B"
-            },
-            {
-                "item_id": "ITM003", 
-                "name": "Logitech MX Master", 
-                "status": "lost",
-                "location": "Office C"
-            }
-        ]
+        self.items_data = get_all_items()
         self.filtered_items = self.items_data.copy()
 
     def create_header(self):
@@ -103,14 +84,16 @@ class RemoveItem:
             scrollbar_button_hover_color=COLORS["darker_pink"]
         )
         self.items_scroll.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Configure grid weights to make it more responsive
-        for i in range(5):  # 5 columns
-            self.items_scroll.grid_columnconfigure(i, weight=1)
-        
+                
         # Create Headers
-        headers = ["Item ID", "Item Name", "Status", "Location", "Action"]
-        for col, header in enumerate(headers):
+        self.headers = ["Item ID", "Item Name", "Status", "Action"]
+        self.attributes = ["item_id", "name", "status"]
+
+        # Configure grid weights to make it more responsive
+        for i in range(len(self.headers)):  # Dynamically based on headers
+            self.items_scroll.grid_columnconfigure(i, weight=1)
+
+        for col, header in enumerate(self.headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
             
@@ -124,6 +107,35 @@ class RemoveItem:
         # Add Items with proper row indexing
         for idx, item in enumerate(self.filtered_items, 1):
             self.create_item_row(idx, item)
+
+    def create_item_row(self, row_idx, item):
+        # Create item cells dynamically based on attributes
+        for col, attr in enumerate(self.attributes):
+            cell_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
+            cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
+            
+            # Accessing the item attributes directly
+            cell_value = getattr(item, attr)  # Get the attribute value dynamically
+            ctk.CTkLabel(
+                cell_frame,
+                text=str(cell_value),  # Use the retrieved value
+                font=ctk.CTkFont(size=13),
+                wraplength=100  # Adjust wraplength as needed
+            ).pack(padx=10, pady=8)
+
+        # Action Cell
+        action_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
+        action_frame.grid(row=row_idx, column=len(self.headers) - 1, padx=2, pady=2, sticky="nsew")  # Column index for Action
+
+        remove_button = ctk.CTkButton(
+            action_frame,
+            text="Remove",
+            command=lambda i=item: self.confirm_remove_item(i),
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=100
+        )
+        remove_button.pack(padx=10, pady=8)
 
     def remove_item(self, item):
         # Remove item from data source
@@ -151,46 +163,15 @@ class RemoveItem:
         for idx, item in enumerate(self.filtered_items, 1):
             self.create_item_row(idx, item)
 
-    def create_item_row(self, row_idx, item):
-        # Item ID Cell
-        for col, (key, width) in enumerate([
-            ("item_id", 100), 
-            ("name", 300), 
-            ("status", 100), 
-            ("location", 150)
-        ]):
-            cell_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
-            cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
-            
-            ctk.CTkLabel(
-                cell_frame,
-                text=str(item.get(key, "N/A")),
-                font=ctk.CTkFont(size=13),
-                wraplength=width-20
-            ).pack(padx=10, pady=8)
-        
-        # Action Cell
-        action_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
-        action_frame.grid(row=row_idx, column=4, padx=2, pady=2, sticky="nsew")
-        
-        remove_button = ctk.CTkButton(
-            action_frame,
-            text="Remove",
-            command=lambda i=item: self.confirm_remove_item(i),
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=100
-        )
-        remove_button.pack(padx=10, pady=8)
-
     def perform_search(self):
         search_term = self.search_entry.get().lower()
         self.filtered_items = [
             item for item in self.items_data 
-            if (search_term in item["item_id"].lower() or 
-                search_term in item["name"].lower() or 
-                search_term in item.get("status", "").lower() or 
-                search_term in item.get("location", "").lower())
+            if (search_term in str(item.item_id) or 
+                search_term in item.name.lower() or 
+                search_term in item.status.lower()
+                #search_term in item.get("location", "").lower()
+                )
         ]
         
         # Clear previous items
@@ -198,7 +179,7 @@ class RemoveItem:
             widget.destroy()
         
         # Recreate headers
-        headers = ["Item ID", "Item Name", "Status", "Location", "Action"]
+        headers = ["Item ID", "Item Name", "Status", "Action"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
