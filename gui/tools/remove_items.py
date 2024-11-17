@@ -87,7 +87,7 @@ class RemoveItem:
                 
         # Create Headers
         self.headers = ["Item ID", "Item Name", "Status", "Action"]
-        self.attributes = ["item_id", "name", "status"]
+        self.item_params = ["item_id", "name", "status"]
 
         # Configure grid weights to make it more responsive
         for i in range(len(self.headers)):  # Dynamically based on headers
@@ -109,16 +109,15 @@ class RemoveItem:
             self.create_item_row(idx, item)
 
     def create_item_row(self, row_idx, item):
-        # Create item cells dynamically based on attributes
-        for col, attr in enumerate(self.attributes):
+        # Create item cells dynamically based on params
+        for col, param in enumerate(self.item_params):
             cell_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             cell_frame.grid(row=row_idx, column=col, padx=2, pady=2, sticky="nsew")
             
             # Accessing the item attributes directly
-            cell_value = getattr(item, attr)  # Get the attribute value dynamically
             ctk.CTkLabel(
                 cell_frame,
-                text=str(cell_value),  # Use the retrieved value
+                text=str(item[param]),  # Use the retrieved value
                 font=ctk.CTkFont(size=13),
                 wraplength=100  # Adjust wraplength as needed
             ).pack(padx=10, pady=8)

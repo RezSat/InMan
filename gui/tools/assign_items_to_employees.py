@@ -1,6 +1,7 @@
+from tkinter import messagebox
 import customtkinter as ctk
 from config import COLORS
-from controllers import get_all_items_with_no_attrs, get_all_employees, assign_item_to_employee
+from controllers import get_all_items_with_no_attrs, get_all_employees, assign_item_to_employee, get_all_items_names_dict
 
 class AssignItemsToEmployees:
     def __init__(self, main_frame, return_to_manager):
@@ -8,6 +9,7 @@ class AssignItemsToEmployees:
         self.return_to_manager = return_to_manager
         self.available_items = get_all_items_with_no_attrs()
         self.employees_data = get_all_employees()
+        self.items_names_dict = get_all_items_names_dict()
         self.filtered_employees = self.employees_data.copy()
 
     def create_header(self):
@@ -242,18 +244,13 @@ class AssignItemsToEmployees:
         self.item_rows.append((item_dropdown, serial_entry))
 
     def save_assigned_items(self, employee, window):
-        assigned_items = []
         for item_dropdown, serial_entry in self.item_rows:
             if item_dropdown.get() and serial_entry.get():
-                assigned_items.append({
-                    "emp_id": employee["emp_id"],
-                    "item": item_dropdown.get(),
-                    "serial_number": serial_entry.get()
-                })
-                assign_item_to_employee(employee["emp_id"], item_dropdown.get(), serial_entry.get())
-        
-        # Here you would typically save the assignments to your database
-        print("Assigned items:", assigned_items)
+                a = assign_item_to_employee(employee["emp_id"], self.items_names_dict[item_dropdown.get()], serial_entry.get())
+                if a:
+                    messagebox.showinfo("Success", f"Item: {item_dropdown.get()} assigned to {employee['name']} successfully.")
+                else:
+                    messagebox.showerror("Error", f"Failed to assign item: {item_dropdown.get()} to {employee['name']}.")
         window.destroy()
 
     def perform_search(self):

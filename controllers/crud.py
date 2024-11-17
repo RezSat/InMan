@@ -144,6 +144,7 @@ def get_all_employees():
                 'division': str(get_division(emp.division_id).name)
             } for emp in employees
         ]
+
 def get_employee_details_with_items():
     """
     Retrieve all employee details along with their associated items
@@ -153,37 +154,58 @@ def get_employee_details_with_items():
     """
     try:
         with session_scope() as db:
-            # Query employees with their items in a single query
+            # Query employees with their items and division in a single query
             employees = (
                 db.query(Employee)
-                .options(joinedload(Employee.items))  # Efficiently load related items
+                .options(joinedload(Employee.division))  # Load division data
                 .all()
             )
             
             # Transform query results into desired format
             employee_details = []
             for emp in employees:
-                # Get division name
-                division_name = get_division(emp.division_id).name if emp.division_id else "Unassigned"
+                # Get items through EmployeeItem relationship
+                items_query = (
+                    db.query(Item)
+                    .join(EmployeeItem)
+                    .filter(EmployeeItem.emp_id == emp.emp_id)
+                    .all()
+                )
+                
+                # Format items data
+                items_data = []
+                for item in items_query:
+                    # Get the EmployeeItem record for additional details
+                    emp_item = (
+                        db.query(EmployeeItem)
+                        .filter(
+                            EmployeeItem.emp_id == emp.emp_id,
+                            EmployeeItem.item_id == item.item_id
+                        )
+                        .first()
+                    )
+                    
+                    item_data = {
+                        "item_id": item.item_id,
+                        "name": item.name,
+                        "unique_key": emp_item.unique_key if emp_item else None,
+                        "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item and emp_item.date_assigned else None,
+                        "is_common": item.is_common
+                    }
+                    items_data.append(item_data)
                 
                 # Prepare employee data
                 emp_data = {
                     "emp_id": emp.emp_id,
                     "name": emp.name,
-                    "division": division_name,
-                    "items": [
-                        {
-                            "item_id": item.item_id, 
-                            "name": item.name
-                        } for item in emp.items
-                    ]
+                    "division": emp.division.name if emp.division else "Unassigned",
+                    "items": items_data
                 }
                 employee_details.append(emp_data)
             
             return employee_details
     
     except Exception as e:
-        # Log the error
         logger.error(f"Error retrieving employee details: {str(e)}")
         raise
 
@@ -263,6 +285,11 @@ def get_all_items():
     items =  db.query(Item).options(joinedload(Item.attributes)).all()
     db.close()
     return items
+
+def get_all_items_names_dict():
+    with session_scope() as db:
+        items = db.query(Item).all()
+        return {item.name: item.item_id for item in items}
 
 def get_all_items_with_no_attrs():
     """
@@ -401,7 +428,7 @@ def update_employee(emp_id: str, new_name: str = None, new_division_id: int = No
             return employee
     return None
 
-# Remove item from an employee’s list (does not delete item from DB)
+# Remove item from an employee's list (does not delete item from DB)
 def remove_item_from_employee(emp_id: str, item_id: int):
     with session_scope() as db:
         assignment = db.query(EmployeeItem).filter(

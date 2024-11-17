@@ -20,7 +20,8 @@ from .crud import (
     get_division_details_with_counts,
     get_employee_details_with_items,
     get_all_items_with_no_attrs,
-    get_all_items_names_set
+    get_all_items_names_set,
+    get_all_items_names_dict
 )
 
 from .auth import hash_password, verify_password, create_user, authenticate_user
@@ -48,6 +49,7 @@ __all__ = [
     'get_employee_details_with_items',
     'get_all_items_with_no_attrs',
     'get_all_items_names_set',
+    'get_all_items_names_dict',
 
     'hash_password', 
     'verify_password', 

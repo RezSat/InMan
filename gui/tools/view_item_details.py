@@ -115,7 +115,7 @@ class ViewItemDetails:
         id_frame.grid(row=row_idx, column=0, padx=2, pady=2, sticky="nsew")
         ctk.CTkLabel(
             id_frame,
-            text=item.item_id,
+            text=item['item_id'],
             font=ctk.CTkFont(size=13),
         ).pack(padx=10, pady=8)
         
@@ -124,7 +124,7 @@ class ViewItemDetails:
         name_frame.grid(row=row_idx, column=1, padx=2, pady=2, sticky="nsew")
         ctk.CTkLabel(
             name_frame,
-            text=item.name,
+            text=item['name'],
             font=ctk.CTkFont(size=13),
             wraplength=300  # Allow text to wrap
         ).pack(padx=10, pady=8, fill="x")
@@ -139,13 +139,13 @@ class ViewItemDetails:
                 "active": "#4CAF50",
                 "retired": "#FFA726",
                 "lost": "#EF5350"
-            }.get(item.status, COLORS["black"]),
+            }.get(item['status'], COLORS["black"]),
             corner_radius=6
         )
         status_tag.pack(padx=10, pady=8)
         ctk.CTkLabel(
             status_tag,
-            text=item.status.upper(),
+            text=item['status'].upper(),
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["white"]
         ).pack(padx=8, pady=2)
@@ -156,13 +156,13 @@ class ViewItemDetails:
         
         type_tag = ctk.CTkFrame(
             type_frame,
-            fg_color=COLORS["pink"] if item.is_common else COLORS["green"],
+            fg_color=COLORS["pink"] if item['is_common'] else COLORS["green"],
             corner_radius=6
         )
         type_tag.pack(padx=10, pady=8)
         ctk.CTkLabel(
             type_tag,
-            text="Common" if item.is_common else "Individual",
+            text="Common" if item['is_common'] else "Individual",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["white"]
         ).pack(padx=8, pady=2)
@@ -176,7 +176,7 @@ class ViewItemDetails:
         
         # Configure the container to have multiple columns
         max_columns = 3  # Adjust this to control how many attributes per row
-        for i, attr in enumerate(item.attributes):
+        for i, attr in enumerate(item['attributes'], 1):
             attr_tag = ctk.CTkFrame(
                 attrs_container,
                 fg_color=COLORS["secondary_bg"],
@@ -190,7 +190,7 @@ class ViewItemDetails:
             
             ctk.CTkLabel(
                 attr_tag,
-                text=f"{attr.name}: {attr.value}",
+                text=f"{attr['name']}: {attr['value']}",
                 font=ctk.CTkFont(size=12),
                 text_color=COLORS["white"]
             ).pack(padx=6, pady=4)
@@ -205,12 +205,12 @@ class ViewItemDetails:
         filtered_items = []
 
         for item in self.items_data:
-            matches_search = (search_term in item.name.lower() or
-                          search_term in str(item.item_id).lower() or
-                          search_term in item.status.lower())
+            matches_search = (search_term in item['name'].lower() or
+                          search_term in str(item['item_id']).lower() or
+                          search_term in item['status'].lower())
         
             matches_status = (selected_status == "All Status" or
-                          item.status.capitalize() == selected_status)
+                          item['status'].capitalize() == selected_status)
 
             if matches_search and matches_status:
                 filtered_items.append(item)

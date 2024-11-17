@@ -309,6 +309,6 @@ class AddItems:
                 self.collect_attributes.clear()
                 self.display()
             else:
-                messgaebox.showerror("Failed", f"Failed to create an item name:{self.item_name.get()}")
+                messagebox.showerror("Failed", f"Failed to create an item name:{self.item_name.get()}")
         except:
             messagebox.showerror("Error", "Failed to create an item")
