@@ -6,8 +6,33 @@ class ViewItemDetails:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
-        self.items_data = get_all_items()
+        raw_items = get_all_items()
+        self.items_data = self.convert_items_to_dicts(raw_items)
+        self.filtered_items = self.items_data.copy()
+
+    def convert_items_to_dicts(self,items):
+
+        items_data = []
+        for item in items:
+            item_dict = {
+                "item_id": item.item_id,
+                "name": item.name,
+                "status": item.status,
+                "is_common": item.is_common,
+                "attributes": []
+            }
+            
+            # Add attributes
+            for attr in item.attributes:
+                item_dict["attributes"].append({
+                    "name": attr.name,
+                    "value": attr.value
+                })
+            
+            items_data.append(item_dict)
         
+        return items_data
+            
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -94,7 +119,6 @@ class ViewItemDetails:
         
         # Create headers
         headers = ["Item ID", "Name", "Status", "Type", "Attributes"]
-        self.item_params = ["item_id", "name", "status"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")

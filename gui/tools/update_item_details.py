@@ -2,49 +2,42 @@
 
 import customtkinter as ctk
 from config import COLORS
+from controllers.crud import get_all_items, update_item,  update_item_attribute
 
 class UpdateItemDetails:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
         
-        # Sample data with proper attributes
-        self.items_data = [
-            {
-                "item_id": "ITM001", 
-                "name": "Dell XPS 15 Laptop", 
-                "status": "active",
-                "is_common": False,
-                "attributes": [
-                    {"name": "Serial", "value": "DLL-001"},
-                    {"name": "Model", "value": "XPS 15 9520"},
-                    {"name": "RAM", "value": "32GB"}
-                ]
-            },
-            {
-                "item_id": "ITM002", 
-                "name": "HP Monitor 27\"", 
-                "status": "active",
-                "is_common": True,
-                "attributes": [
-                    {"name": "Serial", "value": "HP-MON-002"},
-                    {"name": "Resolution", "value": "2K"},
-                    {"name": "Panel", "value": "IPS"}
-                ]
-            },
-            {
-                "item_id": "ITM003", 
-                "name": "Logitech MX Master", 
-                "status": "lost",
-                "is_common": False,
-                "attributes": [
-                    {"name": "Serial", "value": "LOG-003"},
-                    {"name": "Type", "value": "Wireless Mouse"},
-                    {"name": "DPI", "value": "4000"}
-                ]
-            }
-        ]
+        # Fetch real items from the database
+        raw_items = get_all_items()
+        self.items_data = self.convert_items_to_dicts(raw_items)
         self.filtered_items = self.items_data.copy()
+        
+    def convert_items_to_dicts(self, items):
+            """
+            Convert SQLAlchemy Item objects to dictionaries with detailed attributes
+            """
+            items_data = []
+            for item in items:
+                item_dict = {
+                    "item_id": item.item_id,
+                    "name": item.name,
+                    "status": item.status,
+                    "is_common": item.is_common,
+                    "attributes": []
+                }
+                
+                # Add attributes
+                for attr in item.attributes:
+                    item_dict["attributes"].append({
+                        "name": attr.name,
+                        "value": attr.value
+                    })
+                
+                items_data.append(item_dict)
+            
+            return items_data
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
