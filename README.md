@@ -1,5 +1,5 @@
 # An Inventory Management System
-Crafted to manage inventory owned by employees at E.T.F.B ( My father's work place).
+Build to manage inventory owned by employees at E.T.F.B ( My father's work place).
 
 ### Project Structure
 
@@ -9,46 +9,22 @@ inventory_management_app/
 ├── main.py                        # Entry point for the application
 │
 ├── config/
-│   └── config.py                  # Configuration settings (database path, API endpoints, etc.)
+│   └── config.py                  # Configuration settings ( mostly using for anything i feel like capitalizing.)
 │
 ├── controllers/
-│   ├── item_controller.py         # Business logic for items (add, edit, delete, search, etc.)
-│   ├── user_controller.py         # User authentication and management logic
-│   └── sync_controller.py         # Synchronization logic (online/offline, syncing database)
+│   ├── Contains Authorization, CRUD logic
 │
 ├── models/
-│   ├── item_model.py              # Item model, database interactions for items
-│   ├── user_model.py              # User model, database interactions for user accounts
-│   └── database.py                # Database connection and operations
-│
-├── views/
-│   ├── main_view.py               # Main application window, layout setup
-│   ├── item_view.py               # Item-related views (forms, listings)
-│   ├── user_view.py               # User-related views (login, register, etc.)
-│   └── sync_view.py               # Synchronization status, alerts, etc.
+│   ├── models py                  # Well it has models for or the application
+|   ├── database.py                #
+DB connection, Session handling.
 │
 ├── gui/
-│   ├── components/
-│   │   ├── item_card.py           # Custom item card widget (individual inventory items)
-│   │   ├── navigation_bar.py      # Navigation bar component
-│   │   └── user_avatar.py         # User profile/role icon or avatar
-│   └── styles.py                  # Styles for customtkinter widgets (theme colors, fonts)
+│   ├── As the name suggests it's the UI code using customtkinter.
 │
-├── utils/
-│   ├── validators.py              # Input validation functions (e.g., for forms)
-│   ├── logger.py                  # Logging setup for debugging or error tracking
-│   └── sync_utils.py              # Helper functions for synchronization
-│
-├── assets/
-│   ├── icons/                     # Icons for UI elements
-│   ├── images/                    # Any images used in the app
-│   └── styles/                    # Style sheets if applicable
-│
-└── README.md                      # Documentation for setup, usage, etc.
+├── utils/                         #
+Some reusable utility functions lies here including search functions
 ```
-
-alerts for network issues.
-
 
 Database Schema
 
