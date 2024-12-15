@@ -2,7 +2,7 @@
 
 import customtkinter as ctk
 from config import COLORS
-from controllers.crud import get_all_items, update_item,  update_item_attribute
+from controllers.crud import get_all_items, update_item_details
 
 class UpdateItemDetails:
     def __init__(self, main_frame, return_to_manager):
@@ -165,7 +165,7 @@ class UpdateItemDetails:
         search_term = self.search_entry.get().lower()
         self.filtered_items = [
             item for item in self.items_data 
-            if search_term in item["item_id"].lower() or 
+            if search_term in item["item_id"] or 
                search_term in item["name"].lower()
         ]
         
@@ -414,12 +414,15 @@ class UpdateItemDetails:
         for row in self.attributes_container.winfo_children():
             if isinstance(row, ctk.CTkFrame):
                 entries = row.winfo_children()
+                print(entries[0].winfo_manager())
                 if len(entries) >= 2:
+                    
                     attr_name = entries[0].get() if entries[0].winfo_manager() else ""
                     attr_value = entries[1].get()
                     updated_item["attributes"].append({"name": attr_name, "value": attr_value})
 
         print("Updated Item Data:", updated_item)
+        #update_item_details(updated_item)
         # Here you would typically call a function to update the item in the database
         self.popup.destroy()
 

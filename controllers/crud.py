@@ -272,10 +272,16 @@ def create_item(name: str, is_common: bool, attributes=None):
         db.commit()
         return item
     
-def update_item(item_id: int, name: str = None, is_common: bool = None, status: str = None, attributes: dict = None):
-
+def update_item_details(item_dict):
     try:
         with session_scope() as db:
+            # Extract details from the dictionary
+            item_id = item_dict.get('item_id')
+            name = item_dict.get('name')
+            status = item_dict.get('status')
+            is_common = item_dict.get('is_common')
+            attributes = item_dict.get('attributes', [])
+            
             # Retrieve the existing item
             item = db.query(Item).filter(Item.item_id == item_id).first()
             
@@ -288,7 +294,7 @@ def update_item(item_id: int, name: str = None, is_common: bool = None, status: 
                 item.name = name
             
             if is_common is not None:
-                item.is_common = is_common
+                item.is_common = bool(is_common)
             
             if status is not None:
                 # Validate status
@@ -297,36 +303,37 @@ def update_item(item_id: int, name: str = None, is_common: bool = None, status: 
                     raise ValueError(f"Invalid status. Must be one of {valid_statuses}")
                 item.status = status.lower()
             
-            # Handle attributes if provided
-            if attributes is not None:
-                # Check if the item has existing attributes
-                existing_attributes = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
-                
-                # If there are existing attributes, delete them
-                if existing_attributes:
-                    db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
-                
-                # Add new attributes
-                for attr_name, attr_value in attributes.items():
+            # Remove existing attributes
+            db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
+            
+            # Add new attributes, but only if they have non-empty values
+            for attr in attributes:
+                if attr.get('name') and attr.get('value'):  # Only add if both name and value are non-empty
                     new_attr = ItemAttribute(
                         item_id=item_id, 
-                        name=attr_name, 
-                        value=str(attr_value)
+                        name=attr['name'], 
+                        value=str(attr['value'])
                     )
                     db.add(new_attr)
             
-            # Commit the changes
+            # Commit changes
             db.commit()
             
-            # Refresh the item to get the latest data
+            # Refresh and return the updated item
             db.refresh(item)
+            
+            # Log the action
+            log_action(
+                action_type="update_item", 
+                details=f"Updated item {item_id} details"
+            )
             
             return item
     
     except Exception as e:
         logger.error(f"Error updating item {item_id}: {str(e)}")
         return None
-
+        
 def get_item(item_id: int):
     with session_scope() as db:
         item = db.query(Item).filter(Item.item_id == item_id).first()
