@@ -94,6 +94,7 @@ class ViewItemDetails:
         
         # Create headers
         headers = ["Item ID", "Name", "Status", "Type", "Attributes"]
+        self.item_params = ["item_id", "name", "status"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")

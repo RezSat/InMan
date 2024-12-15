@@ -117,7 +117,7 @@ class RemoveItem:
             # Accessing the item attributes directly
             ctk.CTkLabel(
                 cell_frame,
-                text=str(item[param]),  # Use the retrieved value
+                text=str(getattr(item, param)),  # Use the retrieved value
                 font=ctk.CTkFont(size=13),
                 wraplength=100  # Adjust wraplength as needed
             ).pack(padx=10, pady=8)
