@@ -184,9 +184,9 @@ def test4():
 
 
 def login_user_creation_test():
-    db = SessionLocal()
-    create_user(db, username="manager", password="password123")
-    db.close()
+    #db = SessionLocal()
+    create_user(username="manager", password="abc123")
+    #db.close()
 
 def get_all_items_():
     db = SessionLocal()
@@ -230,8 +230,7 @@ def testsomething():
 
 
 
-print(get_all_items_names_set())
-
+login_user_creation_test()
 """import pandas as pd
 
 # Create a DataFrame with the test data
