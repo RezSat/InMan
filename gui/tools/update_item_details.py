@@ -13,6 +13,7 @@ class UpdateItemDetails:
         raw_items = get_all_items()
         self.items_data = self.convert_items_to_dicts(raw_items)
         self.filtered_items = self.items_data.copy()
+        self.collect_attributes = defaultdict()
         
     def convert_items_to_dicts(self, items):
             """
@@ -352,13 +353,14 @@ class UpdateItemDetails:
         
         self.popup.geometry(f'{window_width}x{window_height}+{x}+{y}')
         
-    def add_attribute_row(self, name="", value=""):
+    def add_attribute_row(self):
         row_frame = ctk.CTkFrame(self.attributes_container, fg_color="transparent")
         row_frame.pack(fill="x", pady=5)
         
+        # Existing attributes dropdown
         attribute_combo = ctk.CTkComboBox(
             row_frame,
-            values=["Select Existing", "Create New", "Brand", "Model", "Serial Number"],
+            values=["Brand", "Model", "Serial Number", "Create New"],
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
             border_color=COLORS["ash"],
@@ -369,6 +371,7 @@ class UpdateItemDetails:
         )
         attribute_combo.pack(side="left", padx=(0, 10))
         
+        # Attribute name entry (hidden initially)
         name_entry = ctk.CTkEntry(
             row_frame,
             placeholder_text="Attribute Name",
@@ -377,8 +380,8 @@ class UpdateItemDetails:
             border_color=COLORS["ash"],
             width=200
         )
-        name_entry.insert(0, name)
         
+        # Value entry
         value_entry = ctk.CTkEntry(
             row_frame,
             placeholder_text="Value",
@@ -387,20 +390,44 @@ class UpdateItemDetails:
             border_color=COLORS["ash"],
             width=200
         )
-        value_entry.insert(0, value)
         value_entry.pack(side="left", padx=10)
         
+        # Remove button
         remove_btn = ctk.CTkButton(
             row_frame,
             text="×",
             width=40,
             height=40,
             font=ctk.CTkFont(size=16),
-            fg_color=COLORS["darker_pink"],
-            hover_color=COLORS["pink"],
-            command=row_frame.destroy
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            command=lambda: row_frame.destroy()
         )
         remove_btn.pack(side="left")
+        
+        def on_attribute_select(choice):
+            if choice == "Create New":
+                attribute_combo.pack_forget()
+                value_entry.pack_forget()
+                name_entry.pack(side="left", padx=(0, 10))
+                value_entry.pack(side="left", padx=(0, 10))
+                remove_btn.pack_forget()
+                remove_btn.pack(side="left")
+            else:
+                if name_entry.winfo_manager():  # If name_entry is visible
+                    name_entry.pack_forget()
+                    attribute_combo.pack(side="left", padx=(0, 10))
+                value_entry.pack(side="left", padx=(0, 10))
+            
+            # update the collect_attributes dictionary
+            if choice == "Create New":
+                self.collect_attributes[name_entry] = value_entry
+            else:
+                self.collect_attributes[attribute_combo] = value_entry
+            
+        attribute_combo.configure(command=on_attribute_select)
+        self.attribute_rows.append(row_frame)
+
         
     def save_item(self, item):
         updated_item = {
@@ -414,7 +441,7 @@ class UpdateItemDetails:
         for row in self.attributes_container.winfo_children():
             if isinstance(row, ctk.CTkFrame):
                 entries = row.winfo_children()
-                print(entries[0].winfo_manager())
+                print(entries[1].winfo_manager())
                 if len(entries) >= 2:
                     
                     attr_name = entries[0].get() if entries[0].winfo_manager() else ""
