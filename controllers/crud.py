@@ -23,17 +23,57 @@ def create_division(name: str):
 
 def get_division(division_id: int):
     db = SessionLocal()
-    return db.query(Division).filter(Division.division_id == division_id).first()
+    x =  db.query(Division).filter(Division.division_id == division_id).first()
+    db.close()
+    return x
 
+def get_division_id_from_name(name: str = None):
+    """
+    Retrieve division ID based on division name
+    
+    Args:
+        name (str, optional): Name of the division. 
+                               If None, returns a dictionary of all division names and IDs
+    
+    Returns:
+        int or dict: Division ID if name is provided, 
+                     or dictionary of {division_name: division_id} if no name is given
+    """
+    try:
+        with session_scope() as db:
+            # If no name is provided, return all divisions as a dictionary
+            if name is None:
+                divisions = db.query(Division).all()
+                return {div.name: div.division_id for div in divisions}
+            
+            # If name is provided, find the specific division
+            division = db.query(Division).filter(Division.name == name).first()
+            
+            # Return division ID if found, None otherwise
+            y = division.division_id if division else None
+            db.close()
+            return y
+    
+    except Exception as e:
+        logger.error(f"Error retrieving division ID for name {name}: {str(e)}")
+        return None
+        
 def get_all_divisions():
     with session_scope() as db:
         divisions = db.query(Division).all()
+        db.close()
         return [
             {
                 'division_id': div.division_id,
                 'name': div.name,
             } for div in divisions
         ]
+
+def get_all_division_names():
+    with session_scope() as db:
+        division_names = db.query(Division.name).all()
+        db.close()
+        return [name[0] for name in division_names]
 
 def get_division_details_with_counts(division_id: int):
     with session_scope() as db:
@@ -66,9 +106,12 @@ def get_division_details_with_counts(division_id: int):
                 "item_count": item_count,
                 "items": items_list
             }
+
+            db.close()
             
             return division_details
         else:
+            db.close()
             return None
 
 def get_all_divisions_with_counts():
@@ -106,15 +149,28 @@ def get_all_divisions_with_counts():
             }
             
             division_details_list.append(division_details)
+
+        db.close()
         
         return division_details_list
 
+def update_dvision(division_id, name):
+    with session_scope() as db:
+        division = db.query(Division).filter(Division.division_id == division_id).first()
+        if division:
+            division.name = name
+            db.commit()
+            db.close()
+            return True
+        return False
+    
 def delete_division(division_id: int):
     with session_scope() as db:
         division = get_division(division_id)
         if division:
             db.delete(division)
             db.commit()
+        db.close()
         return division
 
 # Employee CRUD Operations
@@ -125,17 +181,21 @@ def create_employee(emp_id: str, name: str, division_id: int):
             db.add(employee)
             db.commit()
             db.refresh(employee)
+            db.close()
             return employee
     except IntegrityError:
         return False
 
 def get_employee(emp_id: str):
     with session_scope() as db:
-        return db.query(Employee).filter(Employee.emp_id == emp_id).first()
+        y = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+        db.close()
+        return y
 
 def get_all_employees():
     with session_scope() as db:
         employees = db.query(Employee).all()
+        db.close()
         return [
             {
                 'emp_id': emp.emp_id,
@@ -202,6 +262,8 @@ def get_employee_details_with_items():
                     "items": items_data
                 }
                 employee_details.append(emp_data)
+
+            db.close()
             
             return employee_details
     
@@ -215,6 +277,7 @@ def delete_employee(emp_id: str):
         if employee:
             db.delete(employee)
             db.commit()
+        db.close()
         return employee
 
 def add_item_attribute(item_id: int, name: str, value: str):
@@ -222,12 +285,14 @@ def add_item_attribute(item_id: int, name: str, value: str):
         attribute = ItemAttribute(item_id=item_id, name=name, value=value)
         db.add(attribute)
         db.commit()
+        db.close()
         return attribute
 
 def get_item_attributes(item_id: int):
     with session_scope() as db:
-        return db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
-
+        x = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
+        db.close()
+        return x
 
 def update_item_attribute(item_id: int, name: str, new_value: str):
     with session_scope() as db:
@@ -239,12 +304,14 @@ def update_item_attribute(item_id: int, name: str, new_value: str):
         if attribute:
             attribute.value = new_value
             db.commit()
+        db.close()
         return attribute
         
 def delete_item_attributes(item_id: int):
     with session_scope() as db:
         db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
         db.commit()
+        db.close()
 
 def delete_item_attribute(item_id: int, name: str):
     with session_scope() as db:
@@ -253,6 +320,7 @@ def delete_item_attribute(item_id: int, name: str):
             ItemAttribute.name == name
         ).delete()
         db.commit()
+        db.close()
 
 
 # Item CRUD Operations (Updated)
@@ -270,6 +338,7 @@ def create_item(name: str, is_common: bool, attributes=None):
                 db.add(attribute)
         
         db.commit()
+        db.close()
         return item
     
 def update_item_details(item_dict):
@@ -323,7 +392,7 @@ def update_item_details(item_dict):
                 action_type="update_item", 
                 details=f"Updated item {item_id} details"
             )
-            
+            db.close()
             return item
     
     except Exception as e:
@@ -335,6 +404,7 @@ def get_item(item_id: int):
         item = db.query(Item).filter(Item.item_id == item_id).first()
         if item:
             item.attributes = get_item_attributes(item_id)
+        db.close()
         return item
 
 def get_all_items():
@@ -347,6 +417,7 @@ def get_all_items():
 def get_all_items_names_dict():
     with session_scope() as db:
         items = db.query(Item).all()
+        db.close()
         return {item.name: item.item_id for item in items}
 
 def get_all_items_with_no_attrs():
@@ -363,7 +434,7 @@ def get_all_items_with_no_attrs():
             
             # Extract names from the query result
             item_names = [item.name for item in items]
-            
+            db.close()
             return item_names
     
     except Exception as e:
@@ -382,7 +453,9 @@ def get_all_items_names_set():
     """
     try:
         with session_scope() as db:
-            return set(db.query(Item.name).distinct().all())
+            x = set(db.query(Item.name).distinct().all())
+            db.close()
+            return x
     except Exception as e:
         logger.error(f"Error retrieving unique item names: {str(e)}")
         return set()
@@ -397,6 +470,7 @@ def delete_item(item_id: int):
                 db.delete(attribute)
             db.delete(item)
             db.commit()
+            db.close()
             return True
     return False
 
@@ -406,6 +480,7 @@ def log_action(action_type: str, details: str, user_id: int = None):
         log_entry = Log(action_type=action_type, details=details, user_id=user_id, timestamp=datetime.utcnow())
         db.add(log_entry)
         db.commit()
+        db.close()
         return log_entry
 
 # Item Assignment (Updated to log attributes)
@@ -430,8 +505,8 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: s
         item = get_item(item_id)
         attribute_details = ", ".join(f"{attr.name}: {attr.value}" for attr in item.attributes)
         log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
+        db.close()
         log_action(action_type="assign_item", details=log_details)
-
         return employee_item
 
 # Item Transfer
@@ -454,7 +529,7 @@ def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, notes: str = "
         
         # Assign to new employee
         new_assignment = assign_item_to_employee(to_emp_id, item_id, unique_key="", notes=notes)
-
+        
         # Log transfer
         log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
 
@@ -468,6 +543,7 @@ def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, notes: str = "
         )
         db.add(transfer_record)
         db.commit()
+        db.close()
 
         return new_assignment
 
@@ -483,9 +559,55 @@ def update_employee(emp_id: str, new_name: str = None, new_division_id: int = No
             db.commit()
             db.refresh(employee)
             log_action(action_type="update_employee", details=f"Updated employee {emp_id} details")
+            db.close()
             return employee
     return None
 
+def update_employee_id(old_emp_id: str, new_emp_id: str):
+    """
+    Update an employee's ID 
+    
+    Args:
+        old_emp_id (str): Current employee ID
+        new_emp_id (str): New employee ID to replace the old one
+    
+    Returns:
+        Employee object if successful, None otherwise
+    """
+    try:
+        with session_scope() as db:
+            # Find the existing employee
+            employee = db.query(Employee).filter(Employee.emp_id == old_emp_id).first()
+            
+            if not employee:
+                logger.warning(f"Employee with ID {old_emp_id} not found")
+                return None
+            
+            # Update the employee ID
+            employee.emp_id = new_emp_id
+            
+            # Commit the changes
+            db.commit()
+            db.refresh(employee)
+            
+            # Log the action
+            log_action(
+                action_type="update_employee_id", 
+                details=f"Changed employee ID from {old_emp_id} to {new_emp_id}"
+            )
+            db.close()
+            
+            return employee
+    
+    except IntegrityError:
+        # Handle potential unique constraint violation
+        logger.error(f"Could not update employee ID. The new ID {new_emp_id} might already exist.")
+        return None
+    
+    except Exception as e:
+        logger.error(f"Error updating employee ID: {str(e)}")
+        return None
+    
 # Remove item from an employee's list (does not delete item from DB)
 def remove_item_from_employee(emp_id: str, item_id: int):
     with session_scope() as db:
@@ -504,7 +626,7 @@ def remove_item_from_employee(emp_id: str, item_id: int):
             db.commit()
 
             log_action(action_type="remove_item", details=f"Removed item {item_id} from employee {emp_id}")
-
+            db.close()
             return True
 
     return False

@@ -3,22 +3,29 @@
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from config import COLORS
-#from controllers.crud import update_division  
+from controllers.crud import (
+    get_all_divisions_with_counts, 
+    update_dvision,  # Note: There's a typo in the original function name, should be update_division
+    create_division
+)
 
 class UpdateDivision:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
-        
-        # Sample Division Data (replace with actual data source)
-        self.divisions = [
-            {"division_id": "DIV001", "name": "IT Department"},
-            {"division_id": "DIV002", "name": "HR Department"},
-            {"division_id": "DIV003", "name": "Finance Department"},
-            {"division_id": "DIV004", "name": "Marketing Department"},
-            {"division_id": "DIV005", "name": "Sales Department"}
-        ]
-        self.filtered_divisions = self.divisions.copy()
+        self.load_divisions()
+
+    def load_divisions(self):
+        """
+        Load divisions from the database with their counts
+        """
+        try:
+            self.divisions = get_all_divisions_with_counts()
+            self.filtered_divisions = self.divisions.copy()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load divisions: {str(e)}")
+            self.divisions = []
+            self.filtered_divisions = []
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -46,7 +53,7 @@ class UpdateDivision:
         )
         title.pack(side="left", padx=20)
 
-        # Search and Filter Section
+        # Search and Add Section
         search_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         search_frame.pack(side="right")
         
@@ -71,6 +78,18 @@ class UpdateDivision:
             height=40
         )
         search_button.pack(side="left", padx=5)
+
+        # Add Division Button
+        add_button = ctk.CTkButton(
+            search_frame,
+            text="+ Add Division",
+            command=self.open_add_division_dialog,
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=100,
+            height=40
+        )
+        add_button.pack(side="left", padx=5)
 
     def create_divisions_view(self):
         # Destroy existing container if it exists
@@ -135,13 +154,13 @@ class UpdateDivision:
                 wraplength=width-20
             ).pack(padx=10, pady=8)
         
-        # Employee Count Cell (placeholder)
+        # Employee Count Cell
         emp_count_frame = ctk.CTkFrame(self.divisions_scroll, fg_color=COLORS["black"])
         emp_count_frame.grid(row=row_idx, column=2, padx=2, pady=2, sticky="nsew")
         
         ctk.CTkLabel(
             emp_count_frame,
-            text="5",  # Placeholder - replace with actual employee count
+            text=str(division.get('employee_count', 0)),
             font=ctk.CTkFont(size=13)
         ).pack(padx=10, pady=8)
         
@@ -171,48 +190,79 @@ class UpdateDivision:
         self.update_window.protocol("WM_DELETE_WINDOW", self.update_window.destroy)
 
         # Division Name Entry
-        name_label = ctk.CTkLabel(self.update_window, text="Division Name:", font=ctk.CTkFont(size=14))
+        name_label = ctk.CTkLabel(self.update_window, text="Division Name:")
         name_label.pack(pady=(20, 5))
-        name_entry = ctk.CTkEntry(
-            self.update_window, 
-            width=300, 
-            height=40, 
-            font=ctk.CTkFont(size=14),
-            fg_color=COLORS["black"],
-            border_color=COLORS["ash"],
-            placeholder_text=division['name']
-        )
-        name_entry.pack(pady=5)
+
+        self.name_entry = ctk.CTkEntry(self.update_window, width=300)
+        self.name_entry.insert(0, division['name'])
+        self.name_entry.pack(pady=(0, 20))
 
         # Update Button
-        update_btn = ctk.CTkButton(
+        update_button = ctk.CTkButton(
             self.update_window,
-            text="Update",
-            command=lambda: self.update_division(division['division_id'], name_entry.get(), self.update_window),
+            text="Update Division",
+            command=lambda: self.update_division(division['division_id']),
             fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=120,
-            height=35,
-            font=ctk.CTkFont(size=14, weight="bold")
+            hover_color=COLORS["darker_pink"]
         )
-        update_btn.pack(pady=(20, 10))
+        update_button.pack(pady=10)
 
-    def update_division(self, division_id, new_name, window):
-        # Simulate updating division details
-        messagebox.showinfo("Success", f"Division {division_id} updated to '{new_name}' successfully.")
-        window.destroy()
-        self.create_divisions_view()  # Refresh the division view
+    def update_division(self, division_id):
+        new_name = self.name_entry.get()
+        try:
+            update_dvision(division_id, new_name)  # Call the actual update function
+            messagebox.showinfo("Success", "Division updated successfully!")
+            self.update_window.destroy()
+            self.load_divisions()  # Reload divisions to reflect changes
+            self.create_divisions_view()  # Refresh the view
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to update division: {str(e)}")
 
     def perform_search(self):
         search_term = self.search_entry.get().lower()
         self.filtered_divisions = [
-            div for div in self.divisions 
-            if (search_term in div["division_id"].lower() or 
-                search_term in div["name"].lower())
+            div for div in self.divisions if search_term in div['name'].lower()
         ]
-        
-        # Refresh the division view
-        self.create_divisions_view()
+        self.create_divisions_view()  # Refresh the view with filtered results
+
+    def open_add_division_dialog(self):
+        # Create a top-level window for adding a new division
+        self.add_window = ctk.CTkToplevel(self.main_frame)
+        self.add_window.title("Add New Division")
+        self.add_window.geometry("500x200")
+        self.add_window.configure(fg_color=COLORS["secondary_bg"])
+        self.add_window.grab_set()
+        self.add_window.lift()
+        self.add_window.focus_force()
+        self.add_window.protocol("WM_DELETE_WINDOW", self.add_window.destroy)
+
+        # Division Name Entry
+        name_label = ctk.CTkLabel(self.add_window, text="New Division Name:")
+        name_label.pack(pady=(20, 5))
+
+        self.new_name_entry = ctk.CTkEntry(self.add_window, width=300)
+        self.new_name_entry.pack(pady=(0, 20))
+
+        # Add Button
+        add_button = ctk.CTkButton(
+            self.add_window,
+            text="Add Division",
+            command=self.add_division,
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"]
+        )
+        add_button.pack(pady=10)
+
+    def add_division(self):
+        new_name = self.new_name_entry.get()
+        try:
+            create_division(new_name)  # Call the actual create function
+            messagebox.showinfo("Success", "Division added successfully!")
+            self.add_window.destroy()
+            self.load_divisions()  # Reload divisions to reflect changes
+            self.create_divisions_view()  # Refresh the view
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add division: {str(e)}")
 
     def display(self):
         self.clear_main_frame()
