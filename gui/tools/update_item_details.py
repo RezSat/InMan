@@ -1,5 +1,6 @@
 # gui/tools/update_item_details.py
 
+from tkinter import messagebox
 import customtkinter as ctk
 from config import COLORS
 from collections import defaultdict
@@ -169,8 +170,7 @@ class UpdateItemDetails:
         search_term = self.search_entry.get().lower()
         self.filtered_items = [
             item for item in self.items_data 
-            if search_term in item["item_id"] or 
-               search_term in item["name"].lower()
+            if search_term in item["name"].lower()
         ]
         
         # Clear previous items
@@ -506,7 +506,9 @@ class UpdateItemDetails:
         print("Updated Item Data:", updated_item)
         update_item_details(updated_item)
         # Here you would typically call a function to update the item in the database
+        messagebox.showinfo('Succes', f"Item {updated_item['item_id']} updated sucessfully.")
         self.popup.destroy()
+        self.display()
 
     def display(self):
         self.clear_main_frame()
