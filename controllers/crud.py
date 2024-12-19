@@ -401,10 +401,28 @@ def update_item_details(item_dict):
         
 def get_item(item_id: int):
     with session_scope() as db:
-        item = db.query(Item).filter(Item.item_id == item_id).first()
+        # Fetch the item with its attributes in a single query
+        item = (
+            db.query(Item)
+            .options(joinedload(Item.attributes))  # Eagerly load attributes
+            .filter(Item.item_id == item_id)
+            .first()
+        )
+        
         if item:
-            item.attributes = get_item_attributes(item_id)
-        db.close()
+            # If you still want to ensure attributes are loaded
+            attributes = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
+            
+            # You can either:
+            # 1. Set attributes directly
+            item.attributes = attributes
+            
+            # Or create a list of attributes if needed
+            # item_attributes = [
+            #     {"name": attr.name, "value": attr.value} 
+            #     for attr in attributes
+            # ]
+        
         return item
 
 def get_all_items():
@@ -483,9 +501,15 @@ def log_action(action_type: str, details: str, user_id: int = None):
         db.close()
         return log_entry
 
-# Item Assignment (Updated to log attributes)
 def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: str = ""):
     with session_scope() as db:
+        # First, check if the item exists
+        item = db.query(Item).filter(Item.item_id == item_id).first()
+        
+        if not item:
+            raise ValueError(f"Item with ID {item_id} not found")
+        
+        # Create the employee item assignment
         employee_item = EmployeeItem(
             emp_id=emp_id,
             item_id=item_id,
@@ -496,17 +520,20 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: s
         db.add(employee_item)
         db.commit()
 
-        # Update item count and log assignment with item attributes
+        # Update item count and log assignment
         employee = get_employee(emp_id)
         employee.item_count += 1
         db.commit()
 
-        # Log the action along with item attributes
-        item = get_item(item_id)
-        attribute_details = ", ".join(f"{attr.name}: {attr.value}" for attr in item.attributes)
+        # Log the action
+        # Fetch attributes separately to avoid session issues
+        attributes = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
+        attribute_details = ", ".join(f"{attr.name}: {attr.value}" for attr in attributes)
+        
         log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
-        db.close()
         log_action(action_type="assign_item", details=log_details)
+        
+        db.close()
         return employee_item
 
 # Item Transfer
