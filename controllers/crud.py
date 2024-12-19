@@ -205,6 +205,73 @@ def get_all_employees():
             } for emp in employees
         ]
 
+def get_employee_details_with_items_one(emp_id: str):
+    """
+    Retrieve employee details along with their associated items by employee ID.
+    
+    Args:
+        emp_id (str): The ID of the employee to retrieve.
+    
+    Returns:
+        Dictionary containing employee and item information, or None if not found.
+    """
+    try:
+        with session_scope() as db:
+            # Query the specific employee with their items and division in a single query
+            employee = (
+                db.query(Employee)
+                .options(joinedload(Employee.division))  # Load division data
+                .filter(Employee.emp_id == emp_id)
+                .first()
+            )
+            
+            if not employee:
+                return None
+            
+            # Get items through EmployeeItem relationship
+            items_query = (
+                db.query(Item)
+                .join(EmployeeItem)
+                .filter(EmployeeItem.emp_id == emp_id)
+                .all()
+            )
+            
+            # Format items data
+            items_data = []
+            for item in items_query:
+                # Get the EmployeeItem record for additional details
+                emp_item = (
+                    db.query(EmployeeItem)
+                    .filter(
+                        EmployeeItem.emp_id == emp_id,
+                        EmployeeItem.item_id == item.item_id
+                    )
+                    .first()
+                )
+                
+                item_data = {
+                    "item_id": item.item_id,
+                    "name": item.name,
+                    "unique_key": emp_item.unique_key if emp_item else None,
+                    "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item and emp_item.date_assigned else None,
+                    "is_common": item.is_common
+                }
+                items_data.append(item_data)
+            
+            # Prepare employee data
+            emp_data = {
+                "emp_id": employee.emp_id,
+                "name": employee.name,
+                "division": employee.division.name if employee.division else "Unassigned",
+                "items": items_data
+            }
+
+            return emp_data
+
+    except Exception as e:
+        logger.error(f"Error retrieving employee details for ID {emp_id}: {str(e)}")
+        return None
+    
 def get_employee_details_with_items():
     """
     Retrieve all employee details along with their associated items

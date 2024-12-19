@@ -8,6 +8,7 @@ from controllers import (
     get_all_items_names_dict,
     get_employee_details_with_items
 )
+from controllers.crud import get_employee_details_with_items_one
 
 class AssignItemsToEmployees:
     def __init__(self, main_frame, return_to_manager):
@@ -191,10 +192,7 @@ class AssignItemsToEmployees:
 
         # Fetch and display current items
         try:
-            current_employee_details = next(
-                (emp for emp in get_employee_details_with_items() if emp['emp_id'] == employee['emp_id']), 
-                None
-            )
+            current_employee_details = get_employee_details_with_items_one(employee['emp_id'])
             
             if current_employee_details and current_employee_details['items']:
                 for item in current_employee_details['items']:
@@ -229,8 +227,7 @@ class AssignItemsToEmployees:
 
         # Dynamic item rows
         self.item_rows = []
-        for _ in range(5):  # Start with 5 item rows
-            self.add_item_row(items_assignment_frame)
+        self.add_item_row(items_assignment_frame)
 
         # Add more items button
         add_button = ctk.CTkButton(
