@@ -2,6 +2,7 @@
 
 import customtkinter as ctk
 from config import COLORS
+from collections import defaultdict
 from controllers.crud import get_all_items, update_item_details
 
 class UpdateItemDetails:
