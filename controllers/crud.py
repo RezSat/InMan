@@ -306,15 +306,11 @@ def update_item_details(item_dict):
             # Remove existing attributes
             db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
             
-            # Add new attributes, but only if they have non-empty values
-            for attr in attributes:
-                if attr.get('name') and attr.get('value'):  # Only add if both name and value are non-empty
-                    new_attr = ItemAttribute(
-                        item_id=item_id, 
-                        name=attr['name'], 
-                        value=str(attr['value'])
-                    )
-                    db.add(new_attr)
+            # Add attributes if provided
+            if attributes:
+                for name, value in attributes.items():
+                    attribute = ItemAttribute(item_id=item.item_id, name=name, value=value)
+                    db.add(attribute)
             
             # Commit changes
             db.commit()

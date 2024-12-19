@@ -7,7 +7,9 @@ from controllers.crud import get_all_items, update_item_details
 
 class UpdateItemDetails:
     def __init__(self, main_frame, return_to_manager):
+
         self.main_frame = main_frame
+        self.attribute_rows = []
         self.return_to_manager = return_to_manager
         
         # Fetch real items from the database
@@ -198,22 +200,25 @@ class UpdateItemDetails:
         self.popup.title("Update Item")
         self.popup.geometry("600x700")
         self.popup.configure(fg_color=COLORS["secondary_bg"])
+        
+        # Reset the attributes collection
+        self.collect_attributes = {}
+        self.attribute_rows = []
 
-        # Make the popup modal and prevent interaction with the main window
+        # Make the popup modal
         self.popup.grab_set()
-
-        # Ensure the popup is on top of other windows
         self.popup.lift()
         self.popup.focus_force()
-
-        # Prevent the popup from being closed by the window manager's close button
         self.popup.protocol("WM_DELETE_WINDOW", self.popup.destroy)
-    
-        # Optional: Center the popup on the screen
         self.center_popup()
         
-        # Popup content frame
-        content_frame = ctk.CTkFrame(self.popup, fg_color="transparent")
+        # Create scrollable frame for content
+        content_frame = ctk.CTkScrollableFrame(
+            self.popup,
+            fg_color="transparent",
+            scrollbar_button_color=COLORS["pink"],
+            scrollbar_button_hover_color=COLORS["darker_pink"]
+        )
         content_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Title
@@ -240,7 +245,7 @@ class UpdateItemDetails:
             border_width=2
         )
         self.item_name_entry.insert(0, item["name"])
-        self.item_name_entry.pack(fill="x", padx=(0, 0), pady=(0, 10))
+        self.item_name_entry.pack(fill="x", pady=(0, 10))
 
         # Status Dropdown
         status_label = ctk.CTkLabel(
@@ -261,7 +266,7 @@ class UpdateItemDetails:
             dropdown_fg_color=COLORS["black"]
         )
         self.status_dropdown.set(item.get("status", "active"))
-        self.status_dropdown.pack(fill="x", padx=(0, 0), pady=(0, 10))
+        self.status_dropdown.pack(fill="x", pady=(0, 10))
 
         # Common Item Checkbox
         self.common_checkbox = ctk.CTkCheckBox(
@@ -273,7 +278,7 @@ class UpdateItemDetails:
         )
         if item.get("is_common", False):
             self.common_checkbox.select()
-        self.common_checkbox.pack(anchor="w", padx=(0, 0), pady=(0, 10))
+        self.common_checkbox.pack(anchor="w", pady=(10, 20))
 
         # Attributes Section
         attributes_section = ctk.CTkFrame(content_frame, fg_color="transparent")
@@ -290,22 +295,21 @@ class UpdateItemDetails:
         self.attributes_container.pack(fill="x")
         
         # Populate existing attributes
-        # Add a safe check to ensure attributes exist and is a list
         if item.get("attributes") and isinstance(item["attributes"], list):
             for attr in item["attributes"]:
                 if isinstance(attr, dict) and "name" in attr and "value" in attr:
                     self.add_attribute_row(attr['name'], attr['value'])
-
-         # Add attribute button
+        
+        # Add attribute button
         add_btn_frame = ctk.CTkFrame(attributes_section, fg_color="transparent")
         add_btn_frame.pack(fill="x", pady=20)
-            
+        
         add_attribute_btn = ctk.CTkButton(
             add_btn_frame,
             text="+ Add New Attribute",
-            command=self.add_attribute_row,
+            command=lambda: self.add_attribute_row(),
             fg_color=COLORS["pink"],
-            hover_color=COLORS["ash"],
+            hover_color=COLORS["darker_pink"],
             height=40,
             font=ctk.CTkFont(size=14)
         )
@@ -334,6 +338,7 @@ class UpdateItemDetails:
             width=100
         )
         cancel_button.pack(side="left")
+
     def center_popup(self):
         """
         Center the popup window on the screen
@@ -354,7 +359,13 @@ class UpdateItemDetails:
         
         self.popup.geometry(f'{window_width}x{window_height}+{x}+{y}')
         
-    def add_attribute_row(self):
+    def add_attribute_row(self, name='', value=''):
+        """
+        Create a new attribute row in the popup.
+        Args:
+            name (str): Pre-filled attribute name if editing existing
+            value (str): Pre-filled value if editing existing
+        """
         row_frame = ctk.CTkFrame(self.attributes_container, fg_color="transparent")
         row_frame.pack(fill="x", pady=5)
         
@@ -370,7 +381,6 @@ class UpdateItemDetails:
             dropdown_fg_color=COLORS["black"],
             width=200
         )
-        attribute_combo.pack(side="left", padx=(0, 10))
         
         # Attribute name entry (hidden initially)
         name_entry = ctk.CTkEntry(
@@ -391,7 +401,6 @@ class UpdateItemDetails:
             border_color=COLORS["ash"],
             width=200
         )
-        value_entry.pack(side="left", padx=10)
         
         # Remove button
         remove_btn = ctk.CTkButton(
@@ -402,9 +411,8 @@ class UpdateItemDetails:
             font=ctk.CTkFont(size=16),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
-            command=lambda: row_frame.destroy()
+            command=lambda: self.remove_attribute_row(row_frame)
         )
-        remove_btn.pack(side="left")
         
         def on_attribute_select(choice):
             if choice == "Create New":
@@ -414,21 +422,64 @@ class UpdateItemDetails:
                 value_entry.pack(side="left", padx=(0, 10))
                 remove_btn.pack_forget()
                 remove_btn.pack(side="left")
+                
+                # Update collect_attributes
+                if attribute_combo in self.collect_attributes:
+                    del self.collect_attributes[attribute_combo]
+                self.collect_attributes[name_entry] = value_entry
             else:
                 if name_entry.winfo_manager():  # If name_entry is visible
                     name_entry.pack_forget()
                     attribute_combo.pack(side="left", padx=(0, 10))
                 value_entry.pack(side="left", padx=(0, 10))
-            
-            # update the collect_attributes dictionary
-            if choice == "Create New":
-                self.collect_attributes[name_entry] = value_entry
-            else:
+                remove_btn.pack(side="left")
+                
+                # Update collect_attributes
+                if name_entry in self.collect_attributes:
+                    del self.collect_attributes[name_entry]
                 self.collect_attributes[attribute_combo] = value_entry
-            
+        
         attribute_combo.configure(command=on_attribute_select)
+        
+        # If we have existing values, set them up
+        if name and name in ["Brand", "Model", "Serial Number"]:
+            attribute_combo.set(name)
+            attribute_combo.pack(side="left", padx=(0, 10))
+            value_entry.insert(0, value)
+            value_entry.pack(side="left", padx=(0, 10))
+            remove_btn.pack(side="left")
+            self.collect_attributes[attribute_combo] = value_entry
+        elif name:  # Custom attribute
+            attribute_combo.set("Create New")
+            on_attribute_select("Create New")
+            name_entry.insert(0, name)
+            value_entry.insert(0, value)
+        else:  # New empty row
+            attribute_combo.pack(side="left", padx=(0, 10))
+            value_entry.pack(side="left", padx=(0, 10))
+            remove_btn.pack(side="left")
+            self.collect_attributes[attribute_combo] = value_entry
+        
         self.attribute_rows.append(row_frame)
-
+        return row_frame
+    
+    def remove_attribute_row(self, row_frame):
+        """Remove an attribute row and clean up the collect_attributes dictionary"""
+        # Find and remove the entries from collect_attributes
+        entries_to_remove = []
+        for key, value in self.collect_attributes.items():
+            if key.master == row_frame or value.master == row_frame:
+                entries_to_remove.append(key)
+        
+        for key in entries_to_remove:
+            del self.collect_attributes[key]
+        
+        # Remove the row from attribute_rows list
+        if row_frame in self.attribute_rows:
+            self.attribute_rows.remove(row_frame)
+        
+        # Destroy the row widget
+        row_frame.destroy()
         
     def save_item(self, item):
         updated_item = {
@@ -438,19 +489,22 @@ class UpdateItemDetails:
             "is_common": self.common_checkbox.get(),
             "attributes": []
         }
-        
-        for row in self.attributes_container.winfo_children():
-            if isinstance(row, ctk.CTkFrame):
-                entries = row.winfo_children()
-                print(entries[1].winfo_manager())
-                if len(entries) >= 2:
-                    
-                    attr_name = entries[0].get() if entries[0].winfo_manager() else ""
-                    attr_value = entries[1].get()
-                    updated_item["attributes"].append({"name": attr_name, "value": attr_value})
+
+        attrs = {}
+        for attribute, value_entry in self.collect_attributes.items():
+            # Determine if the attribute is created new or selected
+            if attribute.winfo_manager():  # Check if the name_entry is visible
+                attribute_name = attribute.get()  # This is the name_entry
+                attrs[attribute_name] = value_entry.get()
+            else:
+                attribute_name = attribute.get()  # This is the attribute_combo
+                attrs[attribute_name] = value_entry.get()
+                # UI is messed up, its the other way around so that need to fixed.
+
+        updated_item["attributes"] = attrs
 
         print("Updated Item Data:", updated_item)
-        #update_item_details(updated_item)
+        update_item_details(updated_item)
         # Here you would typically call a function to update the item in the database
         self.popup.destroy()
 
