@@ -608,7 +608,7 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: s
         return employee_item
 
 # Item Transfer
-def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, notes: str = ""):
+def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = ""):
     with session_scope() as db:
         # Remove from current employee
         current_assignment = db.query(EmployeeItem).filter(
@@ -626,7 +626,7 @@ def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, notes: str = "
             db.commit()
         
         # Assign to new employee
-        new_assignment = assign_item_to_employee(to_emp_id, item_id, unique_key="", notes=notes)
+        new_assignment = assign_item_to_employee(to_emp_id, item_id, unique_key=unique_key, notes=notes)
         
         # Log transfer
         log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")

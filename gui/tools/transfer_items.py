@@ -1,8 +1,12 @@
 # gui/tools/transfer_items.py
 
+from tkinter import messagebox
 import customtkinter as ctk
 from config import COLORS
 import tkinter as tk
+from controllers.crud import transfer_item
+from utils import search_employees, get_employee_items
+from models.database import  SessionLocal
 
 class TransferItemBetweenEmployees:
     def __init__(self, main_frame, return_to_manager):
@@ -144,7 +148,7 @@ class TransferItemBetweenEmployees:
     def open_item_selection_window(self, user):
         # Ensure the window is modal and prevents interaction with the main window
         item_window = ctk.CTkToplevel(self.main_frame)
-        item_window.title(f"Select Items for {user}")
+        item_window.title(f"Select Items for {user['name']}")
         item_window.geometry("600x500")
         item_window.transient(self.main_frame)  # Set as a child of main window
         item_window.grab_set()  # Make the window modal
@@ -164,15 +168,14 @@ class TransferItemBetweenEmployees:
         # Title
         title = ctk.CTkLabel(
             items_frame,
-            text=f"Select Items for {user}",
+            text=f"Select Items for {user['name']}",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color=COLORS["white"]
         )
         title.pack(pady=(0, 20))
 
-        # Fetch actual items (replace with your data retrieval method)
         try:
-            items = self.get_user_items(user)
+            items = self.get_user_items(user['emp_id'])
         except Exception as e:
             items = []
             error_label = ctk.CTkLabel(
@@ -188,7 +191,7 @@ class TransferItemBetweenEmployees:
             var = tk.BooleanVar()
             checkbox = ctk.CTkCheckBox(
                 items_frame, 
-                text=item, 
+                text=f"{item['name']} (ID: {item['unique_key']})", 
                 variable=var,
                 font=ctk.CTkFont(size=14),
                 # Replace checkbox_color with other supported color parameters
@@ -203,10 +206,62 @@ class TransferItemBetweenEmployees:
         button_frame.pack(fill="x", padx=20, pady=20)
 
         def on_ok():
+            # Check if both source and destination employees are selected
+            if not self.selected_source_user or not self.selected_destination_user:
+                messagebox.showerror("Error", "Please select both source and destination employees.")
+                return
+
             # Process selected items
-            items_to_transfer = [item for item, var in selected_items if var.get()]
-            print(f"Selected items for {user}: {items_to_transfer}")
+            self.selected_items_to_transfer = []
+            for item, var in selected_items:
+                if var.get():
+                    # Store the item details for transfer
+                    self.selected_items_to_transfer.append(item)
+            
             item_window.destroy()
+
+            # Check if any items are selected
+            if not self.selected_items_to_transfer:
+                messagebox.showwarning("No Items Selected", "Please select at least one item to transfer.")
+                return
+
+            # Perform transfers
+            successful_transfers = 0
+            failed_transfers = 0
+            failed_items = []
+
+            for item in self.selected_items_to_transfer:
+                try:
+                    # Use the transfer_item function from CRUD
+                    transfer_item(
+                        from_emp_id=self.selected_source_user['emp_id'], 
+                        to_emp_id=self.selected_destination_user['emp_id'], 
+                        item_id=item['id'],
+                        unique_key=item['unique_key'],
+                        notes=f"Transferred between employees"
+                    )
+                    successful_transfers += 1
+
+                except Exception as e:
+                    messagebox.showerror("Transfer Error", 
+                        f"Failed to transfer item '{item['name']}': {str(e)}")
+                    failed_transfers += 1
+                    failed_items.append(item['name'])
+
+            # Provide transfer summary
+            if successful_transfers > 0 and failed_transfers == 0:
+                messagebox.showinfo("Success", 
+                    f"Successfully transferred {successful_transfers} item(s).")
+            elif successful_transfers > 0 and failed_transfers > 0:
+                messagebox.showwarning("Partial Success", 
+                    f"Transferred {successful_transfers} item(s).\n"
+                    f"Failed to transfer {failed_transfers} item(s): {', '.join(failed_items)}")
+            elif failed_transfers > 0:
+                messagebox.showerror("Transfer Failed", 
+                    f"Failed to transfer {failed_transfers} item(s): {', '.join(failed_items)}")
+
+            # Clear selection and refresh view
+            self.clear_selection()
 
         ok_button = ctk.CTkButton(
             button_frame,
@@ -232,11 +287,36 @@ class TransferItemBetweenEmployees:
         )
         cancel_button.pack(side="right", padx=10)
 
-    def get_user_items(self, user):
-        # Placeholder method to fetch user items
-        # Replace with actual data retrieval logic
-        return ["Laptop", "Monitor", "Keyboard", "Mouse", "Headphones"]
+    def get_user_items(self, user_emp_id):
+        # Create a database session
+        db = SessionLocal()
+        
+        try:
+            # Fetch employee items using the utility function
+            employee_items = get_employee_items(db, user_emp_id)
+            
+            # Convert employee items to a list of item names with additional details
+            
+            items = [
+                {
+                    'name': emp_item.item.name,
+                    'id': emp_item.item.item_id,
+                    'unique_key': emp_item.unique_key
 
+                } 
+                for emp_item in employee_items
+            ]
+            
+            return items
+        
+        except Exception as e:
+            print(f"Error retrieving employee items: {e}")
+            return []
+        
+        finally:
+            # Always close the database session
+            db.close()
+            
     def transfer_items(self):
         if self.selected_source_user and self.selected_destination_user:
             self.open_item_selection_window(self.selected_source_user)
@@ -251,22 +331,40 @@ class TransferItemBetweenEmployees:
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+
     def search_user(self, emp_id_or_name, is_source=True):
-        # This function would typically query the database for users matching the search criteria
-        # For demonstration, we'll use a static list of users
-        users = [
-            {"emp_id": "EMP001", "name": "Alice Smith", "division": "HR"},
-            {"emp_id": "EMP002", "name": "Bob Johnson", "division": "IT"},
-            {"emp_id": "EMP003", "name": "Charlie Brown", "division": "Finance"},
-        ]
-        
+        # Clear previous results
         results_frame = self.source_results_frame if is_source else self.destination_results_frame
         for widget in results_frame.winfo_children():
-            widget.destroy()  # Clear previous results
+            widget.destroy()
 
-        for user in users:
-            if emp_id_or_name.lower() in user["emp_id"].lower() or emp_id_or_name.lower() in user["name"].lower():
-                self.create_user_result_row(user, is_source)
+        # Create a database session
+        db = SessionLocal()
+        
+        try:
+            # Use search_employees function to find matching employees
+            matching_employees = search_employees(db, emp_id_or_name)
+            
+            # Convert SQLAlchemy objects to dictionary for compatibility
+            employees = [
+                {
+                    "emp_id": emp.emp_id, 
+                    "name": emp.name, 
+                    "division": emp.division.name if emp.division else "Unassigned"
+                } 
+                for emp in matching_employees
+            ]
+
+            # Display matching employees
+            for employee in employees:
+                self.create_user_result_row(employee, is_source)
+        
+        except Exception as e:
+            print(f"Error searching employees: {e}")
+        
+        finally:
+            # Always close the database session
+            db.close()
 
     def create_user_result_row(self, user, is_source):
         results_frame = self.source_results_frame if is_source else self.destination_results_frame
@@ -304,7 +402,7 @@ class TransferItemBetweenEmployees:
                     text="Select",
                     state="normal"
                 )
-            self.selected_source_user = user["name"]
+            self.selected_source_user = user
             self.source_selected_button = button
         else:
             if self.destination_selected_button:
@@ -313,7 +411,7 @@ class TransferItemBetweenEmployees:
                     text="Select",
                     state="normal"
                 )
-            self.selected_destination_user = user["name"]
+            self.selected_destination_user = user
             self.destination_selected_button = button
 
         # Update selected button
