@@ -15,7 +15,8 @@ from gui.tools import (
     RemoveEmployee,
     UpdateDivision,
     RemoveDivision,
-    ViewDivisionStructure
+    ViewDivisionStructure,
+    ViewAssetAssignment
 )
 
 class ManagerTools():
@@ -49,7 +50,7 @@ class ManagerTools():
                 ("Assign Items to Employee", self.assign_items_cmd),
                 ("Transfer Items Between Employees", self.transfer_items_cmd),
                 #("Bulk Asset Transfer", self.placeholder_command),
-                ("View Asset Assignments", self.placeholder_command),
+                ("View Asset Assignments", self.view_asset_assignment_cmd),
             ],
             "Reports & Analytics": [
                 ("Inventory Report", self.placeholder_command),
@@ -122,6 +123,10 @@ class ManagerTools():
     def view_division_structure_cmd(self):
         view_division_structure = ViewDivisionStructure(self.main_frame, self.return_to_manager_function)
         view_division_structure.display()
+
+    def view_asset_assignment_cmd(self):
+        view_asset_assignment = ViewAssetAssignment(self.main_frame, self.return_to_manager_function)
+        view_asset_assignment.display()
 
     def placeholder_command(self):
         print("Button clicked!")

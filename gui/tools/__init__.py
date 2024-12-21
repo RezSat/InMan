@@ -13,6 +13,7 @@ from .remove_employee import RemoveEmployee
 from .update_division import UpdateDivision
 from .remove_division import RemoveDivision
 from .view_division_structure import ViewDivisionStructure
+from .view_asset_assignment import ViewAssetAssignment
 
 __all__ = [
     'AddItems',
@@ -28,5 +29,7 @@ __all__ = [
     'ViewEmployeeRecords',
     'RemoveEmployee',
     'UpdateDivision',
-    'RemoveDivision'
+    'RemoveDivision',
+    'ViewDivisionStructure',
+    'ViewAssetAssignment'
 ]
