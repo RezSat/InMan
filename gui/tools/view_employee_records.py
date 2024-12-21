@@ -209,7 +209,6 @@ class ViewEmployeeRecords:
         # Create a popup window for item details
         self.details_window = ctk.CTkToplevel(self.main_frame)
         self.details_window.title(f"Item Details: {item['item_id']}")
-        self.details_window.geometry("400x300")
         self.details_window.configure(fg_color=COLORS["secondary_bg"])
 
         # Make the popup modal and prevent interaction with the main window
@@ -221,35 +220,80 @@ class ViewEmployeeRecords:
 
         # Prevent the popup from being closed by the window manager's close button
         self.details_window.protocol("WM_DELETE_WINDOW", self.details_window.destroy)
-    
+
+        # Create a frame to contain all widgets
+        content_frame = ctk.CTkFrame(self.details_window, fg_color="transparent")
+        content_frame.pack(padx=20, pady=20, fill="both", expand=True)
 
         # Title
-        ctk.CTkLabel(
-            self.details_window,
+        title_label = ctk.CTkLabel(
+            content_frame,
             text=item['name'],
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COLORS["white"]
-        ).pack(pady=(10, 10))
+        )
+        title_label.pack(pady=(0, 10))
 
         # Item ID
-        ctk.CTkLabel(
-            self.details_window,
+        item_id_label = ctk.CTkLabel(
+            content_frame,
             text=f"Item ID: {item['item_id']}",
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
-        ).pack(pady=(5, 5))
+        )
+        item_id_label.pack(pady=(5, 5))
 
         # Status
-        ctk.CTkLabel(
-            self.details_window,
+        status_label = ctk.CTkLabel(
+            content_frame,
             text=f"Status: {'Active' if item.get('is_common', False) else 'Individual'}",
             font=ctk.CTkFont(size=14),
             text_color=COLORS["white"]
-        ).pack(pady=(5, 5))
+        )
+        status_label.pack(pady=(5, 5))
+
+        # Unique Key (if available)
+        if item.get('unique_key'):
+            unique_key_label = ctk.CTkLabel(
+                content_frame,
+                text=f"Unique Key: {item['unique_key']}",
+                font=ctk.CTkFont(size=14),
+                text_color=COLORS["white"],
+                wraplength=360  # Allow text wrapping
+            )
+            unique_key_label.pack(pady=(5, 5))
+
+        # Notes (if available)
+        if item.get('notes'):
+            # Create a scrollable frame for notes if they are long
+            notes_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+            notes_frame.pack(pady=(5, 5), fill="x")
+
+            notes_label = ctk.CTkLabel(
+                notes_frame,
+                text="Notes:",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            )
+            notes_label.pack(anchor="w")
+
+            notes_text = ctk.CTkTextbox(
+                notes_frame,
+                height=100,  # Fixed height, but will be adjusted dynamically
+                width=360,
+                font=ctk.CTkFont(size=12),
+                fg_color=COLORS["secondary_bg"],
+                border_color=COLORS["white"],
+                border_width=1,
+                text_color=COLORS["white"]
+            )
+            notes_text.pack(fill="x")
+            notes_text.insert("0.0", item['notes'])
+            notes_text.configure(state="disabled")  # Make read-only
 
         # Close Button
         close_button = ctk.CTkButton(
-            self.details_window,
+            content_frame,
             text="Close",
             command=self.details_window.destroy,
             fg_color=COLORS["pink"],
@@ -257,6 +301,19 @@ class ViewEmployeeRecords:
             width=100
         )
         close_button.pack(pady=(20, 10))
+
+        # Update the window to calculate the required size
+        self.details_window.update()
+        
+        # Calculate the minimum required size
+        window_width = 400  # Base width
+        window_height = content_frame.winfo_reqheight() + 40  # Add some padding
+
+        # Set a maximum height to prevent oversized windows
+        window_height = min(window_height, 600)
+
+        # Set the window geometry
+        self.details_window.geometry(f"{window_width}x{window_height}")
 
     def perform_search(self):
         search_term = self.search_entry.get().lower()

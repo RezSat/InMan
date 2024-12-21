@@ -154,7 +154,7 @@ class AssignItemsToEmployees:
         # Create a larger, more comprehensive assign window
         assign_window = ctk.CTkToplevel(self.main_frame)
         assign_window.title(f"Assign Items to {employee['name']}")
-        assign_window.geometry("600x700")  # Increased size
+        assign_window.geometry("700x800")  # Increased size for better spacing
         assign_window.configure(fg_color=COLORS["secondary_bg"])
 
         # Make the popup modal
@@ -171,48 +171,87 @@ class AssignItemsToEmployees:
         )
         main_container.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Title
+        # Title with employee name
+        title_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        title_frame.pack(fill="x", pady=(0, 20))
+
         title = ctk.CTkLabel(
-            main_container,
+            title_frame,
             text=f"Assign Items to {employee['name']}",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color=COLORS["white"]
         )
-        title.pack(pady=20)
+        title.pack(side="left")
+
+        # Employee ID display
+        emp_id_label = ctk.CTkLabel(
+            title_frame,
+            text=f"Employee ID: {employee['emp_id']}",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["ash"]  # Using ash for subdued text
+        )
+        emp_id_label.pack(side="right")
 
         # Current Items Display
         current_items_frame = ctk.CTkFrame(main_container, fg_color=COLORS["black"])
         current_items_frame.pack(fill="x", pady=10)
         
-        ctk.CTkLabel(
+        current_items_title = ctk.CTkLabel(
             current_items_frame, 
             text="Current Assigned Items:", 
-            font=ctk.CTkFont(size=16, weight="bold")
-        ).pack(pady=10)
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["white"]
+        )
+        current_items_title.pack(pady=(10, 5))
 
         # Fetch and display current items
         try:
             current_employee_details = get_employee_details_with_items_one(employee['emp_id'])
             
             if current_employee_details and current_employee_details['items']:
+                # Create a scrollable frame for current items if many
+                current_items_scroll = ctk.CTkScrollableFrame(
+                    current_items_frame, 
+                    height=150,  # Fixed height with scroll
+                    fg_color="transparent",
+                    scrollbar_button_color=COLORS["pink"],
+                    scrollbar_button_hover_color=COLORS["darker_pink"]
+                )
+                current_items_scroll.pack(fill="x", padx=10, pady=5)
+
                 for item in current_employee_details['items']:
+                    item_frame = ctk.CTkFrame(current_items_scroll, fg_color="transparent")
+                    item_frame.pack(fill="x", pady=3)
+
                     item_label = ctk.CTkLabel(
-                        current_items_frame, 
-                        text=f"{item['name']} (Serial: {item.get('unique_key', 'N/A')})",
-                        font=ctk.CTkFont(size=14)
+                        item_frame, 
+                        text=f"{item['name']}",
+                        font=ctk.CTkFont(size=14),
+                        text_color=COLORS["white"],
+                        width=200,
+                        anchor="w"
                     )
-                    item_label.pack(pady=5)
+                    item_label.pack(side="left", padx=(0, 10))
+
+                    serial_label = ctk.CTkLabel(
+                        item_frame, 
+                        text=f"Serial: {item.get('unique_key', 'N/A')}",
+                        font=ctk.CTkFont(size=12),
+                        text_color=COLORS["ash"]
+                    )
+                    serial_label.pack(side="left")
             else:
                 ctk.CTkLabel(
                     current_items_frame, 
                     text="No items currently assigned",
-                    font=ctk.CTkFont(size=14, slant="italic")
+                    font=ctk.CTkFont(size=14, slant="italic"),
+                    text_color=COLORS["ash"]
                 ).pack(pady=5)
         except Exception as e:
             ctk.CTkLabel(
                 current_items_frame, 
                 text=f"Error fetching current items: {str(e)}",
-                text_color="red"
+                text_color=COLORS["pink"]
             ).pack(pady=5)
 
         # Items Assignment Section
@@ -222,7 +261,8 @@ class AssignItemsToEmployees:
         ctk.CTkLabel(
             items_assignment_frame, 
             text="Assign New Items:", 
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["white"]
         ).pack(pady=10)
 
         # Dynamic item rows
@@ -236,7 +276,7 @@ class AssignItemsToEmployees:
             command=lambda: self.add_item_row(items_assignment_frame),
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
-            width=200,
+            width=250,  # Wider button
             height=40,
             font=ctk.CTkFont(size=14)
         )
@@ -245,6 +285,22 @@ class AssignItemsToEmployees:
         # Buttons frame
         buttons_frame = ctk.CTkFrame(main_container, fg_color="transparent")
         buttons_frame.pack(fill="x", padx=20, pady=10)
+
+        # Cancel button
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            text="Cancel",
+            command=assign_window.destroy,
+            fg_color=COLORS["black"],
+            hover_color=COLORS["black"],
+            border_color=COLORS["pink"],
+            border_width=1,
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["white"]
+        )
+        cancel_button.pack(side="left", padx=10)
 
         # Save button
         save_button = ctk.CTkButton(
@@ -264,43 +320,75 @@ class AssignItemsToEmployees:
             messagebox.showwarning("Limit Reached", f"Maximum {self.max_items_per_assignment} items can be assigned at once.")
             return
 
-        item_frame = ctk.CTkFrame(parent, fg_color=COLORS["secondary_bg"])
+        # Create a frame with consistent background and spacing
+        item_frame = ctk.CTkFrame(parent, fg_color=COLORS["black"])
         item_frame.pack(fill="x", pady=5)
 
         # Dropdown for item selection
         item_dropdown = ctk.CTkOptionMenu(
             item_frame,
+            width=250,  # Increased width
+            height=40,
+            fg_color=COLORS["pink"],
+            button_color=COLORS["darker_pink"],
+            dropdown_fg_color=COLORS["secondary_bg"],
+            dropdown_hover_color=COLORS["darker_pink"],
+            text_color=COLORS["white"],
+            dropdown_text_color=COLORS["white"],
+            values=list(self.items_names_dict.keys()),
             variable=ctk.StringVar(value="Select Item"),
-            values=list(self.items_names_dict.keys())
+            font=ctk.CTkFont(size=14)
         )
-        item_dropdown.pack(side="left", padx=5)
+        item_dropdown.pack(side="left", padx=(0, 10))
 
         # Entry for serial key
         serial_entry = ctk.CTkEntry(
             item_frame,
-            placeholder_text="Enter Serial Key",
-            width=150,
+            width=300,  # Increased width
             height=40,
+            fg_color=COLORS["secondary_bg"],
+            border_color=COLORS["pink"],
+            border_width=1,
+            text_color=COLORS["white"],
+            placeholder_text="Enter Serial Key",
+            placeholder_text_color=COLORS["ash"],
             font=ctk.CTkFont(size=14)
         )
-        serial_entry.pack(side="left", padx=5)
+        serial_entry.pack(side="left", padx=(0, 10))
 
-        # Remove item button
+        # Remove item button with a more minimalist design
         remove_button = ctk.CTkButton(
             item_frame,
-            text="Remove",
-            command=item_frame.destroy,
+            text="✖",  # Using a clear remove symbol
+            width=40,
+            height=40,
             fg_color=COLORS["pink"],
             hover_color=COLORS["darker_pink"],
-            width=100,
-            height=40
+            command=lambda frame=item_frame: self.remove_item_row(frame)
         )
-        remove_button.pack(side="right", padx=5)
+        remove_button.pack(side="left")
 
-        self.item_rows.append((item_dropdown, serial_entry))
+        # Store references for later use
+        self.item_rows.append({
+            'frame': item_frame,
+            'dropdown': item_dropdown,
+            'serial_entry': serial_entry
+        })
+
+    def remove_item_row(self, frame):
+        # Ensure at least one row remains
+        if len(self.item_rows) > 1:
+            # Remove from UI
+            frame.destroy()
+            
+            # Remove from tracking list
+            self.item_rows = [row for row in self.item_rows if row['frame'] != frame]
 
     def save_assigned_items(self, employee, assign_window):
-        for item_dropdown, serial_entry in self.item_rows:
+        for row in self.item_rows:
+            item_dropdown = row['dropdown']
+            serial_entry = row['serial_entry']
+            
             item_name = item_dropdown.get()
             serial_key = serial_entry.get()
 
