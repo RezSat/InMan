@@ -158,7 +158,7 @@ class UpdateEmployeeDetail:
     def open_update_dialog(self, employee):
         self.update_window = ctk.CTkToplevel(self.main_frame)
         self.update_window.title(f"Update Employee: {employee['emp_id']}")
-        self.update_window.geometry("700x600")
+        self.update_window.geometry("700x650")
         self.update_window.configure(fg_color=COLORS["secondary_bg"])
         self.update_window.grab_set()
         self.update_window.lift()
@@ -253,8 +253,8 @@ class UpdateEmployeeDetail:
             remove_btn = ctk.CTkButton(
                 item_frame,
                 text="Remove",
-                command=lambda e_id=employee['emp_id'], i_id=item['item_id']: 
-                    self.remove_item(e_id, i_id, item_frame),
+                command=lambda e_id=employee['emp_id'], i_id=item['item_id'], frame=item_frame: 
+                    self.remove_item(e_id, i_id, frame),
                 fg_color=COLORS["pink"],
                 hover_color=COLORS["darker_pink"],
                 width=80,
@@ -262,9 +262,26 @@ class UpdateEmployeeDetail:
             )
             remove_btn.pack(side="right", padx=10, pady=5)
 
+        # Button Frame for Update and Cancel
+        button_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        button_frame.pack(pady=20)
+
+        # Cancel Button
+        cancel_btn = ctk.CTkButton(
+            button_frame,
+            text="Cancel",
+            command=self.update_window.destroy,
+            fg_color=COLORS["black"],
+            hover_color=COLORS["pink"],
+            width=150,
+            height=40,
+            font=ctk.CTkFont(size=14)
+        )
+        cancel_btn.pack(side="left", padx=10)
+
         # Update Button
         update_btn = ctk.CTkButton(
-            main_container,
+            button_frame,
             text="Update Employee Details",
             command=lambda: self.update_employee_details(
                 employee['emp_id'],
@@ -277,7 +294,7 @@ class UpdateEmployeeDetail:
             height=40,
             font=ctk.CTkFont(size=14, weight="bold")
         )
-        update_btn.pack(pady=20)
+        update_btn.pack(side="left", padx=10)
 
     def open_id_change_dialog(self, employee):
         confirm_window = ctk.CTkToplevel(self.update_window)
@@ -342,7 +359,7 @@ class UpdateEmployeeDetail:
                 # This would need to be implemented in your crud.py
                 update_employee_id(old_id, new_id)
                 
-                messagebox.showinfo("Success", f"Employee ID updated from {old_id} to {new_id}")
+                messagebox.showinfo("Succe+++ss", f"Employee ID updated from {old_id} to {new_id}")
                 window.destroy()
                 self.update_window.destroy()
                 self.load_employees()
@@ -368,12 +385,23 @@ class UpdateEmployeeDetail:
             result = remove_item_from_employee(emp_id, item_id)
             
             if result:
-                # If successfully removed from database
                 # Remove the item frame from the GUI
+                self.load_employees()
                 item_frame.destroy()
                 
-                # Refresh the employees data
-                self.load_employees()
+                # Fully refresh the update dialog
+                self.update_window.destroy()  # Close current update window
+                
+                # Find the specific employee again
+                employee = next((emp for emp in self.employees if emp['emp_id'] == emp_id), None)
+                
+                if employee:
+                    # Reopen the update dialog with refreshed data
+                    self.open_update_dialog(employee)
+                
+                # Optionally refresh the main employees view
+                
+                self.create_employees_view()
                 
                 # Show success message
                 messagebox.showinfo(
@@ -381,14 +409,12 @@ class UpdateEmployeeDetail:
                     f"Item {item_id} has been removed from employee {emp_id}"
                 )
             else:
-                # If removal failed
                 messagebox.showerror(
                     "Error", 
                     f"Failed to remove item {item_id} from employee {emp_id}"
                 )
         
         except Exception as e:
-            # Handle any unexpected errors
             messagebox.showerror(
                 "Error", 
                 f"An error occurred while removing the item: {str(e)}"
