@@ -204,7 +204,6 @@ def get_all_employees():
                 'division': str(get_division(emp.division_id).name)
             } for emp in employees
         ]
-
 def get_employee_details_with_items_one(emp_id: str):
     """
     Retrieve employee details along with their associated items by employee ID.
@@ -239,24 +238,26 @@ def get_employee_details_with_items_one(emp_id: str):
             # Format items data
             items_data = []
             for item in items_query:
-                # Get the EmployeeItem record for additional details
-                emp_item = (
+                # Get all EmployeeItem records for the current item
+                emp_items = (
                     db.query(EmployeeItem)
                     .filter(
                         EmployeeItem.emp_id == emp_id,
                         EmployeeItem.item_id == item.item_id
                     )
-                    .first()
+                    .all()
                 )
                 
-                item_data = {
-                    "item_id": item.item_id,
-                    "name": item.name,
-                    "unique_key": emp_item.unique_key if emp_item else None,
-                    "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item and emp_item.date_assigned else None,
-                    "is_common": item.is_common
-                }
-                items_data.append(item_data)
+                # Prepare item data for each EmployeeItem record
+                for emp_item in emp_items:
+                    item_data = {
+                        "item_id": item.item_id,
+                        "name": item.name,
+                        "unique_key": emp_item.unique_key,
+                        "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
+                        "is_common": item.is_common
+                    }
+                    items_data.append(item_data)
             
             # Prepare employee data
             emp_data = {
@@ -271,7 +272,7 @@ def get_employee_details_with_items_one(emp_id: str):
     except Exception as e:
         logger.error(f"Error retrieving employee details for ID {emp_id}: {str(e)}")
         return None
-    
+
 def get_employee_details_with_items():
     """
     Retrieve all employee details along with their associated items
@@ -298,28 +299,30 @@ def get_employee_details_with_items():
                     .filter(EmployeeItem.emp_id == emp.emp_id)
                     .all()
                 )
-                
+
                 # Format items data
                 items_data = []
                 for item in items_query:
-                    # Get the EmployeeItem record for additional details
-                    emp_item = (
+                    # Get all EmployeeItem records for the current item
+                    emp_items = (
                         db.query(EmployeeItem)
                         .filter(
                             EmployeeItem.emp_id == emp.emp_id,
                             EmployeeItem.item_id == item.item_id
                         )
-                        .first()
+                        .all()
                     )
                     
-                    item_data = {
-                        "item_id": item.item_id,
-                        "name": item.name,
-                        "unique_key": emp_item.unique_key if emp_item else None,
-                        "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item and emp_item.date_assigned else None,
-                        "is_common": item.is_common
-                    }
-                    items_data.append(item_data)
+                    # Prepare item data for each EmployeeItem record
+                    for emp_item in emp_items:
+                        item_data = {
+                            "item_id": item.item_id,
+                            "name": item.name,
+                            "unique_key": emp_item.unique_key,
+                            "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
+                            "is_common": item.is_common
+                        }
+                        items_data.append(item_data)
                 
                 # Prepare employee data
                 emp_data = {
@@ -330,6 +333,7 @@ def get_employee_details_with_items():
                 }
                 employee_details.append(emp_data)
 
+  
             db.close()
             
             return employee_details
@@ -337,7 +341,7 @@ def get_employee_details_with_items():
     except Exception as e:
         logger.error(f"Error retrieving employee details: {str(e)}")
         raise
-
+    
 def delete_employee(emp_id: str):
     with session_scope() as db:
         employee = get_employee(emp_id)
