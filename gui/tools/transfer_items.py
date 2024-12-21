@@ -224,7 +224,7 @@ class TransferItemBetweenEmployees:
             button_frame,
             text="Cancel",
             command=item_window.destroy,
-            fg_color=COLORS["ash"],
+            fg_color=COLORS["black"],
             hover_color=COLORS["darker_pink"],
             width=100,
             height=40,
@@ -318,7 +318,7 @@ class TransferItemBetweenEmployees:
 
         # Update selected button
         button.configure(
-            fg_color=COLORS["green"], 
+            fg_color=COLORS["secondary_bg"], 
             text="Selected",
             state="disabled"
         )
