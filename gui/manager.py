@@ -18,6 +18,7 @@ from gui.tools import (
     ViewDivisionStructure,
     ViewAssetAssignment
 )
+from utils.summary import divison_wise_employee_items_to_excel
 
 class ManagerTools():
     def __init__(self, main_frame, inventory):
@@ -50,10 +51,10 @@ class ManagerTools():
                 ("Assign Items to Employee", self.assign_items_cmd),
                 ("Transfer Items Between Employees", self.transfer_items_cmd),
                 #("Bulk Asset Transfer", self.placeholder_command),
-                ("View Asset Assignments", self.view_asset_assignment_cmd),
+                #("View Asset Assignments", self.view_asset_assignment_cmd),
             ],
             "Reports & Analytics": [
-                ("Inventory Report", self.placeholder_command),
+                ('Inventory Report to Excel', divison_wise_employee_items_to_excel)
                 ("Asset Utilization", self.placeholder_command),
                 ("Employee Assignment Summary", self.placeholder_command),
                 ("Division Statistics", self.placeholder_command),

@@ -6,7 +6,7 @@ from models.models import Log, ItemTransferHistory, Employee, Item
 from datetime import datetime, timedelta
 
 # Search Employees by name, emp_id, or division
-def search_employees(db: Session, query: str):
+def search_employees(db: Session, query: str, limit: int = 100):
     return db.query(Employee).filter(
         (Employee.name.ilike(f"%{query}%")) |
         (Employee.emp_id.ilike(f"%{query}%")) |
@@ -14,15 +14,15 @@ def search_employees(db: Session, query: str):
     ).all()
 
 # Search Items by name or unique_key
-def search_items(db: Session, query: str):
+def search_items(db: Session, query: str, limit: int = 100):
     return db.query(Item).join(EmployeeItem).filter(
         (Item.name.ilike(f"%{query}%")) |
         (EmployeeItem.unique_key.ilike(f"%{query}%"))
     ).all()
 
 # Search Divisions by name
-def search_divisions(db: Session, query: str):
-    return db.query(Division).filter(Division.name.ilike(f"%{query}%")).all()
+def search_divisions(db: Session, query: str, limit: int = 100):
+    return db.query(Division).filter(Division.name.ilike(f"%{query}%")).limit(limit).all()
 
 # Get item by its unique key
 def get_item_by_key(db: Session, unique_key: str):

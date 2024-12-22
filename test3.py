@@ -1,103 +1,10 @@
-# utils/summary.py
+# working out put for divison wise
 
-from controllers.crud import *
-from .search  import search_items_by_attribute
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from controllers.crud import get_employee_details_with_items
-
-# Get all items assigned to an employee
-def get_employee_items(db: Session, emp_id: str):
-    return db.query(EmployeeItem).join(Item).filter(EmployeeItem.emp_id == emp_id).all()
-
-
-# Get all items assigned to employees in a specific division
-def get_items_by_division(db: Session, division_name: str):
-    division = db.query(Division).filter(Division.name == division_name).first()
-    if division:
-        return db.query(Item).join(EmployeeItem).join(Employee).filter(Employee.division_id == division.division_id).all()
-    return []
-
-# Get all item transfers history
-def get_item_transfer_history(db: Session):
-    return db.query(ItemTransferHistory).all()
-
-# Generate a report of all items assigned to an employee
-def generate_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
-    if not employee:
-        return "Employee not found."
-    
-    items = get_employee_items(db, emp_id)
-    report = f"Report for Employee: {employee.name} ({emp_id})\n\n"
-    
-    if not items:
-        report += "No items assigned.\n"
-    else:
-        for emp_item in items:
-            report += f"Item Name: {emp_item.item.name}, Unique Key: {emp_item.unique_key}\n"
-    
-    return report
-
-
-# Generate a report of all items in the system
-def generate_item_report(db: Session):
-    items = get_all_items(db)
-    report = "System-wide Item Report\n\n"
-    
-    if not items:
-        report += "No items in the system.\n"
-    else:
-        for item in items:
-            # Fetch unique keys from all assignments of this item type
-            emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
-            for emp_item in emp_items:
-                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}, Is Common: {'Yes' if item.is_common else 'No'}\n"
-    
-    return report
-
-
-# Generate a detailed report of items assigned to an employee, including attributes
-def generate_detailed_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
-    if not employee:
-        return "Employee not found."
-    
-    items = get_employee_items(db, emp_id)
-    report = f"Report for Employee: {employee.name} ({emp_id})\n\n"
-    
-    if not items:
-        report += "No items assigned.\n"
-    else:
-        for emp_item in items:
-            report += f"Item Name: {emp_item.item.name}, Unique Key: {emp_item.unique_key}\n"
-            attributes = get_item_attributes(db, emp_item.item_id)
-            for attr in attributes:
-                report += f"  - {attr.name}: {attr.value}\n"
-    
-    return report
-
-
-# Generate a report of items with specific attribute details
-def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
-    items = search_items_by_attribute(db, name, value)
-    report = f"Items Report with Attribute {name} = {value}\n\n"
-    
-    if not items:
-        report += "No items found with the specified attribute.\n"
-    else:
-        for item in items:
-            emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
-            for emp_item in emp_items:
-                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}\n"
-                attributes = get_item_attributes(db, emp_item.item_id)
-                for attr in attributes:
-                    report += f"  - {attr.name}: {attr.value}\n"
-                report += "\n"
-    
-    return report
 
 def get_column_width(cell_value):
     """
@@ -131,29 +38,15 @@ def get_column_width(cell_value):
     
     return base_width + padding
 
-
-def divison_wise_employee_items_to_excel(data, output_file='full_inventory_report.xlsx'):
-    headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key | Reference ID']
-    employees = get_employee_details_with_items()
-    division_dict = {}
-    for employee in employees:
-        emp_id = employee['emp_id']
-        emp_name = employee['name']
-        emp_division = employee['division']
-        items = employee.get('items', [])
-
-        # If division is not in the dictionary, add it
-        if emp_division not in division_dict:
-            division_dict[emp_division] = []
-
-        # Append employee details to the division
-        division_dict[emp_division].append({
-            'Employee ID': emp_id,
-            'Employee Name': emp_name,
-            'Items': items  # Store items as a list
-        })
-
-
+def export_to_excel(data, headers, output_file='output.xlsx'):
+    """
+    Export dictionary data to formatted Excel file.
+    
+    Args:
+        data (dict): Dictionary containing division -> employees -> items hierarchy
+        headers (list): List of column headers
+        output_file (str): Output Excel file name
+    """
     wb = Workbook()
     ws = wb.active
     
@@ -299,5 +192,35 @@ def divison_wise_employee_items_to_excel(data, output_file='full_inventory_repor
     
     wb.save(output_file)
         
+employees = get_employee_details_with_items()
+division_dict = {}
+for employee in employees:
+    emp_id = employee['emp_id']
+    emp_name = employee['name']
+    emp_division = employee['division']
+    items = employee.get('items', [])
 
+    # If division is not in the dictionary, add it
+    if emp_division not in division_dict:
+        division_dict[emp_division] = []
 
+    # Append employee details to the division
+    division_dict[emp_division].append({
+        'Employee ID': emp_id,
+        'Employee Name': emp_name,
+        'Items': items  # Store items as a list
+    })
+
+data = {
+    'Division A': [
+        {'Employee ID': 'E001', 'Employee Name': 'Alice', 'Items': [{'name': 'Item 1', 'unique_key': 'K001'}]},
+        {'Employee ID': 'E002', 'Employee Name': 'Bob', 'Items': []}
+    ],
+    'Division B': [
+        {'Employee ID': 'E003', 'Employee Name': 'Charlie', 'Items': [{'name': 'Item 2', 'unique_key': 'K002'}]},
+        {'Employee ID': 'E004', 'Employee Name': 'David', 'Items': [{'name': 'Item 3', 'unique_key': 'K003'}]}
+    ]
+}
+
+headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key']
+export_to_excel(division_dict, headers, output_file='output.xlsx')

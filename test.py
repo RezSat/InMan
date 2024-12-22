@@ -327,4 +327,221 @@ def get_employee_details_with_items():
     except Exception as e:
         logger.error(f"Error retrieving employee details: {str(e)}")
         raise
-print(get_employee_details_with_items())
+
+
+
+'''
+import openpyxl
+import os
+wb = Workbook()
+ws = wb.active
+ws.title = "Employee Data"
+ws.merge_cells(start_row=1, start_column=2, end_row=2, end_column=5)
+wb.save(filename="sample.xlsx")
+'''
+
+import pandas as pd
+from openpyxl import Workbook
+from controllers.crud import get_employee_details_with_items  # Adjust the import based on your structure
+
+def export_employee_data_to_excel(file_path: str):
+    """
+    Export employee data to an Excel sheet, grouping by division and employee.
+
+    Args:
+        file_path (str): The path where the Excel file will be saved.
+    """
+    try:
+        # Retrieve employee data with items
+        employees = get_employee_details_with_items()
+
+        # Prepare data for export
+        division_dict = {}
+
+        # Group employees by division
+        for employee in employees:
+            emp_id = employee['emp_id']
+            emp_name = employee['name']
+            emp_division = employee['division']
+            items = employee.get('items', [])
+
+            # If division is not in the dictionary, add it
+            if emp_division not in division_dict:
+                division_dict[emp_division] = []
+
+            # Append employee details to the division
+            division_dict[emp_division].append({
+                'Employee ID': emp_id,
+                'Employee Name': emp_name,
+                'Items': items  # Store items as a list
+            })
+        print(division_dict)
+        # Create a new Excel workbook and select the active worksheet
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Employee Data"
+
+        # Write headers
+        headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key']
+        ws.append(headers)
+
+        # Write data to the worksheet
+        current_row = 2  # Start writing data from the second row (after headers)
+        for division, employees in division_dict.items():
+            for emp in employees:
+                emp_id = emp['Employee ID']
+                emp_name = emp['Employee Name']
+                items = emp['Items']
+
+                if items:
+                    # Write the first item with division and employee details
+                    ws.append([division, emp_name, emp_id, items[0]['name'], items[0]['unique_key']])
+                    # Merge cells for Division, Employee Name, and Employee ID
+                    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=1)  # Employee Name
+                    ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=2)  # Employee ID
+                    ws.merge_cells(start_row=current_row, start_column=0, end_row=current_row, end_column=0)  # Division
+
+                    # Add remaining items for the same employee
+                    for item in items[1:]:
+                        ws.append(['', '', '', item['name'], item['unique_key']])
+                else:
+                    # If no items, still add the employee with empty item fields
+                    ws.append([division, emp_name, emp_id, '', ''])
+                    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=1)  # Employee Name
+                    ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=2)  # Employee ID
+                    ws.merge_cells(start_row=current_row, start_column=0, end_row=current_row, end_column=0)  # Division
+
+                current_row += 1  # Increment the row for the next entry
+
+        # Save the workbook
+        #wb.save(file_path)
+        
+        print(f"Employee data exported successfully to {file_path}")
+
+    except Exception as e:
+        print(f"An error occurred while exporting employee data: {str(e)}")
+
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment, PatternFill
+
+def export_to_excel(data, filename):
+    # Prepare a list to hold the rows for the DataFrame
+    rows = []
+    
+    # Iterate through the divisions
+    for division, employees in data.items():
+        for employee in employees:
+            employee_id = employee['Employee ID']
+            employee_name = employee['Employee Name']
+            items = employee['Items']
+            
+            # If the employee has items, iterate through them
+            if items:
+                for item in items:
+                    rows.append({
+                        'Division': division,
+                        'Employee Name': employee_name,
+                        'Employee ID': employee_id,
+                        'Item Name': item['name'],
+                        'Unique Key': item['unique_key']
+                    })
+            else:
+                # If no items, still add the employee with empty item fields
+                rows.append({
+                    'Division': division,
+                    'Employee Name': employee_name,
+                    'Employee ID': employee_id,
+                    'Item Name': '',
+                    'Unique Key': ''
+                })
+    
+    # Create a DataFrame from the rows
+    df = pd.DataFrame(rows)
+    
+    # Create a new Excel workbook and add a worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Employee Items"
+    
+    # Write the headers
+    headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key']
+    ws.append(headers)
+    
+    # Apply header formatting
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.fill = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')  # Light gray background
+    
+    # Write the data to the worksheet
+    for row in df.itertuples(index=False):
+        ws.append(row)
+    
+    # Merge cells for the Division column
+    current_division = None
+    start_row = 2  # Start from the second row (first row is headers)
+    
+    for row in range(2, len(df) + 2):  # Adjust for header row
+        if df.iloc[row - 2]['Division'] != current_division:
+            if current_division is not None:
+                # Merge the previous division cells
+                ws.merge_cells(start_row=start_row, start_column=1, end_row=row - 1, end_column=1)
+            current_division = df.iloc[row - 2]['Division']
+            start_row = row
+    
+    # Merge the last division cells
+    if current_division is not None:
+        ws.merge_cells(start_row=start_row, start_column=1, end_row=len(df) + 1, end_column=1)
+    
+    # Merge cells for the Employee Name and Employee ID columns
+    current_employee_id = None
+    current_employee_name = None
+    start_row = 2  # Reset start_row for employee merging
+    
+    for row in range(2, len(df) + 2):  # Adjust for header row
+        if (df.iloc[row - 2]['Employee ID'] != current_employee_id or
+            df.iloc[row - 2]['Employee Name'] != current_employee_name):
+            if current_employee_id is not None:
+                # Merge the previous employee cells
+                ws.merge_cells(start_row=start_row, start_column=2, end_row=row - 1, end_column=2)  # Employee Name
+                ws.merge_cells(start_row=start_row, start_column=3, end_row=row - 1, end_column=3)  # Employee ID
+            current_employee_id = df.iloc[row - 2]['Employee ID']
+            current_employee_name = df.iloc[row - 2]['Employee Name']
+            start_row = row
+    
+    # Merge the last employee cells
+    if current_employee_id is not None:
+        ws.merge_cells(start_row=start_row, start_column=2, end_row=len(df) + 1, end_column=2)  # Employee Name
+        ws.merge_cells(start_row=start_row, start_column=3, end_row=len(df) + 1, end_column=3)  # Employee ID
+    
+    # Adjust column widths and apply center alignment
+    for col in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col)
+        ws.column_dimensions[column_letter].width = 20  # Set a default width
+        for row in range(1, len(df) + 2):  # Include header row
+            cell = ws.cell(row=row, column=col)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Set row heights for better visibility
+    for row in range(1, len(df) + 2):
+        ws.row_dimensions[row].height = 20  # Set a default height
+    
+    # Save the workbook
+    wb.save(filename)
+
+# Example usage
+data = {
+    'offshore': [
+        {'Employee ID': '4444t', 'Employee Name': 'chaminda', 'Items': [{'item_id': 2, 'name': 'hello world', 'unique_key': 'gsdgsgsd', 'date_assigned': '2024-12-21', 'is_common': False}]},
+        {'Employee ID': 'gretret ', 'Employee Name': 'yehan', 'Items': [{'item_id': 1, 'name': 'desk2', 'unique_key': '23efsgdsgsg', 'date_assigned': '2024-12-21', 'is_common': True}]},
+        {'Employee ID': 'gsgsg', 'Employee Name': 'jenul', 'Items': [{'item_id': 2, 'name': 'hello world', 'unique_key': 'dsgdsgsdg', 'date_assigned': '2024-12-21', 'is_common': False}, {'item_id': 2, 'name': 'hello world', 'unique_key': 'sdgsgdgd', 'date_assigned': '2024-12-21', 'is_common': False}, {'item_id': 1, 'name': 'desk2', 'unique_key': 'dzdgdgdsg', 'date_assigned': '2024-12-21', 'is_common': True}]}
+    ],
+    'collections department': [
+        {'Employee ID': '4526sssdh', 'Employee Name': 'dshss', 'Items': [{'item_id': 3, 'name': 'sfgasgsgsg', 'unique_key': 'sdgdsgdsgsg', 'date_assigned': '2024-12-21', 'is_common': True}, {'item_id': 1, 'name': 'desk2', 'unique_key': 'efewtewtwet', 'date_assigned': '2024-12-21', 'is_common': True}]}
+    ]
+}
+
+export_to_excel(data, 'employee_items_styled.xlsx')

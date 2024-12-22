@@ -37,19 +37,6 @@ class ViewAssetAssignment:
         )
         title.pack(side="left", padx=20)
 
-        # Export button
-        export_button = ctk.CTkButton(
-            header_frame,
-            text="Export Logs",
-            command=self.export_logs,
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=150,
-            height=40,
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        export_button.pack(side="right", padx=20)
-
     def create_logs_layout(self):
         # Main container frame
         main_container = ctk.CTkFrame(
@@ -83,16 +70,16 @@ class ViewAssetAssignment:
         # Create Treeview
         self.logs_tree = ttk.Treeview(
             self.logs_frame, 
-            columns=("Timestamp", "Action Type", "Employee", "Item", "Details"), 
+            columns=("Employee Name", "Employee ID", "Item Name", "Item Unique Key", "Timestamp"), 
             show='headings'
         )
         
         # Configure column headings
+        self.logs_tree.heading("Employee Name", text="Employee Name")
+        self.logs_tree.heading("Employee ID", text="Employee ID")
+        self.logs_tree.heading("Item Name", text="Item Name")
+        self.logs_tree.heading("Item Unique Key", text="Item Unique Key")
         self.logs_tree.heading("Timestamp", text="Timestamp")
-        self.logs_tree.heading("Action Type", text="Action Type")
-        self.logs_tree.heading("Employee", text="Employee")
-        self.logs_tree.heading("Item", text="Item")
-        self.logs_tree.heading("Details", text="Details")
 
         # Add scrollbar
         scrollbar = ttk.Scrollbar(self.logs_frame, orient="vertical", command=self.logs_tree.yview)
@@ -105,9 +92,9 @@ class ViewAssetAssignment:
         self.bind_search_events()
 
     def bind_search_events(self):
-        self.search_input.bind("<Return>", self.search_logs)
+        self.search_input.bind("<Return>", self.search)
 
-    def search_logs(self, event=None):
+    def search(self, event=None):
         # Clear previous results
         for item in self.logs_tree.get_children():
             self.logs_tree.delete(item)
@@ -119,16 +106,16 @@ class ViewAssetAssignment:
         
         try:
             # Use search_logs function to find matching logs
-            matching_logs = search_logs(db, search_term)
+            matching_logs = search_logs(db, search_term, action_type="assign_item")
             
             # Insert logs into treeview
             for log in matching_logs:
                 self.logs_tree.insert("", "end", values=(
-                    log.timestamp, 
-                    log.action_type, 
                     log.employee_name, 
+                    log.employee_id, 
                     log.item_name, 
-                    log.details
+                    log.unique_key, 
+                    log.timestamp
                 ))
         
         except Exception as e:
