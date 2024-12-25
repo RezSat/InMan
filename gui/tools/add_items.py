@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from controllers import create_item
 from config import COLORS
+from controllers.crud import assign_item_to_employee, get_all_employees, get_all_employees_ids
 
 class AddItems:
     def __init__(self, main_frame, return_to_manager):
@@ -307,6 +308,14 @@ class AddItems:
             if item:
                 messagebox.showinfo("Success", f"Successfully created an item name:{self.item_name.get()}")
                 self.collect_attributes.clear()
+                if self.common_checkbox.get():
+                    try:
+                        list_employees = get_all_employees_ids()
+                        for employee in list_employees:
+                            assign_item_to_employee(employee, item, unique_key="-")
+                        messagebox.showinfo("Success", f"Added the Item to all existing employees, please add the relevant reference/unique key to each employee")
+                    except:
+                        messagebox.showerror("Failed", f"Some error occured while adding the item to all employees.")
                 self.display()
             else:
                 messagebox.showerror("Failed", f"Failed to create an item name:{self.item_name.get()}")

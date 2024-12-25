@@ -204,6 +204,13 @@ def get_all_employees():
                 'division': str(get_division(emp.division_id).name)
             } for emp in employees
         ]
+
+def get_all_employees_ids():
+    with session_scope() as db:
+        employees = db.query(Employee).all()
+        x = [ i.emp_id for i in employees]
+        return x
+    
 def get_employee_details_with_items_one(emp_id: str):
     """
     Retrieve employee details along with their associated items by employee ID.
@@ -398,6 +405,7 @@ def delete_item_attribute(item_id: int, name: str):
 def create_item(name: str, is_common: bool, attributes=None):
     with session_scope() as db:
         item = Item(name=name, is_common=is_common)
+        
         db.add(item)
         db.commit()
         db.refresh(item)
@@ -409,8 +417,9 @@ def create_item(name: str, is_common: bool, attributes=None):
                 db.add(attribute)
         
         db.commit()
+        x = item.item_id
         db.close()
-        return item
+        return x
     
 def update_item_details(item_dict):
     try:

@@ -54,10 +54,11 @@ class ManagerTools():
                 #("View Asset Assignments", self.view_asset_assignment_cmd),
             ],
             "Reports & Analytics": [
-                ('Inventory Report to Excel', divison_wise_employee_items_to_excel)
-                ("Asset Utilization", self.placeholder_command),
-                ("Employee Assignment Summary", self.placeholder_command),
-                ("Division Statistics", self.placeholder_command),
+                ('Inventory Report to Excel', self.divison_wise_employee_items_to_excel),
+                ("Employees to Excel", self.placeholder_command),
+                ("Items to Excel", self.placeholder_command),
+                ("Basic Report with Counts", self.placeholder_command),
+                #("", self.placeholder_command),
             ]
         }
 
@@ -128,6 +129,9 @@ class ManagerTools():
     def view_asset_assignment_cmd(self):
         view_asset_assignment = ViewAssetAssignment(self.main_frame, self.return_to_manager_function)
         view_asset_assignment.display()
+
+    def divison_wise_employee_items_to_excel(self):
+        divison_wise_employee_items_to_excel()
 
     def placeholder_command(self):
         print("Button clicked!")

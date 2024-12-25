@@ -132,7 +132,7 @@ def get_column_width(cell_value):
     return base_width + padding
 
 
-def divison_wise_employee_items_to_excel(data, output_file='full_inventory_report.xlsx'):
+def divison_wise_employee_items_to_excel(output_file='full_inventory_report.xlsx'):
     headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key | Reference ID']
     employees = get_employee_details_with_items()
     division_dict = {}
@@ -156,7 +156,7 @@ def divison_wise_employee_items_to_excel(data, output_file='full_inventory_repor
 
     wb = Workbook()
     ws = wb.active
-    
+    data = division_dict
     # Styles
     header_font = Font(bold=True, size=12)
     header_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
