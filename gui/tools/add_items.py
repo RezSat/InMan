@@ -214,7 +214,7 @@ class AddItems:
         # Existing attributes dropdown
         attribute_combo = ctk.CTkComboBox(
             row_frame,
-            values=["Brand", "Model", "Serial Number", "Create New"],
+            values=["Brand", "Model", "Create New"],
             font=ctk.CTkFont(size=14),
             fg_color=COLORS["black"],
             border_color=COLORS["ash"],

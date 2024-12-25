@@ -101,9 +101,9 @@ class Dashboard:
         ctk.CTkLabel(
             header,
             text=division_data['name'],
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COLORS["white"]
-        ).pack(side="left")
+        ).pack(side="left", padx=(0, 10))
         
         emp_tag = ctk.CTkFrame(
             header,
@@ -121,46 +121,44 @@ class Dashboard:
         
         # Stats
         stats = ctk.CTkFrame(card, fg_color="transparent")
-        stats.pack(fill="x", padx=15, pady=(5, 15))
+        stats.pack(fill="x", padx=15, pady=(5, 10))
         
-        # Items count
-        items_frame = ctk.CTkFrame(stats, fg_color="transparent")
-        items_frame.pack(side="left", padx=(0, 15))
+        # Total Items Count
+        total_items_frame = ctk.CTkFrame(stats, fg_color="transparent")
+        total_items_frame.pack(fill="x", padx=(0, 15), pady=(0, 10))
         
         ctk.CTkLabel(
-            items_frame,
-            text="Items",
+            total_items_frame,
+            text="Total Items",
             font=ctk.CTkFont(size=12),
             text_color=COLORS["ash"]
         ).pack(anchor="w")
         
         ctk.CTkLabel(
-            items_frame,
+            total_items_frame,
             text=str(division_data['item_count']),
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=20, weight="bold"),
             text_color=COLORS["white"]
         ).pack(anchor="w")
         
-        # Active items
-        active_frame = ctk.CTkFrame(stats, fg_color="transparent")
-        active_frame.pack(side="left", padx=(0, 15))
+        # Item Types Grid
+        item_types_frame = ctk.CTkFrame(card, fg_color="transparent")
+        item_types_frame.pack(fill="both", padx=15, pady=(5, 15))
         
-        ctk.CTkLabel(
-            active_frame,
-            text="Active",
-            font=ctk.CTkFont(size=12),
-            text_color=COLORS["ash"]
-        ).pack(anchor="w")
+        # Configure grid for item types
+        item_types_frame.grid_columnconfigure(0, weight=1)  # Item Name Column
+        item_types_frame.grid_columnconfigure(1, weight=1)  # Item Count Column
         
-        ctk.CTkLabel(
-            active_frame,
-            text=str(division_data['items']),
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["green"]
-        ).pack(anchor="w")
+        # Header for Item Types
+        ctk.CTkLabel(item_types_frame, text="Item Name", font=ctk.CTkFont(size=14, weight="bold"), text_color=COLORS["ash"]).grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ctk.CTkLabel(item_types_frame, text="Count", font=ctk.CTkFont(size=14, weight="bold"), text_color=COLORS["ash"]).grid(row=0, column=1, sticky="w", padx=5, pady=5)
         
+        # Create grid for item types and counts
+        for index, item in enumerate(division_data['items']):
+            ctk.CTkLabel(item_types_frame, text=item['name'], font=ctk.CTkFont(size=14), text_color=COLORS["ash"]).grid(row=index + 1, column=0, sticky="w", padx=5, pady=2)
+            ctk.CTkLabel(item_types_frame, text=str(item['count']), font=ctk.CTkFont(size=14), text_color=COLORS["white"]).grid(row=index + 1, column=1, sticky="w", padx=5, pady=2)
         return card
-
+    
     def create_overview_section(self):
         # Container for overview cards
         overview_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -189,7 +187,6 @@ class Dashboard:
             "Total Items",
             total_items,
             "📦",
-            f"{active_items} Active"
         ).grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
         
         self.create_stat_card(
@@ -199,12 +196,6 @@ class Dashboard:
             "🏢"
         ).grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
         
-        self.create_stat_card(
-            overview_frame,
-            "Items per Employee",
-            f"{total_items/total_employees:.1f}",
-            "📊"
-        ).grid(row=0, column=3, padx=5, pady=5, sticky="nsew")
 
     def create_divisions_section(self):
         # Section title
@@ -236,10 +227,29 @@ class Dashboard:
             ).grid(row=i//2, column=i%2, padx=5, pady=5, sticky="nsew")
     
     def display(self):
+        # Clear existing content
         self.clear_main_frame()
+
+        # Create a scrollable frame
+        scrollable_frame = ctk.CTkScrollableFrame(
+            self.main_frame, 
+            fg_color="transparent",
+            scrollbar_button_color=COLORS["pink"],
+            scrollbar_button_hover_color=COLORS["darker_pink"]
+        )
+        scrollable_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Temporarily change main_frame to scrollable_frame for creating content
+        original_main_frame = self.main_frame
+        self.main_frame = scrollable_frame
+
+        # Create dashboard sections
         self.create_header()
         self.create_overview_section()
         self.create_divisions_section()
+
+        # Restore original main_frame
+        self.main_frame = original_main_frame
 
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():

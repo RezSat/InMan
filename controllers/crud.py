@@ -195,8 +195,7 @@ def get_employee(emp_id: str):
 def get_all_employees():
     with session_scope() as db:
         employees = db.query(Employee).all()
-        db.close()
-        return [
+        x = [
             {
                 'emp_id': emp.emp_id,
                 'name': emp.name,
@@ -204,6 +203,8 @@ def get_all_employees():
                 'division': str(get_division(emp.division_id).name)
             } for emp in employees
         ]
+        db.close()
+        return x
 
 def get_all_employees_ids():
     with session_scope() as db:

@@ -5,6 +5,44 @@ from sqlalchemy import or_
 from models.models import Log, ItemTransferHistory, Employee, Item
 from datetime import datetime, timedelta
 
+def convert_items_to_dict(items):
+    """
+    Convert a list of Item objects to a list of dictionaries.
+
+    Args:
+        items (list): A list of Item objects.
+
+    Returns:
+        list: A list of dictionaries containing item details.
+    """
+    return [
+        {
+            'item_id': item.item_id,
+            'name': item.name,
+        }
+        for item in items
+    ]
+
+def convert_employees_to_dict(employees):
+    """
+    Convert a list of Employee objects to a list of dictionaries.
+
+    Args:
+        employees (list): A list of Employee objects.
+
+    Returns:
+        list: A list of dictionaries containing employee details.
+    """
+    return [
+        {
+            'emp_id': emp.emp_id,
+            'name': emp.name,
+            'division_id': emp.division_id,
+            'division': str(get_division(emp.division_id).name)  # Assuming get_division returns a Division object
+        }
+        for emp in employees
+    ]
+
 # Search Employees by name, emp_id, or division
 def search_employees(db: Session, query: str, limit: int = 100):
     return db.query(Employee).filter(
@@ -15,11 +53,41 @@ def search_employees(db: Session, query: str, limit: int = 100):
 
 # Search Items by name or unique_key
 def search_items(db: Session, query: str, limit: int = 100):
-    return db.query(Item).join(EmployeeItem).filter(
-        (Item.name.ilike(f"%{query}%")) |
-        (EmployeeItem.unique_key.ilike(f"%{query}%"))
+    return db.query(Item).filter(
+        (Item.name.ilike(f"%{query}%"))
     ).all()
 
+def search_unique_key(query=""):
+    """
+    Search for employee-item relationships by unique key
+    
+    Args:
+        query (str, optional): Unique key to search. Defaults to "-" to return all entries.
+    
+    Returns:
+        List of dictionaries containing employee-item relationships
+    """
+    l = []
+    with session_scope() as db:
+        empitems = (
+            db.query(EmployeeItem, Item.name.label('item_name'), Employee.name.label('employee_name'))
+            .join(Item, EmployeeItem.item_id == Item.item_id)
+            .join(Employee, EmployeeItem.emp_id == Employee.emp_id)
+            .filter(EmployeeItem.unique_key.ilike(f"%{query}%"))
+            .all()
+        )
+        for i, item_name, employee_name in empitems:
+            q = {
+                "emp_id": i.emp_id,
+                "unique_key": i.unique_key,
+                "item_id": i.item_id,
+                "item_name": item_name,
+                "employee_name": employee_name
+            }
+            l.append(q)
+    
+    return l 
+  
 # Search Divisions by name
 def search_divisions(db: Session, query: str, limit: int = 100):
     return db.query(Division).filter(Division.name.ilike(f"%{query}%")).limit(limit).all()

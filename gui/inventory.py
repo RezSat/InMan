@@ -4,9 +4,9 @@ import pandas as pd
 from config import COLORS
 from controllers import (get_all_employees, get_all_items, get_all_divisions, 
                        get_division_details_with_counts, get_employee_details_with_items)
-from controllers.crud import get_all_division_names
+from controllers.crud import get_all_division_names, get_division
 from models.database import SessionLocal
-from utils.search import search_divisions, search_employees, search_items
+from utils.search import search_divisions, search_employees, search_items, search_unique_key
 
 class InventoryDisplay:
     def __init__(self, main_frame, inv):
@@ -55,7 +55,7 @@ class InventoryDisplay:
         top_row.grid_columnconfigure(1, weight=1)  # Search entry will expand
         
         # Search type selector with improved styling
-        search_types = ["All", "Employees", "Items", "Divisions"]
+        search_types = ["Select type","Employees", "Items", "Divisions", "Unique Key"]
         self.search_type = ctk.CTkComboBox(
             top_row,
             values=search_types,
@@ -101,85 +101,13 @@ class InventoryDisplay:
         
         # Configure bottom row for filter expansion
         self.filters_frame.grid_columnconfigure(0, weight=1)
-
-    def create_advanced_filters(self, search_type):
-        # Clear existing filters
-        for widget in self.filters_frame.winfo_children():
-            widget.destroy()
-            
-        if search_type == "Employees":
-            # Division filter
-            divisions = ["All Divisions"] + get_all_division_names()
-            self.division_filter = ctk.CTkComboBox(
-                self.filters_frame,
-                values=divisions,
-                width=150,
-                height=35,
-                font=ctk.CTkFont(size=14),
-                fg_color=COLORS["black"],
-                border_color=COLORS["ash"],
-                button_color=COLORS["pink"],
-                button_hover_color=COLORS["darker_pink"]
+        division_filter = ctk.CTkLabel(
+        self.filters_frame,
+        text="",
+        font=ctk.CTkFont(size=14),
+        text_color=COLORS["ash"]
             )
-            self.division_filter.pack(side="left", padx=5)
-            
-        elif search_type == "Items":
-            filters_container = ctk.CTkFrame(self.filters_frame, fg_color="transparent")
-            filters_container.pack(fill="x", expand=True)
-            
-            # Status filter
-            self.status_filter = ctk.CTkComboBox(
-                filters_container,
-                values=["All Status", "Active", "Retired", "Lost"],
-                width=150,
-                height=35,
-                font=ctk.CTkFont(size=14),
-                fg_color=COLORS["black"],
-                border_color=COLORS["ash"],
-                button_color=COLORS["pink"],
-                button_hover_color=COLORS["darker_pink"]
-            )
-            self.status_filter.pack(side="left", padx=5)
-            
-            # Type filter
-            self.type_filter = ctk.CTkComboBox(
-                filters_container,
-                values=["All Types", "Common", "Individual"],
-                width=150,
-                height=35,
-                font=ctk.CTkFont(size=14),
-                fg_color=COLORS["black"],
-                border_color=COLORS["ash"],
-                button_color=COLORS["pink"],
-                button_hover_color=COLORS["darker_pink"]
-            )
-            self.type_filter.pack(side="left", padx=5)
-            
-            # Attribute filters container
-            attr_container = ctk.CTkFrame(filters_container, fg_color="transparent")
-            attr_container.pack(side="left", padx=5)
-            
-            self.attr_name = ctk.CTkEntry(
-                attr_container,
-                placeholder_text="Attribute Name",
-                width=150,
-                height=35,
-                font=ctk.CTkFont(size=14),
-                fg_color=COLORS["black"],
-                border_color=COLORS["ash"]
-            )
-            self.attr_name.pack(side="left", padx=2)
-            
-            self.attr_value = ctk.CTkEntry(
-                attr_container,
-                placeholder_text="Attribute Value",
-                width=150,
-                height=35,
-                font=ctk.CTkFont(size=14),
-                fg_color=COLORS["black"],
-                border_color=COLORS["ash"]
-            )
-            self.attr_value.pack(side="left", padx=2)
+        division_filter.pack(side="left", padx=5)
 
     def create_results_view(self):
         # Main container with border and rounded corners
@@ -215,7 +143,7 @@ class InventoryDisplay:
                 width=150
             )
             self.division_filter.pack(side="left", padx=5)
-            
+
         elif search_type == "Items":
             # Status filter
             self.status_filter = ctk.CTkComboBox(
@@ -264,11 +192,35 @@ class InventoryDisplay:
         elif search_type == "Divisions":
             results = search_divisions(SessionLocal(), query)
             self.display_division_results(results)
+        elif search_type == "Unique Key":
+            results = search_unique_key(query)
+            self.display_unique_key_results(results)
         else:
             # Perform all searches
-            emp_results = search_employees(SessionLocal(), query)
-            item_results = search_items(SessionLocal(), query)
-            div_results = search_divisions(SessionLocal(), query)
+            
+            emp_results = [{
+                                'emp_id': emp.emp_id,
+                                'name': emp.name,
+                                'division_id': emp.division_id,
+                                'division': str(get_division(emp.division_id).name)  # Assuming get_division returns a Division object
+                            }
+                            for emp in search_employees(SessionLocal(), query)
+                            ]
+            item_results = [
+                            {
+                                'item_id': item.item_id,
+                                'name': item.name,
+                                #'unique_key': item.EmployeeItem.unique_key  # Assuming there is a unique_key field
+                            }
+                            for item in search_items(SessionLocal(), query)
+                        ]
+            div_results = [
+                            {
+                                'division_id': division.division_id,
+                                'name': division.name,
+                            }
+                            for division in search_divisions(SessionLocal(), query)
+                        ]
             self.display_combined_results(emp_results, item_results, div_results)
 
     def export_to_excel(self):
@@ -516,48 +468,353 @@ class InventoryDisplay:
             ).pack(padx=8, pady=2)
 
     def display_combined_results(self, emp_results, item_results, div_results):
-        current_row = 0
+        """
+        Display search results in separate, independent containers
+        
+        Args:
+            emp_results (list): List of employee search results
+            item_results (list): List of item search results
+            div_results (list): List of division search results
+        """
+        # Clear existing results frame
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
 
+        # Create a scrollable main container
+        main_container = ctk.CTkScrollableFrame(
+            self.results_frame, 
+            fg_color="transparent",
+            scrollbar_button_color=COLORS["pink"],
+            scrollbar_button_hover_color=COLORS["darker_pink"]
+        )
+        main_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Employees Results Container
         if emp_results:
-            # Employee section header
-            header_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
-            header_frame.grid(row=current_row, column=0, columnspan=3, padx=2, pady=(10, 2), sticky="nsew")
+            # Employees Container
+            employees_container = ctk.CTkFrame(
+                main_container, 
+                fg_color=COLORS["secondary_bg"],
+                corner_radius=10
+            )
+            employees_container.pack(fill="x", pady=10)
+
+            # Employees Header
+            emp_header = ctk.CTkFrame(employees_container, fg_color=COLORS["black"])
+            emp_header.pack(fill="x", padx=2, pady=2)
             ctk.CTkLabel(
-                header_frame,
-                text="Employees",
+                emp_header,
+                text="Employees Search Results",
                 font=ctk.CTkFont(size=16, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=10, pady=8)
-            current_row += 1
-            
-            self.display_employee_results(emp_results)
-            current_row += len(emp_results) + 1
 
+            # Employees Results Grid
+            emp_results_grid = ctk.CTkFrame(employees_container, fg_color="transparent")
+            emp_results_grid.pack(fill="x", padx=5, pady=5)
+
+            # Configure grid columns
+            emp_results_grid.grid_columnconfigure(0, weight=0, minsize=100)  # ID
+            emp_results_grid.grid_columnconfigure(1, weight=1, minsize=200)  # Name
+            emp_results_grid.grid_columnconfigure(2, weight=0, minsize=150)  # Division
+
+            # Headers
+            headers = ["Employee ID", "Name", "Division"]
+            for col, header in enumerate(headers):
+                header_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
+                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    header_frame,
+                    text=header,
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=10, pady=8)
+
+            # Add employee rows
+            for idx, employee in enumerate(emp_results, 1):
+                # ID Cell
+                id_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
+                id_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    id_frame,
+                    text=str(employee['emp_id']),
+                    font=ctk.CTkFont(size=13)
+                ).pack(padx=10, pady=8)
+                
+                # Name Cell
+                name_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
+                name_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    name_frame,
+                    text=employee['name'],
+                    font=ctk.CTkFont(size=13)
+                ).pack(padx=10, pady=8)
+                
+                # Division Cell
+                div_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
+                div_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
+                
+                div_tag = ctk.CTkFrame(
+                    div_frame,
+                    fg_color=COLORS["pink"],
+                    corner_radius=6
+                )
+                div_tag.pack(padx=10, pady=8)
+                ctk.CTkLabel(
+                    div_tag,
+                    text=employee['division'],
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=8, pady=2)
+
+        # Items Results Container
         if item_results:
-            # Item section header
-            header_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
-            header_frame.grid(row=current_row, column=0, columnspan=3, padx=2, pady=(10, 2), sticky="nsew")
-            ctk.CTkLabel(
-                header_frame,
-                text="Items",
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
-            current_row += 1
-            
-            self.display_item_results(item_results)
-            current_row += len(item_results) + 1
+            # Items Container
+            items_container = ctk.CTkFrame(
+                main_container, 
+                fg_color=COLORS["secondary_bg"],
+                corner_radius=10
+            )
+            items_container.pack(fill="x", pady=10)
 
-        if div_results:
-            # Division section header
-            header_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
-            header_frame.grid(row=current_row, column=0, columnspan=2, padx=2, pady=(10, 2), sticky="nsew")
+            # Items Header
+            items_header = ctk.CTkFrame(items_container, fg_color=COLORS["black"])
+            items_header.pack(fill="x", padx=2, pady=2)
             ctk.CTkLabel(
-                header_frame,
-                text="Divisions",
+                items_header,
+                text="Items Search Results",
                 font=ctk.CTkFont(size=16, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=10, pady=8)
-            current_row += 1
+
+            # Items Results Grid
+            items_results_grid = ctk.CTkFrame(items_container, fg_color="transparent")
+            items_results_grid.pack(fill="x", padx=5, pady=5)
+
+            # Configure grid columns
+            items_results_grid.grid_columnconfigure(0, weight=1, minsize=200)  # Name
+            items_results_grid.grid_columnconfigure(1, weight=0, minsize=100)  # Status
+            items_results_grid.grid_columnconfigure(2, weight=0, minsize=300)  # Attributes
+
+            # Headers
+            headers = ["Item Name", "Status", "Attributes"]
+            for col, header in enumerate(headers):
+                header_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
+                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    header_frame,
+                    text=header,
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=10, pady=8)
+
+            # Add item rows
+            for idx, item in enumerate(item_results, 1):
+                # Name Cell
+                name_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
+                name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    name_frame,
+                    text=item['name'],
+                    font=ctk.CTkFont(size=13),
+                    wraplength=300
+                ).pack(padx=10, pady=8)
+                
+                # Status Cell
+                status_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
+                status_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
+                
+                status_tag = ctk.CTkFrame(
+                    status_frame,
+                    fg_color={
+                        "active": "#4CAF50",
+                        "retired": "#FFA726",
+                        "lost": "#EF5350"
+                    }.get(item.get('status', '').lower(), COLORS["black"]),
+                    corner_radius=6
+                )
+                status_tag.pack(padx=10, pady=8)
+                ctk.CTkLabel(
+                    status_tag,
+                    text=item.get('status', 'N/A').upper(),
+                    font=ctk.CTkFont(size=12 , weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=8, pady=2)
+                
+                # Attributes Cell
+                attrs_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
+                attrs_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
+                
+                attrs_container = ctk.CTkFrame(attrs_frame, fg_color="transparent")
+                attrs_container.pack(padx=10, pady=8, fill="x")
+                
+                if 'attributes' in item:
+                    for attr in item['attributes']:
+                        attr_tag = ctk.CTkFrame(
+                            attrs_container,
+                            fg_color=COLORS["secondary_bg"],
+                            corner_radius=6
+                        )
+                        attr_tag.pack(side="left", padx=2, pady=2)
+                        ctk.CTkLabel(
+                            attr_tag,
+                            text=f"{attr['name']}: {attr['value']}",
+                            font=ctk.CTkFont(size=12),
+                            text_color=COLORS["white"]
+                        ).pack(padx=6, pady=4)
+
+        # Divisions Results Container
+        if div_results:
+            # Divisions Container
+            divisions_container = ctk.CTkFrame(
+                main_container, 
+                fg_color=COLORS["secondary_bg"],
+                corner_radius=10
+            )
+            divisions_container.pack(fill="x", pady=10)
+
+            # Divisions Header
+            div_header = ctk.CTkFrame(divisions_container, fg_color=COLORS["black"])
+            div_header.pack(fill="x", padx=2, pady=2)
+            ctk.CTkLabel(
+                div_header,
+                text="Divisions Search Results",
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=10, pady=8)
+
+            # Divisions Results Grid
+            div_results_grid = ctk.CTkFrame(divisions_container, fg_color="transparent")
+            div_results_grid.pack(fill="x", padx=5, pady=5)
+
+            # Configure grid columns
+            div_results_grid.grid_columnconfigure(0, weight=1, minsize=200)  # Name
+            div_results_grid.grid_columnconfigure(1, weight=0, minsize=150)  # Employee Count
+
+            # Headers
+            headers = ["Division Name", "Employee Count"]
+            for col, header in enumerate(headers):
+                header_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
+                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    header_frame,
+                    text=header,
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=10, pady=8)
+
+            # Add division rows
+            for idx, division in enumerate(div_results, 1):
+                # Name Cell
+                name_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
+                name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
+                ctk.CTkLabel(
+                    name_frame,
+                    text=division['name'],
+                    font=ctk.CTkFont(size=13)
+                ).pack(padx=10, pady=8)
+                
+                # Employee Count Cell
+                count_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
+                count_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
+                
+                count_tag = ctk.CTkFrame(
+                    count_frame,
+                    fg_color=COLORS["green"],
+                    corner_radius=6
+                )
+                count_tag.pack(padx=10, pady=8)
+                ctk.CTkLabel(
+                    count_tag,
+                    text=str(division['employee_count']),
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=COLORS["white"]
+                ).pack(padx=8, pady=2)
+
+        # Optional: Add a message if no results were found
+        if not emp_results and not item_results and not div_results:
+            no_results_frame = ctk.CTkFrame(main_container, fg_color=COLORS["black"])
+            no_results_frame.pack(fill="x", padx=2, pady=(10, 2))
+            ctk.CTkLabel(
+                no_results_frame,
+                text="No results found.",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=10, pady=8)
+
+    def display_unique_key_results(self, results):
+        # Configure grid columns
+        self.results_frame.grid_columnconfigure(0, weight=0, minsize=100)  # Employee ID
+        self.results_frame.grid_columnconfigure(1, weight=1, minsize=200)  # Employee Name
+        self.results_frame.grid_columnconfigure(2, weight=1, minsize=200)  # Item Name
+        self.results_frame.grid_columnconfigure(3, weight=1, minsize=200)  # Unique Key
+
+        # Create headers
+        headers = ["Employee ID", "Employee Name", "Item Name", "Unique Key"]
+        for col, header in enumerate(headers):
+            header_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
             
-            self.display_division_results(div_results)
+            ctk.CTkLabel(
+                header_frame,
+                text=header,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=10, pady=8)
+
+        # Add rows
+        for idx, result in enumerate(results, 1):
+            # Employee ID Cell
+            emp_id_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            emp_id_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
+            ctk.CTkLabel(
+                emp_id_frame,
+                text=result['emp_id'],
+                font=ctk.CTkFont(size=13)
+            ).pack(padx=10, pady=8)
+            
+            # Employee Name Cell
+            emp_name_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            emp_name_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
+            ctk.CTkLabel(
+                emp_name_frame,
+                text=result['employee_name'],
+                font=ctk.CTkFont(size=13)
+            ).pack(padx=10, pady=8)
+            
+            # Item Name Cell
+            item_name_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            item_name_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
+            ctk.CTkLabel(
+                item_name_frame,
+                text=result['item_name'],
+                font=ctk.CTkFont(size=13)
+            ).pack(padx=10, pady=8)
+            
+            # Unique Key Cell
+            unique_key_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            unique_key_frame.grid(row=idx, column=3, padx=2, pady=2, sticky="nsew")
+            
+            unique_key_tag = ctk.CTkFrame(
+                unique_key_frame,
+                fg_color=COLORS["pink"],
+                corner_radius=6
+            )
+            unique_key_tag.pack(padx=10, pady=8)
+            ctk.CTkLabel(
+                unique_key_tag,
+                text=result['unique_key'],
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=8, pady=2)
+
+        # Optional: No results message
+        if not results:
+            no_results_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            no_results_frame.grid(row=1, column=0, columnspan=4, padx=2, pady=(10, 2), sticky="nsew")
+            ctk.CTkLabel(
+                no_results_frame,
+                text="No results found.",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=10, pady=8)
