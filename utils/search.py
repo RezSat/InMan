@@ -43,20 +43,94 @@ def convert_employees_to_dict(employees):
         for emp in employees
     ]
 
-# Search Employees by name, emp_id, or division
-def search_employees(db: Session, query: str, limit: int = 100):
-    return db.query(Employee).filter(
-        (Employee.name.ilike(f"%{query}%")) |
-        (Employee.emp_id.ilike(f"%{query}%")) |
-        (Employee.division.has(Division.name.ilike(f"%{query}%")))
-    ).all()
+def search_employees(query: str, division_name: str = None):
+    """
+    Search for employees by name, emp_id, with optional division filtering
+    
+    Args:
+        query (str): Search term to find employees (name or emp_id)
+        division_name (str, optional): Filter employees by division name
+    
+    Returns:
+        List of dictionaries containing employee details
+    """
+    with session_scope() as db:
+        # Base query to search by name or emp_id
+        base_query = db.query(Employee).filter(
+            (Employee.name.ilike(f"%{query}%")) |
+            (Employee.emp_id.ilike(f"%{query}%"))
+        )
+        
+        # If division name is provided, add division filter
+        if division_name:
+            base_query = base_query.join(Division).filter(
+                Division.name.ilike(f"%{division_name}%")
+            )
+        
+        # Execute the query
+        employees = base_query.all()
+        
+        # Transform employees to list of dictionaries
+        employee_list = []
+        for emp in employees:
+            employee_dict = {
+                "emp_id": emp.emp_id,
+                "name": emp.name,
+                "division": emp.division.name if emp.division else None
+            }
+            employee_list.append(employee_dict)
+        
+        return employee_list
 
-# Search Items by name or unique_key
-def search_items(db: Session, query: str, limit: int = 100):
-    return db.query(Item).filter(
-        (Item.name.ilike(f"%{query}%"))
-    ).all()
-
+def search_items(query: str, status: str = None, is_common: bool = None):
+    """
+    Search for items with multiple filtering options
+    
+    Args:
+        query (str): Search term to find items
+        status (str, optional): Filter items by status
+        is_common (bool, optional): Filter items by common status
+    
+    Returns:
+        List of dictionaries containing item details
+    """
+    with session_scope() as db:
+        # Base query to search by name
+        base_query = db.query(Item).filter(
+            Item.name.ilike(f"%{query}%")
+        )
+        
+        # Apply status filter if provided
+        if status and status != "All Status":
+            base_query = base_query.filter(Item.status == status.lower())
+        
+        # Apply is_common filter if provided
+        if is_common is not None:
+            base_query = base_query.filter(Item.is_common == is_common)
+        
+        # Execute the query
+        items = base_query.all()
+        
+        # Transform items to list of dictionaries
+        item_list = []
+        for item in items:
+            item_dict = {
+                "item_id": item.item_id,
+                "name": item.name,
+                "status": item.status,
+                "is_common": item.is_common,
+                "attributes": [
+                    {
+                        "name": attr.name,
+                        "value": attr.value
+                    } 
+                    for attr in item.attributes
+                ]
+            }
+            item_list.append(item_dict)
+        
+        return item_list
+    
 def search_unique_key(query=""):
     """
     Search for employee-item relationships by unique key
@@ -89,9 +163,48 @@ def search_unique_key(query=""):
     return l 
   
 # Search Divisions by name
-def search_divisions(db: Session, query: str, limit: int = 100):
-    return db.query(Division).filter(Division.name.ilike(f"%{query}%")).limit(limit).all()
-
+def search_divisions(query: str):
+    """
+    Search for divisions by name with employee and item counts
+    
+    Args:
+        query (str): Search term to find divisions
+    
+    Returns:
+        List of dictionaries containing division details
+    """
+    with session_scope() as db:
+        # Search for divisions matching the query
+        divisions = (
+            db.query(Division)
+            .filter(Division.name.ilike(f"%{query}%"))
+            .all()
+        )
+        
+        division_details_list = []
+        
+        for division in divisions:
+            # Count employees in the division
+            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
+            
+            # Count items owned by employees in the division
+            item_count = db.query(Item).join(EmployeeItem).filter(
+                EmployeeItem.emp_id == Employee.emp_id, 
+                Employee.division_id == division.division_id
+            ).count()
+            
+            # Prepare the details for the division
+            division_details = {
+                "division_id": division.division_id,
+                "name": division.name,
+                "employee_count": employee_count,
+                "item_count": item_count
+            }
+            
+            division_details_list.append(division_details)
+        
+        return division_details_list
+    
 # Get item by its unique key
 def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).join(EmployeeItem).filter(EmployeeItem.unique_key == unique_key).first()

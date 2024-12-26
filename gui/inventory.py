@@ -1,6 +1,10 @@
 import customtkinter as ctk
-from tkinter import ttk, filedialog
+from tkinter import messagebox, ttk, filedialog
 import pandas as pd
+import xlsxwriter
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from config import COLORS
 from controllers import (get_all_employees, get_all_items, get_all_divisions, 
                        get_division_details_with_counts, get_employee_details_with_items)
@@ -13,7 +17,86 @@ class InventoryDisplay:
         self.main_frame = main_frame
         self.current_view = None
         self.search_results = []
+        self.search_results = {
+            "Employees": [],
+            "Items": [],
+            "Divisions": [],
+            "Unique Key": []
+        }
+        # State preservation attributes
+        self.preserved_state = {
+            "search_type": "Select type",
+            "query": "",
+            "filters": {}
+        }
+
+    def preserve_current_state(self):
+            """
+            Capture the current search state before recreation
+            """
+            # Preserve search type
+            self.preserved_state["search_type"] = self.search_type.get()
+            
+            # Preserve search query
+            self.preserved_state["query"] = self.search_entry.get()
+            
+            # Preserve specific filters based on search type
+            if self.preserved_state["search_type"] == "Employees":
+                if hasattr(self, 'division_filter'):
+                    self.preserved_state["filters"]["division"] = self.division_filter.get()
+            
+            elif self.preserved_state["search_type"] == "Items":
+                # Preserve item-specific filters if any
+                if hasattr(self, 'status_filter'):
+                    self.preserved_state["filters"]["status"] = self.status_filter.get()
+                if hasattr(self, 'type_filter'):
+                    self.preserved_state["filters"]["type"] = self.type_filter.get()
+
+    def restore_preserved_state(self):
+        """
+        Restore the preserved search state after recreation
+        """
+        # Restore search type
+        self.search_type.set(self.preserved_state["search_type"])
         
+        # Create appropriate filters for the search type
+        self.create_advanced_filters(self.preserved_state["search_type"])
+        
+        # Restore search query
+        self.search_entry.delete(0, 'end')
+        self.search_entry.insert(0, self.preserved_state["query"])
+        
+        # Restore specific filters
+        if self.preserved_state["search_type"] == "Employees":
+            if hasattr(self, 'division_filter') and 'division' in self.preserved_state["filters"]:
+                self.division_filter.set(self.preserved_state["filters"]["division"])
+        
+        elif self.preserved_state["search_type"] == "Items":
+            # Restore item-specific filters
+            if hasattr(self, 'status_filter') and 'status' in self.preserved_state["filters"]:
+                self.status_filter.set(self.preserved_state["filters"]["status"])
+            if hasattr(self, 'type_filter') and 'type' in self.preserved_state["filters"]:
+                self.type_filter.set(self.preserved_state["filters"]["type"])
+
+    def display_search_results(self):
+        """
+        Recreate the entire view while preserving search state
+        """
+        # Preserve current state before clearing
+        self.preserve_current_state()
+        
+        # Clear the main frame
+        self.clear_main_frame()
+        
+        # Recreate the basic structure
+        self.create_header()
+        self.create_search_panel()
+        self.create_results_view()
+        
+        # Restore the preserved state
+        self.restore_preserved_state()
+        
+
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(20, 10))
@@ -151,7 +234,7 @@ class InventoryDisplay:
                 values=["All Status", "Active", "Retired", "Lost"],
                 width=150
             )
-            self.status_filter.pack(side="left", padx=5)
+            #self.status_filter.pack(side="left", padx=5)
             
             # Type filter
             self.type_filter = ctk.CTkComboBox(
@@ -159,7 +242,7 @@ class InventoryDisplay:
                 values=["All Types", "Common", "Individual"],
                 width=150
             )
-            self.type_filter.pack(side="left", padx=5)
+            #self.type_filter.pack(side="left", padx=5)
             
             # Attribute search
             self.attr_name = ctk.CTkEntry(
@@ -172,8 +255,8 @@ class InventoryDisplay:
                 placeholder_text="Attribute Value",
                 width=150
             )
-            self.attr_name.pack(side="left", padx=5)
-            self.attr_value.pack(side="left", padx=5)
+            #self.attr_name.pack(side="left", padx=5)
+            #self.attr_value.pack(side="left", padx=5)
 
     def perform_search(self, event=None):
         search_type = self.search_type.get()
@@ -184,78 +267,270 @@ class InventoryDisplay:
             widget.destroy()
         
         if search_type == "Employees":
-            results = get_all_employees()
+            division_filter = getattr(self, 'division_filter', None)
+            division_name = division_filter.get() if division_filter and division_filter.get() != "All Divisions" else None
+            results = search_employees(query, division_name)
+            self.search_results["Employees"] = results
+            self.display_search_results()
             self.display_employee_results(results)
+
         elif search_type == "Items":
-            results = search_items(SessionLocal(), query)
-            self.display_item_results(results)
-        elif search_type == "Divisions":
-            results = search_divisions(SessionLocal(), query)
-            self.display_division_results(results)
-        elif search_type == "Unique Key":
-            results = search_unique_key(query)
-            self.display_unique_key_results(results)
-        else:
-            # Perform all searches
+            status_filter = self.status_filter.get() if hasattr(self, 'status_filter') else None
+            is_common_filter = self.is_common_filter.get() if hasattr(self, 'is_common_filter') else None
+            # Convert is_common filter to boolean
+            is_common = None
+            if is_common_filter == "Common":
+                is_common = 1
+            elif is_common_filter == "Not Common":
+                is_common = 0
+            status = None if status_filter == "All Status" else status_filter
+            self.display_search_results()
+            results = search_items(
+                query, 
+                status=status, 
+                is_common=is_common
+            )
+            self.search_results["Items"] = results
             
-            emp_results = [{
-                                'emp_id': emp.emp_id,
-                                'name': emp.name,
-                                'division_id': emp.division_id,
-                                'division': str(get_division(emp.division_id).name)  # Assuming get_division returns a Division object
-                            }
-                            for emp in search_employees(SessionLocal(), query)
-                            ]
-            item_results = [
-                            {
-                                'item_id': item.item_id,
-                                'name': item.name,
-                                #'unique_key': item.EmployeeItem.unique_key  # Assuming there is a unique_key field
-                            }
-                            for item in search_items(SessionLocal(), query)
-                        ]
-            div_results = [
-                            {
-                                'division_id': division.division_id,
-                                'name': division.name,
-                            }
-                            for division in search_divisions(SessionLocal(), query)
-                        ]
-            self.display_combined_results(emp_results, item_results, div_results)
+            self.display_item_results(results)
+
+        elif search_type == "Divisions":
+            self.display_search_results()
+            results = search_divisions(query)
+            self.search_results["Divisions"] = results
+            self.display_division_results(results)
+
+        elif search_type == "Unique Key":
+            self.display_search_results()
+            results = search_unique_key(query)
+            self.search_results["Unique Key"] = results
+            self.display_unique_key_results(results)
 
     def export_to_excel(self):
-        if not self.search_results:
+        """
+        Export search results to an Excel file with specific attribute formatting
+        """
+        # Get current search type
+        search_type = self.search_type.get()
+        
+        # Get results for current search type
+        results = self.search_results[search_type]
+        
+        # Check if there are any results
+        if not results:
+            messagebox.showerror("Export Error", "No results to export.")
             return
-            
+        
+        # Open file dialog and export
         file_path = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
             filetypes=[("Excel files", "*.xlsx")]
         )
         
         if file_path:
-            df = pd.DataFrame(self.search_results)
-            
-            # Create Excel writer with styling
-            with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
-                df.to_excel(writer, sheet_name='Search Results', index=False)
+            try:
+                # Create a new workbook and select the active worksheet
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Results"
                 
-                # Get workbook and worksheet objects
-                workbook = writer.book
-                worksheet = writer.sheets['Search Results']
+                # Styling
+                header_font = Font(bold=True, color="000000")  # Black text
+                header_fill = PatternFill(
+                    start_color="FFF0F5",  # Light Pink (Lavender Blush)
+                    end_color="FFF0F5", 
+                    fill_type="solid"
+                )
+                center_alignment = Alignment(
+                    horizontal='center', 
+                    vertical='center', 
+                    wrap_text=True
+                )
                 
-                # Define formats
-                header_format = workbook.add_format({
-                    'bold': True,
-                    'font_size': 12,
-                    'bg_color': '#2c363f',
-                    'font_color': '#ffffff'
-                })
+                # Define border style
+                thin_border = Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                )
                 
-                # Apply formats
-                for col_num, value in enumerate(df.columns.values):
-                    worksheet.write(0, col_num, value, header_format)
-                    worksheet.set_column(col_num, col_num, 15)
+                if search_type == "Items":
+                    # Write headers
+                    headers = [
+                        "Name","Is Common", 
+                        "Attributes Name", "Attributes Value"
+                    ]
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col)
+                        cell.value = header
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = center_alignment
+                        cell.border = thin_border
+                    
+                    # Current row to write data
+                    current_row = 2
+                    
+                    # Process each item
+                    for item in results:
+                        # Determine number of attribute rows
+                        num_attributes = len(item.get('attributes', []))
+                        attribute_rows = max(1, num_attributes)
+                        
+                        # Basic item information
+                        name_cell = ws.cell(row=current_row, column=1, value=item['name'])
+                        name_cell.border = thin_border
+                        
+                        is_common_cell = ws.cell(row=current_row, column=2, value="Yes" if item['is_common'] else "No")
+                        is_common_cell.border = thin_border
+                        
+                        # Merge cells for basic item info
+                        if attribute_rows > 1:
+                            for col in [1, 2]:
+                                ws.merge_cells(
+                                    start_row=current_row,
+                                    start_column=col,
+                                    end_row=current_row + attribute_rows - 1,
+                                    end_column=col
+                                )
+                                # Apply border to merged cell
+                                merged_cell = ws.cell(row=current_row, column=col)
+                                merged_cell.border = thin_border
+                        
+                        # Write attributes
+                        if item.get('attributes'):
+                            for idx, attr in enumerate(item['attributes']):
+                                row = current_row + idx
+                                attr_name_cell = ws.cell(row=row, column=3, value=attr['name'])
+                                attr_name_cell.border = thin_border
+                                
+                                attr_value_cell = ws.cell(row=row, column=4, value=attr['value'])
+                                attr_value_cell.border = thin_border
+                        else:
+                            # If no attributes, add placeholders
+                            no_attr_name_cell = ws.cell(row=current_row, column=3, value="-")
+                            no_attr_name_cell.border = thin_border
+                            
+                            no_attr_value_cell = ws.cell(row=current_row, column=4, value="-")
+                            no_attr_value_cell.border = thin_border
+                        
+                        # Move to next set of rows
+                        current_row += attribute_rows
+                    
+                elif search_type == "Employees":
+                    headers = ["Employee ID", "Name", "Division"]
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col)
+                        cell.value = header
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = center_alignment
+                        cell.border = thin_border
+                    
+                    current_row = 2
+                    for emp in results:
+                        emp_id_cell = ws.cell(row=current_row, column=1, value=emp['emp_id'])
+                        emp_id_cell.border = thin_border
+                        
+                        name_cell = ws.cell(row=current_row, column=2, value=emp['name'])
+                        name_cell.border = thin_border
+                        
+                        division_cell = ws.cell(row=current_row, column=3, value=emp['division'])
+                        division_cell.border = thin_border
+                        
+                        current_row += 1
 
+                elif search_type == "Divisions":
+                    # Divisions Export
+                    headers = [
+                        "Division ID", "Name", "Employee Count", "Item Count"
+                    ]
+                    
+                    # Write headers
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col)
+                        cell.value = header
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = center_alignment
+                        cell.border = thin_border
+                    
+                    # Current row to write data
+                    current_row = 2
+                    
+                    # Process each division
+                    for division in results:
+                        # Write division details
+                        div_id_cell = ws.cell(row=current_row, column=1, value=division['division_id'])
+                        div_id_cell.border = thin_border
+                        
+                        name_cell = ws.cell(row=current_row, column=2, value=division['name'])
+                        name_cell.border = thin_border
+                        
+                        emp_count_cell = ws.cell(row=current_row, column=3, value=division['employee_count'])
+                        emp_count_cell.border = thin_border
+                        
+                        item_count_cell = ws.cell(row=current_row, column=4, value=division['item_count'])
+                        item_count_cell.border = thin_border
+                        
+                        current_row += 1
+                
+                elif search_type == "Unique Key":
+                    # Unique Key Export
+                    headers = [
+                        "Employee ID", "Employee Name", "Item Name", "Unique Key"
+                    ]
+                    
+                    # Write headers
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col)
+                        cell.value = header
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = center_alignment
+                        cell.border = thin_border
+                    
+                    # Current row to write data
+                    current_row = 2
+                    
+                    # Process each unique key result
+                    for result in results:
+                        # Write unique key details
+                        emp_id_cell = ws.cell(row=current_row, column=1, value=result['emp_id'])
+                        emp_id_cell.border = thin_border
+                        
+                        emp_name_cell = ws.cell(row=current_row, column=2, value=result['employee_name'])
+                        emp_name_cell.border = thin_border
+                        
+                        item_name_cell = ws.cell(row=current_row, column=3, value=result['item_name'])
+                        item_name_cell.border = thin_border
+                        
+                        unique_key_cell = ws.cell(row=current_row, column=4, value=result['unique_key'])
+                        unique_key_cell.border = thin_border
+                        
+                        current_row += 1                
+                # Auto-adjust column widths
+                for col in ws.columns:
+                    max_length = 0
+                    column = col[0].column_letter
+                    for cell in col:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(cell.value)
+                        except:
+                            pass
+                    adjusted_width = (max_length + 2)
+                    ws.column_dimensions[column].width = adjusted_width
+                
+                # Save the workbook
+                wb.save(file_path)
+                
+                messagebox.showinfo("Export Successful", f"Results exported to {file_path}")
+            
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export: {str(e)}")
+                
     def display(self):
         self.clear_main_frame()
         self.create_header()
@@ -372,7 +647,7 @@ class InventoryDisplay:
             name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
             ctk.CTkLabel(
                 name_frame,
-                text=item.name,
+                text=item['name'],
                 font=ctk.CTkFont(size=13),
                 wraplength=300
             ).pack(padx=10, pady=8)
@@ -387,13 +662,13 @@ class InventoryDisplay:
                     "active": "#4CAF50",
                     "retired": "#FFA726",
                     "lost": "#EF5350"
-                }.get(item.status.lower(), COLORS["black"]),
+                }.get(item['status'].lower(), COLORS["black"]),
                 corner_radius=6
             )
             status_tag.pack(padx=10, pady=8)
             ctk.CTkLabel(
                 status_tag,
-                text=item.status.upper(),
+                text=item['status'].upper(),
                 font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=8, pady=2)
@@ -405,8 +680,8 @@ class InventoryDisplay:
             attrs_container = ctk.CTkFrame(attrs_frame, fg_color="transparent")
             attrs_container.pack(padx=10, pady=8, fill="x")
             
-            if hasattr(item, 'attributes'):
-                for i, attr in enumerate(item.attributes):
+            if item['attributes']:
+                for i, attr in enumerate(item['attributes']):
                     attr_tag = ctk.CTkFrame(
                         attrs_container,
                         fg_color=COLORS["secondary_bg"],
@@ -415,19 +690,34 @@ class InventoryDisplay:
                     attr_tag.pack(side="left", padx=2, pady=2)
                     ctk.CTkLabel(
                         attr_tag,
-                        text=f"{attr.name}: {attr.value}",
+                        text=f"{attr['name']}: {attr['value']}",
                         font=ctk.CTkFont(size=12),
                         text_color=COLORS["white"]
                     ).pack(padx=6, pady=4)
+            else:
+                attr_tag = ctk.CTkFrame(
+                        attrs_container,
+                        fg_color=COLORS["secondary_bg"],
+                        corner_radius=6
+                    )
+                attr_tag.pack(side="left", padx=2, pady=2)
+                ctk.CTkLabel(
+                    attr_tag,
+                    text=f"No Attributes",
+                    font=ctk.CTkFont(size=12),
+                    text_color=COLORS["white"]
+                ).pack(padx=6, pady=4)
+
 
 
     def display_division_results(self, results):
         # Configure grid columns
         self.results_frame.grid_columnconfigure(0, weight=1, minsize=200)  # Name
         self.results_frame.grid_columnconfigure(1, weight=0, minsize=150)  # Employee Count
+        self.results_frame.grid_columnconfigure(2, weight=0, minsize=150)  # Item Count
 
         # Create headers
-        headers = ["Division Name", "Employee Count"]
+        headers = ["Division Name", "Employee Count", "Item Count"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
@@ -446,29 +736,47 @@ class InventoryDisplay:
             name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
             ctk.CTkLabel(
                 name_frame,
-                text=division.name,
+                text=division['name'],
                 font=ctk.CTkFont(size=13)
             ).pack(padx=10, pady=8)
             
             # Employee Count Cell
-            count_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
-            count_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
+            employee_count_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            employee_count_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
             
-            count_tag = ctk.CTkFrame(
-                count_frame,
+            employee_count_tag = ctk.CTkFrame(
+                employee_count_frame,
                 fg_color=COLORS["green"],
                 corner_radius=6
             )
-            count_tag.pack(padx=10, pady=8)
+            employee_count_tag.pack(padx=10, pady=8)
             ctk.CTkLabel(
-                count_tag,
-                text=str(division.employee_count),
+                employee_count_tag,
+                text=str(division['employee_count']),
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=COLORS["white"]
+            ).pack(padx=8, pady=2)
+
+            # Item Count Cell
+            item_count_frame = ctk.CTkFrame(self.results_frame, fg_color=COLORS["black"])
+            item_count_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
+            
+            item_count_tag = ctk.CTkFrame(
+                item_count_frame,
+                fg_color=COLORS["green"],  # Different color for item count
+                corner_radius=6
+            )
+            item_count_tag.pack(padx=10, pady=8)
+            ctk.CTkLabel(
+                item_count_tag,
+                text=str(division['item_count']),
                 font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=8, pady=2)
 
     def display_combined_results(self, emp_results, item_results, div_results):
         """
+        NOT IN USE
         Display search results in separate, independent containers
         
         Args:

@@ -6,6 +6,6 @@ COLORS = {
     'darker_pink': '#8F344A',
     'white': '#f2f5ea',
     'ash': '#d6dbd2',
-    'green': '#bbc7a4',
+    'green': '#4CAF50',
     "secondary_bg": "#1A1A1A",
 }
