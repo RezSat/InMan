@@ -109,10 +109,10 @@ class BulkEmployeeImport:
                 name = row.get("Name", "")
                 division = row.get("Division", self.default_division)
 
-                if not division or division == self.default_division:
-                    messagebox.showerror("Error", f"Division is not specified for employee '{name}' (ID: {emp_id}). PLEASE SELECT AN DIVISION FROM THE DROPDOWN, IT WIL BE LABALLED AS 'NaN'.")
-                if division not in self.divisions:
-                    messagebox.showerror("Error", f"Division: {division} is not found in the database. Please select an available division from the dropdown for the employee : {emp_id} - {name}" )
+                #if not division or division == self.default_division:
+                #    messagebox.showerror("Error", f"Division is not specified for employee '{name}' (ID: {emp_id}). PLEASE SELECT AN DIVISION FROM THE DROPDOWN, IT WIL BE LABALLED AS 'NaN'.")
+                #if division not in self.divisions:
+                #    messagebox.showerror("Error", f"Division: {division} is not found in the database. Please select an available division from the dropdown for the employee : {emp_id} - {name}" )
                 self.add_row(emp_id, name, division)
 
         except Exception as e:
