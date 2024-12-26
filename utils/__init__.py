@@ -17,7 +17,9 @@ from .summary import (
     get_item_transfer_history,
     generate_employee_report,
     generate_item_report,
-    divison_wise_employee_items_to_excel
+    divison_wise_employee_items_to_excel,
+    employee_id_name_to_excel,
+    items_to_excel
     
 )
 
@@ -27,6 +29,8 @@ __all__ = [
     'get_transfer_history_summary',
     'get_employee_items', 'get_items_by_division', 'get_item_transfer_history', 'generate_employee_report', 'generate_item_report',
     'divison_wise_employee_items_to_excel',
-    'search_unique_key'
+    'search_unique_key',
+    'employee_id_name_to_excel',
+    'items_to_excel'
     
 ]

@@ -18,7 +18,7 @@ from gui.tools import (
     ViewDivisionStructure,
     ViewAssetAssignment
 )
-from utils.summary import divison_wise_employee_items_to_excel
+from utils.summary import divison_wise_employee_items_to_excel, employee_id_name_to_excel, items_to_excel
 
 class ManagerTools():
     def __init__(self, main_frame, inventory):
@@ -32,7 +32,7 @@ class ManagerTools():
                 #("Bulk Import Items", self.placeholder_command),
                 ("Update Item Details", self.update_item_details_cmd),
                 ("Remove Items", self.remove_item_cmd),
-                ("View Item History", self.view_item_details_cmd),
+                ("View Item Records", self.view_item_details_cmd),
             ],
             "Employee Management": [
                 ("Add Employee", self.add_employee_cmd),
@@ -55,9 +55,8 @@ class ManagerTools():
             ],
             "Reports & Analytics": [
                 ('Inventory Report to Excel', self.divison_wise_employee_items_to_excel),
-                ("Employees to Excel", self.placeholder_command),
-                ("Items to Excel", self.placeholder_command),
-                ("Basic Report with Counts", self.placeholder_command),
+                ("Employees to Excel", self.employee_id_name_to_excel),
+                ("Items to Excel", self.items_to_excel),
                 #("", self.placeholder_command),
             ]
         }
@@ -132,6 +131,12 @@ class ManagerTools():
 
     def divison_wise_employee_items_to_excel(self):
         divison_wise_employee_items_to_excel()
+
+    def employee_id_name_to_excel(self):
+        employee_id_name_to_excel()
+
+    def items_to_excel(self):
+        items_to_excel()
 
     def placeholder_command(self):
         print("Button clicked!")

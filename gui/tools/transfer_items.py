@@ -337,34 +337,17 @@ class TransferItemBetweenEmployees:
         results_frame = self.source_results_frame if is_source else self.destination_results_frame
         for widget in results_frame.winfo_children():
             widget.destroy()
-
-        # Create a database session
-        db = SessionLocal()
         
         try:
             # Use search_employees function to find matching employees
-            matching_employees = search_employees(db, emp_id_or_name)
-            
-            # Convert SQLAlchemy objects to dictionary for compatibility
-            employees = [
-                {
-                    "emp_id": emp.emp_id, 
-                    "name": emp.name, 
-                    "division": emp.division.name if emp.division else "Unassigned"
-                } 
-                for emp in matching_employees
-            ]
+            matching_employees = search_employees( emp_id_or_name)
 
             # Display matching employees
-            for employee in employees:
+            for employee in matching_employees:
                 self.create_user_result_row(employee, is_source)
         
         except Exception as e:
             print(f"Error searching employees: {e}")
-        
-        finally:
-            # Always close the database session
-            db.close()
 
     def create_user_result_row(self, user, is_source):
         results_frame = self.source_results_frame if is_source else self.destination_results_frame

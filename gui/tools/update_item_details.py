@@ -253,7 +253,7 @@ class UpdateItemDetails:
             text="Status:",
             font=ctk.CTkFont(size=16)
         )
-        status_label.pack(anchor="w", pady=(10, 5))
+        #status_label.pack(anchor="w", pady=(10, 5))
         
         self.status_dropdown = ctk.CTkComboBox(
             content_frame,
@@ -266,7 +266,7 @@ class UpdateItemDetails:
             dropdown_fg_color=COLORS["black"]
         )
         self.status_dropdown.set(item.get("status", "active"))
-        self.status_dropdown.pack(fill="x", pady=(0, 10))
+        #self.status_dropdown.pack(fill="x", pady=(0, 10))
 
         # Common Item Checkbox
         self.common_checkbox = ctk.CTkCheckBox(
