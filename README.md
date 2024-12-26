@@ -1,5 +1,40 @@
 # An Inventory Management System
-Build to manage inventory owned by employees at E.T.F.B ( My father's work place).
+
+### Overview
+The Inventory Management System (InMan) is designed to manage and track inventory owned by employees at E.T.F.B. This application allows users to efficiently handle various aspects of inventory management, including employee assignments, item tracking, and division management.
+
+### Features
+- **Advanced Search Functionality**: Users can search for employees, items, divisions, and unique keys with advanced filtering options.
+- **Export Capabilities**: Export search results to Excel with formatted output, including custom styling and auto-column width adjustment.
+- **Division Management**: Manage divisions within the organization, track employees, and monitor item assignments.
+- **Item Management**: Handle inventory items with dynamic attributes and status tracking (active, retired, lost).
+- **Employee Management**: Manage employee records, including item assignments and tracking.
+- **Transfer History Tracking**: Keep a record of item transfers between employees.
+- **User Authentication and Action Logging**: Ensure secure access and maintain logs of user actions.
+
+### Database Schema
+The application uses the following database models:
+- **Division**: Represents divisions within the organization.
+- **Employee**: Represents employees, linked to divisions and items.
+- **Item**: Represents inventory items, with attributes and status.
+- **EmployeeItem**: An associative table linking employees to items.
+- **ItemAttribute**: Represents dynamic attributes for items.
+- **User**: Represents system users (managers).
+- **Log**: For logging actions performed in the system.
+- **ItemTransferHistory**: Tracks the history of item transfers between employees.
+
+### Search Capabilities
+- **Multi-type Search**: Supports searching for employees, items, divisions, and unique keys.
+- **Advanced Filtering Options**: Users can apply filters based on search type to refine results.
+- **Real-time Search Results Display**: Results are displayed in a grid format for easy viewing.
+
+### Export Features
+- **Excel Export**: Users can export search results to an Excel file with specific formatting.
+- **Custom Styling**: The exported files include custom styling for better readability.
+- **Support for Different Data Types**: The export functionality accommodates various data types and layouts.
+
+### User Interface
+The application features a user-friendly interface built with customtkinter, providing an intuitive experience for managing inventory and performing searches.
 
 ### Project Structure
 
@@ -26,7 +61,7 @@ DB connection, Session handling.
 Some reusable utility functions lies here including search functions
 ```
 
-Database Schema
+### Database Schema in detail
 
 #### 1. **Employee Table**
    *Now includes division ID as a foreign key and keeps track of each employee's division and details.*
@@ -106,3 +141,11 @@ Database Schema
 | notes           | Text      | Optional notes (e.g., reason for transfer)|
 
 ---
+
+### Screenshots
+
+
+![Dashboard](assets/dashboard.png)
+![Login](assets/login.png)
+![InventorySearch](assets/inventory_search.png)
+![ManagerTools](assets/manager-tools.png)
