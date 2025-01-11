@@ -567,9 +567,7 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: s
         db.commit()
 
         # Log the action
-        # Fetch attributes separately to avoid session issues
-        attributes = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
-        attribute_details = ", ".join(f"{attr.name}: {attr.value}" for attr in attributes)
+        attribute_details = "TODO: ADDING ATTRIBUTE DETAILS HERE"
         
         log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
         log_action(action_type="assign_item", details=log_details)
