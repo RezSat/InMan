@@ -172,7 +172,7 @@ class Dashboard:
         total_items = len(get_all_items())
         all_divisions = get_all_divisions()
         total_divisions = len(all_divisions)
-        active_items = sum(1 for item in get_all_items() if item.status.lower() == 'active')
+        active_items = sum(1 for item in get_all_items())
         
         # Create stat cards
         self.create_stat_card(
