@@ -154,7 +154,7 @@ class AssignItemsToEmployees:
         # Create a larger, more comprehensive assign window
         assign_window = ctk.CTkToplevel(self.main_frame)
         assign_window.title(f"Assign Items to {employee['name']}")
-        assign_window.geometry("700x800")  # Increased size for better spacing
+        assign_window.geometry(f"1200x700")
         assign_window.configure(fg_color=COLORS["secondary_bg"])
 
         # Make the popup modal
@@ -355,6 +355,7 @@ class AssignItemsToEmployees:
             font=ctk.CTkFont(size=14)
         )
         serial_entry.pack(side="left", padx=(0, 10))
+        
 
         # Remove item button with a more minimalist design
         remove_button = ctk.CTkButton(
@@ -366,14 +367,89 @@ class AssignItemsToEmployees:
             hover_color=COLORS["darker_pink"],
             command=lambda frame=item_frame: self.remove_item_row(frame)
         )
-        remove_button.pack(side="left")
+        remove_button.pack(side="left", padx=(0, 20))
+
+        # Attributes Section
+        attributes_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
+        attributes_frame.pack(fill="x", pady=10)
+
+        # Add Attribute Button
+        add_attribute_button = ctk.CTkButton(
+            attributes_frame,
+            text="+ Add Attribute",
+            command=lambda: self.add_attribute_row(attributes_frame),
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            width=150,
+            height=30,
+            font=ctk.CTkFont(size=12)
+        )
+        add_attribute_button.pack(side="left", padx=(0, 10))
 
         # Store references for later use
         self.item_rows.append({
             'frame': item_frame,
             'dropdown': item_dropdown,
-            'serial_entry': serial_entry
+            'serial_entry': serial_entry,
+            'attributes_frame': attributes_frame,
+            'attributes': []  # List to store attribute rows
         })
+
+    def add_attribute_row(self, parent):
+        # Create a frame for the attribute row
+        row_frame = ctk.CTkFrame(parent, fg_color=COLORS["black"])
+        row_frame.pack(fill="x", pady=5)
+
+        # Entry for attribute key
+        key_entry = ctk.CTkEntry(
+            row_frame,
+            width=150,
+            height=30,
+            fg_color=COLORS["secondary_bg"],
+            border_color=COLORS["pink"],
+            border_width=1,
+            text_color=COLORS["white"],
+            placeholder_text="Attribute Key",
+            placeholder_text_color=COLORS["ash"],
+            font=ctk.CTkFont(size=12)
+        )
+        key_entry.pack(side="left", padx=(0, 10))
+
+        # Entry for attribute value
+        value_entry = ctk.CTkEntry(
+            row_frame,
+            width=150,
+            height=30,
+            fg_color=COLORS["secondary_bg"],
+            border_color=COLORS["pink"],
+            border_width=1,
+            text_color=COLORS["white"],
+            placeholder_text="Attribute Value",
+            placeholder_text_color=COLORS["ash"],
+            font=ctk.CTkFont(size=12)
+        )
+        value_entry.pack(side="left", padx=(0, 10))
+
+        # Remove attribute button
+        remove_attribute_button = ctk.CTkButton(
+            row_frame,
+            text="✖",
+            width=30,
+            height=30,
+            fg_color=COLORS["pink"],
+            hover_color=COLORS["darker_pink"],
+            command=row_frame.destroy
+        )
+        remove_attribute_button.pack(side="left")
+
+        # Store the attribute row
+        for item_row in self.item_rows:
+            if item_row['frame'] == parent.master:
+                item_row['attributes'].append({
+                    'key_entry': key_entry,
+                    'value_entry': value_entry
+                })
+                break
 
     def remove_item_row(self, frame):
         # Ensure at least one row remains
@@ -397,8 +473,15 @@ class AssignItemsToEmployees:
 
             item_id = self.items_names_dict[item_name]
             try:
-                assign_item_to_employee(employee["emp_id"], item_id, serial_key)
+                attribute_details = {}
+                for attribute in row['attributes']:
+                    key = attribute['key_entry'].get()
+                    value = attribute['value_entry'].get()
+                    if key and value:
+                        attribute_details[key] = value
+                assign_item_to_employee(employee["emp_id"], item_id, serial_key, attribute_details)
             except Exception as e:
+                print(e)
                 messagebox.showerror("Error", f"Failed to assign {item_name}: {str(e)}")
                 return
 

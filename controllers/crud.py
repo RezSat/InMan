@@ -214,17 +214,17 @@ def get_all_employees_ids():
     
 def get_employee_details_with_items_one(emp_id: str):
     """
-    Retrieve employee details along with their associated items by employee ID.
+    Retrieve employee details along with their associated items
     
     Args:
-        emp_id (str): The ID of the employee to retrieve.
+        emp_id (str): Employee ID
     
     Returns:
-        Dictionary containing employee and item information, or None if not found.
+        Dictionary containing employee and item information
     """
     try:
         with session_scope() as db:
-            # Query the specific employee with their items and division in a single query
+            # Query employee with their items and division in a single query
             employee = (
                 db.query(Employee)
                 .options(joinedload(Employee.division))  # Load division data
@@ -233,7 +233,7 @@ def get_employee_details_with_items_one(emp_id: str):
             )
             
             if not employee:
-                return None
+                raise ValueError(f"Employee with ID {emp_id} not found")
             
             # Get items through EmployeeItem relationship
             items_query = (
@@ -242,7 +242,7 @@ def get_employee_details_with_items_one(emp_id: str):
                 .filter(EmployeeItem.emp_id == emp_id)
                 .all()
             )
-            
+
             # Format items data
             items_data = []
             for item in items_query:
@@ -258,12 +258,29 @@ def get_employee_details_with_items_one(emp_id: str):
                 
                 # Prepare item data for each EmployeeItem record
                 for emp_item in emp_items:
+                    # Get attribute details for the current EmployeeItem record
+                    attributes_query = (
+                        db.query(EmployeeItemAttribute)
+                        .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
+                        .all()
+                    )
+                    
+                    # Format attribute data
+                    attributes_data = []
+                    for attribute in attributes_query:
+                        attribute_data = {
+                            "name": attribute.name,
+                            "value": attribute.value
+                        }
+                        attributes_data.append(attribute_data)
+                    
+                    # Prepare item data
                     item_data = {
                         "item_id": item.item_id,
                         "name": item.name,
                         "unique_key": emp_item.unique_key,
                         "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                        "is_common": item.is_common
+                        "attributes": attributes_data
                     }
                     items_data.append(item_data)
             
@@ -275,11 +292,13 @@ def get_employee_details_with_items_one(emp_id: str):
                 "items": items_data
             }
 
+            db.close()
+            
             return emp_data
-
+    
     except Exception as e:
-        logger.error(f"Error retrieving employee details for ID {emp_id}: {str(e)}")
-        return None
+        logger.error(f"Error retrieving employee details for {emp_id}: {str(e)}")
+        raise
 
 def get_employee_details_with_items():
     """
@@ -323,12 +342,29 @@ def get_employee_details_with_items():
                     
                     # Prepare item data for each EmployeeItem record
                     for emp_item in emp_items:
+                        # Get attribute details for the current EmployeeItem record
+                        attributes_query = (
+                            db.query(EmployeeItemAttribute)
+                            .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
+                            .all()
+                        )
+                        
+                        # Format attribute data
+                        attributes_data = []
+                        for attribute in attributes_query:
+                            attribute_data = {
+                                "name": attribute.name,
+                                "value": attribute.value
+                            }
+                            attributes_data.append(attribute_data)
+                        
+                        # Prepare item data
                         item_data = {
                             "item_id": item.item_id,
                             "name": item.name,
                             "unique_key": emp_item.unique_key,
                             "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                            "is_common": item.is_common
+                            "attributes": attributes_data
                         }
                         items_data.append(item_data)
                 
@@ -349,7 +385,7 @@ def get_employee_details_with_items():
     except Exception as e:
         logger.error(f"Error retrieving employee details: {str(e)}")
         raise
-    
+
 def delete_employee(emp_id: str):
     with session_scope() as db:
         employee = get_employee(emp_id)
@@ -542,7 +578,7 @@ def log_action(action_type: str, details: str, user_id: int = None):
         db.close()
         return log_entry
 
-def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: str = ""):
+def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: dict, notes: str = ""):
     with session_scope() as db:
         # First, check if the item exists
         item = db.query(Item).filter(Item.item_id == item_id).first()
@@ -562,19 +598,24 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, notes: s
         db.commit()
 
         # Update item count and log assignment
-        employee = get_employee(emp_id)
+        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
         employee.item_count += 1
         db.commit()
 
-        # Log the action
-        attribute_details = "TODO: ADDING ATTRIBUTE DETAILS HERE"
-        
-        log_details = f"Assigned item {item_id} to employee {emp_id} with attributes ({attribute_details})"
-        log_action(action_type="assign_item", details=log_details)
-        
-        db.close()
-        return employee_item
+        # Add attribute details
+        for name, value in attrs.items():
+            attribute = EmployeeItemAttribute(
+                emp_item_id=employee_item.id,
+                name=name,
+                value=value
+            )
+            db.add(attribute)
+        db.commit()
 
+        # Log the action
+        db.close()
+        return True
+      
 # Item Transfer
 def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = ""):
     with session_scope() as db:

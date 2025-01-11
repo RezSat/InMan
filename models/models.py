@@ -47,7 +47,6 @@ class Item(Base):
 # EmployeeItem Model (Associative Table)
 class EmployeeItem(Base):
     __tablename__ = "employee_items"
-    __table_args__ = (UniqueConstraint("emp_id", "item_id", name="unique_emp_item"),)
 
     id = Column(Integer, primary_key=True, index=True)
     emp_id = Column(String, ForeignKey("employees.emp_id"), index=True)
