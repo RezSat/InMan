@@ -142,6 +142,10 @@ Some reusable utility functions lies here including search functions
 
 ---
 
+## To do
+
+- chnage the db model with new attributes values for employee record .
+
 ### Screenshots
 
 
