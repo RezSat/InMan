@@ -403,19 +403,19 @@ def delete_item_attribute(item_id: int, name: str):
 
 
 # Item CRUD Operations (Updated)
-def create_item(name: str, is_common: bool, attributes=None):
+def create_item(name: str):
     with session_scope() as db:
-        item = Item(name=name, is_common=is_common)
+        item = Item(name=name)
         
         db.add(item)
         db.commit()
         db.refresh(item)
 
         # Add attributes if provided
-        if attributes:
-            for name, value in attributes.items():
-                attribute = ItemAttribute(item_id=item.item_id, name=name, value=value)
-                db.add(attribute)
+        #if attributes:
+        #    for name, value in attributes.items():
+        #        attribute = ItemAttribute(item_id=item.item_id, name=name, value=value)
+        #        db.add(attribute)
         
         db.commit()
         x = item.item_id

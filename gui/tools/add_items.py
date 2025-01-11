@@ -6,14 +6,11 @@ from collections import defaultdict
 
 from controllers import create_item
 from config import COLORS
-from controllers.crud import assign_item_to_employee, get_all_employees, get_all_employees_ids
 
 class AddItems:
     def __init__(self, main_frame, return_to_manager):
         self.main_frame = main_frame
         self.return_to_manager = return_to_manager
-        self.attribute_rows = []
-        self.collect_attributes = defaultdict()
         
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -127,55 +124,7 @@ class AddItems:
         
         # Create input fields
         self.item_name = self.create_input_field(info_grid, "Item Name:", 0)
-        
-        # Common Item Row
-        common_frame = ctk.CTkFrame(info_section, fg_color="transparent")
-        common_frame.pack(fill="x", pady=20)
-        
-        # Common item checkbox
-        self.common_checkbox = ctk.CTkCheckBox(
-            common_frame,
-            text="Is Common Item",
-            font=ctk.CTkFont(size=16),
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"]
-        )
-        self.common_checkbox.pack(side="left", padx=(0, 40))
-        
-
-        # Attributes Section
-        attributes_section = ctk.CTkFrame(form_container, fg_color="transparent")
-        attributes_section.pack(fill="x", pady=20)
-        
-        attributes_title = ctk.CTkLabel(
-            attributes_section,
-            text="Item Attributes",
-            font=ctk.CTkFont(size=20, weight="bold")
-        )
-        attributes_title.pack(anchor="w", pady=(0, 20))
-        
-        # Container for attribute rows
-        self.attributes_container = ctk.CTkFrame(attributes_section, fg_color="transparent")
-        self.attributes_container.pack(fill="x")
-        
-        # Add initial attribute row
-        self.add_attribute_row()
-        
-        # Add attribute button
-        add_btn_frame = ctk.CTkFrame(attributes_section, fg_color="transparent")
-        add_btn_frame.pack(fill="x", pady=20)
-        
-        add_attribute_btn = ctk.CTkButton(
-            add_btn_frame,
-            text="+ Add Another Attribute",
-            command=self.add_attribute_row,
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            height=40,
-            font=ctk.CTkFont(size=14)
-        )
-        add_attribute_btn.pack(side="left")
-        
+                
         # Submit Button
         submit_button = ctk.CTkButton(
             form_container,
@@ -223,7 +172,7 @@ class AddItems:
             dropdown_fg_color=COLORS["black"],
             width=200
         )
-        attribute_combo.pack(side="left", padx=(0, 10))
+        #attribute_combo.pack(side="left", padx=(0, 10))
         
         # Attribute name entry (hidden initially)
         name_entry = ctk.CTkEntry(
@@ -257,7 +206,7 @@ class AddItems:
             hover_color=COLORS["darker_pink"],
             command=lambda: row_frame.destroy()
         )
-        remove_btn.pack(side="left")
+        #remove_btn.pack(side="left")
         
         def on_attribute_select(choice):
             if choice == "Create New":
@@ -279,8 +228,8 @@ class AddItems:
             else:
                 self.collect_attributes[attribute_combo] = value_entry
             
-        attribute_combo.configure(command=on_attribute_select)
-        self.attribute_rows.append(row_frame)
+        #attribute_combo.configure(command=on_attribute_select)
+        #self.attribute_rows.append(row_frame)
 
     def display(self):
         self.clear_main_frame()
@@ -293,29 +242,9 @@ class AddItems:
 
     def add_item(self):
         try:
-            attrs = {}
-            for attribute, value_entry in self.collect_attributes.items():
-                # Determine if the attribute is created new or selected
-                if attribute.winfo_manager():  # Check if the name_entry is visible
-                    attribute_name = attribute.get()  # This is the name_entry
-                    attrs[attribute_name] = value_entry.get()
-                else:
-                    attribute_name = attribute.get()  # This is the attribute_combo
-                    attrs[attribute_name] = value_entry.get()
-                    # UI is messed up, its the other way around so that need to fixed.
-
-            item = create_item(self.item_name.get(), self.common_checkbox.get(), attrs)
+            item = create_item(self.item_name.get())
             if item:
                 messagebox.showinfo("Success", f"Successfully created an item name:{self.item_name.get()}")
-                self.collect_attributes.clear()
-                if self.common_checkbox.get():
-                    try:
-                        list_employees = get_all_employees_ids()
-                        for employee in list_employees:
-                            assign_item_to_employee(employee, item, unique_key="-")
-                        messagebox.showinfo("Success", f"Added the Item to all existing employees, please add the relevant reference/unique key to each employee")
-                    except:
-                        messagebox.showerror("Failed", f"Some error occured while adding the item to all employees.")
                 self.display()
             else:
                 messagebox.showerror("Failed", f"Failed to create an item name:{self.item_name.get()}")
