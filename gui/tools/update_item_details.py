@@ -17,7 +17,6 @@ class UpdateItemDetails:
         raw_items = get_all_items()
         self.items_data = self.convert_items_to_dicts(raw_items)
         self.filtered_items = self.items_data.copy()
-        self.collect_attributes = defaultdict()
         
     def convert_items_to_dicts(self, items):
             """
@@ -281,23 +280,6 @@ class UpdateItemDetails:
         
         self.popup.geometry(f'{window_width}x{window_height}+{x}+{y}')
             
-    def remove_attribute_row(self, row_frame):
-        """Remove an attribute row and clean up the collect_attributes dictionary"""
-        # Find and remove the entries from collect_attributes
-        entries_to_remove = []
-        for key, value in self.collect_attributes.items():
-            if key.master == row_frame or value.master == row_frame:
-                entries_to_remove.append(key)
-        
-        for key in entries_to_remove:
-            del self.collect_attributes[key]
-        
-        # Remove the row from attribute_rows list
-        if row_frame in self.attribute_rows:
-            self.attribute_rows.remove(row_frame)
-        
-        # Destroy the row widget
-        row_frame.destroy()
         
     def save_item(self, item):
         updated_item = {
@@ -309,6 +291,7 @@ class UpdateItemDetails:
         update_item_details(updated_item)
         messagebox.showinfo('Succes', f"Item {updated_item['item_id']} updated sucessfully.")
         self.popup.destroy()
+        self.filtered_items = self.convert_items_to_dicts(get_all_items())
         self.display()
 
     def display(self):

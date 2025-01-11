@@ -525,7 +525,7 @@ def get_all_items_names_set():
 
 def delete_item(item_id: int):
     with session_scope() as db:
-        item = db.query(Item).options(joinedload(Item.attributes)).filter(Item.item_id == item_id).first()
+        item = db.query(Item).filter(Item.item_id == item_id).first()
         if item:
             db.delete(item)
             db.commit()

@@ -86,8 +86,8 @@ class RemoveItem:
         self.items_scroll.pack(fill="both", expand=True, padx=5, pady=5)
                 
         # Create Headers
-        self.headers = ["Item ID", "Item Name", "Status", "Action"]
-        self.item_params = ["item_id", "name", "status"]
+        self.headers = ["Item ID", "Item Name",  "Action"]
+        self.item_params = ["item_id", "name"]
 
         # Configure grid weights to make it more responsive
         for i in range(len(self.headers)):  # Dynamically based on headers
@@ -146,7 +146,7 @@ class RemoveItem:
             widget.destroy()
         
         # Recreate headers and items
-        headers = ["Item ID", "Item Name", "Status", "Location", "Action"]
+        headers = ["Item ID", "Item Name", "Action"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
@@ -167,9 +167,7 @@ class RemoveItem:
         self.filtered_items = [
             item for item in self.items_data 
             if (search_term in str(item.item_id) or 
-                search_term in item.name.lower() or 
-                search_term in item.status.lower()
-                #search_term in item.get("location", "").lower()
+                search_term in item.name.lower() 
                 )
         ]
         
@@ -178,7 +176,7 @@ class RemoveItem:
             widget.destroy()
         
         # Recreate headers
-        headers = ["Item ID", "Item Name", "Status", "Action"]
+        headers = ["Item ID", "Item Name", "Action"]
         for col, header in enumerate(headers):
             header_frame = ctk.CTkFrame(self.items_scroll, fg_color=COLORS["black"])
             header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
