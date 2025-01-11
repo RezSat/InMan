@@ -6,15 +6,6 @@ from models.models import Log, ItemTransferHistory, Employee, Item
 from datetime import datetime, timedelta
 
 def convert_items_to_dict(items):
-    """
-    Convert a list of Item objects to a list of dictionaries.
-
-    Args:
-        items (list): A list of Item objects.
-
-    Returns:
-        list: A list of dictionaries containing item details.
-    """
     return [
         {
             'item_id': item.item_id,
@@ -24,15 +15,6 @@ def convert_items_to_dict(items):
     ]
 
 def convert_employees_to_dict(employees):
-    """
-    Convert a list of Employee objects to a list of dictionaries.
-
-    Args:
-        employees (list): A list of Employee objects.
-
-    Returns:
-        list: A list of dictionaries containing employee details.
-    """
     return [
         {
             'emp_id': emp.emp_id,
@@ -44,16 +26,6 @@ def convert_employees_to_dict(employees):
     ]
 
 def search_employees(query: str, division_name: str = None):
-    """
-    Search for employees by name, emp_id, with optional division filtering
-    
-    Args:
-        query (str): Search term to find employees (name or emp_id)
-        division_name (str, optional): Filter employees by division name
-    
-    Returns:
-        List of dictionaries containing employee details
-    """
     with session_scope() as db:
         # Base query to search by name or emp_id
         base_query = db.query(Employee).filter(
@@ -83,31 +55,12 @@ def search_employees(query: str, division_name: str = None):
         return employee_list
 
 def search_items(query: str, status: str = None, is_common: bool = None):
-    """
-    Search for items with multiple filtering options
-    
-    Args:
-        query (str): Search term to find items
-        status (str, optional): Filter items by status
-        is_common (bool, optional): Filter items by common status
-    
-    Returns:
-        List of dictionaries containing item details
-    """
     with session_scope() as db:
         # Base query to search by name
         base_query = db.query(Item).filter(
             Item.name.ilike(f"%{query}%")
         )
-        
-        # Apply status filter if provided
-        if status and status != "All Status":
-            base_query = base_query.filter(Item.status == status.lower())
-        
-        # Apply is_common filter if provided
-        if is_common is not None:
-            base_query = base_query.filter(Item.is_common == is_common)
-        
+                
         # Execute the query
         items = base_query.all()
         
@@ -117,30 +70,12 @@ def search_items(query: str, status: str = None, is_common: bool = None):
             item_dict = {
                 "item_id": item.item_id,
                 "name": item.name,
-                "status": item.status,
-                "is_common": item.is_common,
-                "attributes": [
-                    {
-                        "name": attr.name,
-                        "value": attr.value
-                    } 
-                    for attr in item.attributes
-                ]
             }
             item_list.append(item_dict)
         
         return item_list
     
 def search_unique_key(query=""):
-    """
-    Search for employee-item relationships by unique key
-    
-    Args:
-        query (str, optional): Unique key to search. Defaults to "-" to return all entries.
-    
-    Returns:
-        List of dictionaries containing employee-item relationships
-    """
     l = []
     with session_scope() as db:
         empitems = (
@@ -209,7 +144,7 @@ def search_divisions(query: str):
 def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).join(EmployeeItem).filter(EmployeeItem.unique_key == unique_key).first()
 
-# Search Items by Attribute Key and Value
+# Search Items by Attribute Key and Value: TODO Modify as per the new EmployeeItemAttributes
 def search_items_by_attribute(db: Session, name: str, value: str):
     """
     Search for items with a specific attribute key-value pair.
@@ -219,7 +154,7 @@ def search_items_by_attribute(db: Session, name: str, value: str):
         ItemAttribute.value.ilike(f"%{value}%")
     ).all()
 
-# Search Employees by Items with Specific Attributes
+# Search Employees by Items with Specific Attributes: TODO same as the above
 def search_employees_by_item_attribute(db: Session, name: str, value: str):
     """
     Search for employees who have been assigned items with a specific attribute.
@@ -244,18 +179,6 @@ def search_logs(search_term: str = None,
                 start_date: datetime = None, 
                 end_date: datetime = None, 
                 action_type: str = None):
-    """
-    Search logs with flexible filtering options
-    
-    Args:
-        search_term (str, optional): Search term to match against details
-        start_date (datetime, optional): Start date for log filtering
-        end_date (datetime, optional): End date for log filtering
-        action_type (str, optional): Specific action type to filter
-    
-    Returns:
-        List of matching log entries
-    """
     db = SessionLocal()
     
     try:
@@ -294,17 +217,6 @@ def search_item_transfer_history(
     start_date: datetime = None, 
     end_date: datetime = None
 ):
-    """
-    Search item transfer history with flexible filtering options
-    
-    Args:
-        search_term (str, optional): Search term to match against employee names, item names, or notes
-        start_date (datetime, optional): Start date for transfer filtering
-        end_date (datetime, optional): End date for transfer filtering
-    
-    Returns:
-        List of matching transfer history entries
-    """
     db = SessionLocal()
     
     try:
@@ -341,16 +253,6 @@ def search_item_transfer_history(
         db.close()
 
 def get_recent_logs(days: int = 30, limit: int = 100):
-    """
-    Retrieve recent logs from the past specified number of days
-    
-    Args:
-        days (int, optional): Number of days to retrieve logs for. Defaults to 30.
-        limit (int, optional): Maximum number of logs to retrieve. Defaults to 100.
-    
-    Returns:
-        List of recent log entries
-    """
     db = SessionLocal()
     
     try:
