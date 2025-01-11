@@ -62,7 +62,9 @@ class EmployeeItem(Base):
     # Dynamic attributes for employee items
     attributes = relationship("EmployeeItemAttribute", back_populates="emp_item")
 
-#Item Attribut Model for dynamic item properties
+
+#Item Attribut Model for dynamic item properties ( deprecated)
+"""
 class ItemAttribute(Base):
     __tablename__ = "item_attributes"
     attribute_id = Column(Integer, primary_key=True, index=True)
@@ -72,6 +74,7 @@ class ItemAttribute(Base):
 
     # Many-to-one relationship with Item
     item = relationship("Item", back_populates="attributes")
+"""
 
 class EmployeeItemAttribute(Base):
     __tablename__ = "employee_item_attributes"

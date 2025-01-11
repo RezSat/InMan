@@ -361,7 +361,7 @@ def delete_employee(emp_id: str):
 
 def add_item_attribute(item_id: int, name: str, value: str):
     with session_scope() as db:
-        attribute = ItemAttribute(item_id=item_id, name=name, value=value)
+        attribute = EmployeeItemAttribute(emp_item_id=item_id, name=name, value=value)
         db.add(attribute)
         db.commit()
         db.close()
@@ -369,15 +369,15 @@ def add_item_attribute(item_id: int, name: str, value: str):
 
 def get_item_attributes(item_id: int):
     with session_scope() as db:
-        x = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
+        x = db.query(EmployeeItemAttribute).filter(EmployeeItemAttribute.emp_item_id == item_id).all()
         db.close()
         return x
 
 def update_item_attribute(item_id: int, name: str, new_value: str):
     with session_scope() as db:
-        attribute = db.query(ItemAttribute).filter(
-            ItemAttribute.item_id == item_id,
-            ItemAttribute.name == name
+        attribute = db.query(EmployeeItemAttribute).filter(
+            EmployeeItemAttribute.emp_item_id == item_id,
+            EmployeeItemAttribute.name == name
         ).first()
 
         if attribute:
@@ -388,15 +388,15 @@ def update_item_attribute(item_id: int, name: str, new_value: str):
         
 def delete_item_attributes(item_id: int):
     with session_scope() as db:
-        db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
+        db.query(EmployeeItemAttribute).filter(EmployeeItemAttribute.emp_item_id == item_id).delete()
         db.commit()
         db.close()
 
 def delete_item_attribute(item_id: int, name: str):
     with session_scope() as db:
-        db.query(ItemAttribute).filter(
-            ItemAttribute.item_id == item_id,
-            ItemAttribute.name == name
+        db.query(EmployeeItemAttribute).filter(
+            EmployeeItemAttribute.emp_item_id == item_id,
+            EmployeeItemAttribute.name == name
         ).delete()
         db.commit()
         db.close()
@@ -428,9 +428,6 @@ def update_item_details(item_dict):
             # Extract details from the dictionary
             item_id = item_dict.get('item_id')
             name = item_dict.get('name')
-            status = item_dict.get('status')
-            is_common = item_dict.get('is_common')
-            attributes = item_dict.get('attributes', [])
             
             # Retrieve the existing item
             item = db.query(Item).filter(Item.item_id == item_id).first()
@@ -443,26 +440,6 @@ def update_item_details(item_dict):
             if name is not None:
                 item.name = name
             
-            if is_common is not None:
-                item.is_common = bool(is_common)
-            
-            if status is not None:
-                # Validate status
-                valid_statuses = ["active", "retired", "lost"]
-                if status.lower() not in valid_statuses:
-                    raise ValueError(f"Invalid status. Must be one of {valid_statuses}")
-                item.status = status.lower()
-            
-            # Remove existing attributes
-            db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).delete()
-            
-            # Add attributes if provided
-            if attributes:
-                for name, value in attributes.items():
-                    attribute = ItemAttribute(item_id=item.item_id, name=name, value=value)
-                    db.add(attribute)
-            
-            # Commit changes
             db.commit()
             
             # Refresh and return the updated item
@@ -489,27 +466,13 @@ def get_item(item_id: int):
             .filter(Item.item_id == item_id)
             .first()
         )
-        
-        if item:
-            # If you still want to ensure attributes are loaded
-            attributes = db.query(ItemAttribute).filter(ItemAttribute.item_id == item_id).all()
-            
-            # You can either:
-            # 1. Set attributes directly
-            item.attributes = attributes
-            
-            # Or create a list of attributes if needed
-            # item_attributes = [
-            #     {"name": attr.name, "value": attr.value} 
-            #     for attr in attributes
-            # ]
-        
+                
         return item
 
 def get_all_items():
     db = SessionLocal()
     # Use joinedload to eagerly load the attribute along with the items
-    items =  db.query(Item).options(joinedload(Item.attributes)).all()
+    items =  db.query(Item).all()
     db.close()
     return items
 
@@ -564,9 +527,6 @@ def delete_item(item_id: int):
     with session_scope() as db:
         item = db.query(Item).options(joinedload(Item.attributes)).filter(Item.item_id == item_id).first()
         if item:
-            # Delete all associated attributes
-            for attribute in item.attributes:
-                db.delete(attribute)
             db.delete(item)
             db.commit()
             db.close()
@@ -672,16 +632,6 @@ def update_employee(emp_id: str, new_name: str = None, new_division_id: int = No
     return None
 
 def update_employee_id(old_emp_id: str, new_emp_id: str):
-    """
-    Update an employee's ID 
-    
-    Args:
-        old_emp_id (str): Current employee ID
-        new_emp_id (str): New employee ID to replace the old one
-    
-    Returns:
-        Employee object if successful, None otherwise
-    """
     try:
         with session_scope() as db:
             # Find the existing employee
