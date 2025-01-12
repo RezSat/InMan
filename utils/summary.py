@@ -145,7 +145,7 @@ def divison_wise_employee_items_to_excel():
         return
     
     try:
-        headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key | Reference ID']
+        headers = ['Division', 'Employee Name', 'Employee ID', 'Item Name', 'Unique Key | Reference ID', 'Attributes']
         employees = get_employee_details_with_items()
         division_dict = {}
         for employee in employees:
@@ -164,7 +164,6 @@ def divison_wise_employee_items_to_excel():
                 'Employee Name': emp_name,
                 'Items': items  # Store items as a list
             })
-
 
         wb = Workbook()
         ws = wb.active
@@ -220,17 +219,20 @@ def divison_wise_employee_items_to_excel():
                 
                 # Write employee items
                 for idx, item in enumerate(items):
+                    attributes = ', '.join([f"{attr['name']}: {attr['value']}" for attr in item.get('attributes', [])])
                     row_data = [
                         division if idx == 0 else '',
                         employee['Employee Name'] if idx == 0 else '',
                         employee['Employee ID'] if idx == 0 else '',
                         item['name'],
-                        item['unique_key']
+                        item['unique_key'],
+                        attributes
                     ]
                     
                     # Update max widths for item columns
                     max_column_widths[4] = max(max_column_widths[4], get_column_width(item['name']))
                     max_column_widths[5] = max(max_column_widths[5], get_column_width(item['unique_key']))
+                    max_column_widths[6] = max(max_column_widths[6], get_column_width(attributes))
                     
                     for col, value in enumerate(row_data, 1):
                         cell = ws.cell(row=current_row, column=col)
@@ -322,13 +324,13 @@ def divison_wise_employee_items_to_excel():
 
 def employee_id_name_to_excel():
     """
-    Export Employee ID and Name to Excel with user-selected save location
+    Export Employee ID, Name, and Division to Excel with user-selected save location
     """
     # Prompt user to choose save location
     file_path = filedialog.asksaveasfilename(
         defaultextension=".xlsx",
         filetypes=[("Excel files", "*.xlsx")],
-        title="Save Employee ID and Name Report"
+        title="Save Employee ID, Name, and Division Report"
     )
     
     # Check if user cancelled the save dialog
@@ -345,7 +347,7 @@ def employee_id_name_to_excel():
         ws.title = "Employees"
         
         # Headers
-        headers = ['Employee ID', 'Name']
+        headers = ['Employee ID', 'Name', 'Division']
         
         # Styling
         header_font = Font(bold=True, size=12)
@@ -380,13 +382,15 @@ def employee_id_name_to_excel():
             # Get employee details
             emp_id = employee['emp_id']
             emp_name = employee['name']
+            emp_division = employee['division']
             
             # Update max widths
             max_column_widths[1] = max(max_column_widths[1], get_column_width(emp_id))
             max_column_widths[2] = max(max_column_widths[2], get_column_width(emp_name))
+            max_column_widths[3] = max(max_column_widths[3], get_column_width(emp_division))
             
             # Write employee row
-            row_data = [emp_id, emp_name]
+            row_data = [emp_id, emp_name, emp_division]
             
             for col, value in enumerate(row_data, 1):
                 cell = ws.cell(row=current_row, column=col)
@@ -414,7 +418,7 @@ def employee_id_name_to_excel():
         # Show success message
         messagebox.showinfo(
             "Export Successful", 
-            f"Employee ID and Name report saved to:\n{file_path}"
+            f"Employee ID, Name, and Division report saved to:\n{file_path}"
         )
     
     except Exception as e:
@@ -433,18 +437,8 @@ def convert_items_to_dicts(items):
             item_dict = {
                 "item_id": item.item_id,
                 "name": item.name,
-                "status": item.status,
-                "is_common": item.is_common,
-                "attributes": []
             }
-            
-            # Add attributes
-            for attr in item.attributes:
-                item_dict["attributes"].append({
-                    "name": attr.name,
-                    "value": attr.value
-                })
-            
+                        
             items_data.append(item_dict)
         
         return items_data
@@ -452,7 +446,7 @@ def convert_items_to_dicts(items):
 
 def items_to_excel():
     """
-    Export Items with Name, Is Common, and Attributes to Excel
+    Export Items with Name to Excel
     """
     # Prompt user to choose save location
     file_path = filedialog.asksaveasfilename(
@@ -487,8 +481,7 @@ def items_to_excel():
         
         # Write headers
         headers = [
-            "Name", "Is Common", 
-            "Attributes Name", "Attributes Value"
+            "Name"
         ]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col)
@@ -503,49 +496,10 @@ def items_to_excel():
         
         # Process each item
         for item in items:
-            # Determine number of attribute rows
-            num_attributes = len(item.get('attributes', []))
-            attribute_rows = max(1, num_attributes)
-            
-            # Basic item information
             name_cell = ws.cell(row=current_row, column=1, value=item['name'])
             name_cell.border = thin_border
             
-            is_common_cell = ws.cell(row=current_row, column=2, value="Yes" if item['is_common'] else "No")
-            is_common_cell.border = thin_border
-            
-            # Merge cells for basic item info
-            if attribute_rows > 1:
-                for col in [1, 2]:
-                    ws.merge_cells(
-                        start_row=current_row,
-                        start_column=col,
-                        end_row=current_row + attribute_rows - 1,
-                        end_column=col
-                    )
-                    # Apply border to merged cell
-                    merged_cell = ws.cell(row=current_row, column=col)
-                    merged_cell.border = thin_border
-            
-            # Write attributes
-            if item.get('attributes'):
-                for idx, attr in enumerate(item['attributes']):
-                    row = current_row + idx
-                    attr_name_cell = ws.cell(row=row, column=3, value=attr['name'])
-                    attr_name_cell.border = thin_border
-                    
-                    attr_value_cell = ws.cell(row=row, column=4, value=attr['value'])
-                    attr_value_cell.border = thin_border
-            else:
-                # If no attributes, add placeholders
-                no_attr_name_cell = ws.cell(row=current_row, column=3, value="-")
-                no_attr_name_cell.border = thin_border
-                
-                no_attr_value_cell = ws.cell(row=current_row, column=4, value="-")
-                no_attr_value_cell.border = thin_border
-            
-            # Move to next set of rows
-            current_row += attribute_rows
+            current_row += 1
         
         # Auto-adjust column widths
         for col in ws.columns:

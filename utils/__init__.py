@@ -7,7 +7,8 @@ from .search import (
     get_recent_logs,
     get_transfer_history_summary,
     search_logs,
-    search_unique_key
+    search_unique_key,
+    search_employee_items
 
 
 )
@@ -31,6 +32,7 @@ __all__ = [
     'divison_wise_employee_items_to_excel',
     'search_unique_key',
     'employee_id_name_to_excel',
-    'items_to_excel'
+    'items_to_excel',
+    'search_employee_items'
     
 ]

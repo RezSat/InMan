@@ -35,8 +35,9 @@ def search_employees(query: str, division_name: str = None):
         
         # If division name is provided, add division filter
         if division_name:
+            print(division_name)
             base_query = base_query.join(Division).filter(
-                Division.name.ilike(f"%{division_name}%")
+                Division.name == division_name
             )
         
         # Execute the query
@@ -53,7 +54,56 @@ def search_employees(query: str, division_name: str = None):
             employee_list.append(employee_dict)
         
         return employee_list
+    
+def search_employee_items(query: str, attr_name: str = None, attr_value: str = None):
+    """
+    Search for employee items by item name, attribute name, or attribute value.
+    
+    Args:
+        query (str): Search query for item name.
+        attr_name (str, optional): Attribute name to search for. Defaults to None.
+        attr_value (str, optional): Attribute value to search for. Defaults to None.
+    
+    Returns:
+        list: List of employee items that match the search criteria.
+    """
+    with SessionLocal() as db:
+        # Base query to search by item name
+        base_query = db.query(EmployeeItem).join(Item).filter(
+            Item.name.ilike(f"%{query}%")
+        )
+        
+        # If attribute name is provided, add attribute filter
+        if attr_name:
+            base_query = base_query.join(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.name == attr_name
+            )
+        
+        # If attribute value is provided, add attribute value filter
+        if attr_value:
+            base_query = base_query.join(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.value.ilike(f"%{attr_value}%")
+            )
+        
+        # Execute the query
+        results = base_query.all()
+        
+        # Transform results to list of dictionaries
+        result_list = []
+        for result in results:
+            result_dict = {
+                "emp_id": result.emp_id,
+                "emp_name": result.employee.name,
+                "item_name": result.item.name,
+                "unique_key": result.unique_key,
+                "attributes": ", ".join([f"{attr.name}: {attr.value}" for attr in result.attributes])
+            }
+            result_list.append(result_dict)
 
+        print(result_list)
+        
+        return result_list
+    
 def search_items(query: str, status: str = None, is_common: bool = None):
     with session_scope() as db:
         # Base query to search by name
@@ -144,24 +194,22 @@ def search_divisions(query: str):
 def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).join(EmployeeItem).filter(EmployeeItem.unique_key == unique_key).first()
 
-# Search Items by Attribute Key and Value: TODO Modify as per the new EmployeeItemAttributes
 def search_items_by_attribute(db: Session, name: str, value: str):
     """
     Search for items with a specific attribute key-value pair.
     """
-    return db.query(Item).join(ItemAttribute).filter(
-        ItemAttribute.name == name,
-        ItemAttribute.value.ilike(f"%{value}%")
+    return db.query(Item).join(EmployeeItem).join(EmployeeItemAttribute).filter(
+        EmployeeItemAttribute.name == name,
+        EmployeeItemAttribute.value.ilike(f"%{value}%")
     ).all()
 
-# Search Employees by Items with Specific Attributes: TODO same as the above
 def search_employees_by_item_attribute(db: Session, name: str, value: str):
     """
     Search for employees who have been assigned items with a specific attribute.
     """
-    return db.query(Employee).join(EmployeeItem).join(Item).join(ItemAttribute).filter(
-        ItemAttribute.name == name,
-        ItemAttribute.value.ilike(f"%{value}%")
+    return db.query(Employee).join(EmployeeItem).join(Item).join(EmployeeItemAttribute).filter(
+        EmployeeItemAttribute.name == name,
+        EmployeeItemAttribute.value.ilike(f"%{value}%")
     ).all()
 
 # Search Employees by Item Name

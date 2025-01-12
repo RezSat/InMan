@@ -222,7 +222,7 @@ class ViewEmployeeRecords:
         self.details_window.protocol("WM_DELETE_WINDOW", self.details_window.destroy)
 
         # Create a frame to contain all widgets
-        content_frame = ctk.CTkFrame(self.details_window, fg_color="transparent")
+        content_frame = ctk.CTkFrame(self.details_window, fg_color=COLORS["black"], corner_radius=10)
         content_frame.pack(padx=20, pady=20, fill="both", expand=True)
 
         # Title
@@ -232,7 +232,7 @@ class ViewEmployeeRecords:
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COLORS["white"]
         )
-        title_label.pack(pady=(0, 10))
+        title_label.pack(pady=(10, 10))
 
         # Item ID
         item_id_label = ctk.CTkLabel(
@@ -264,12 +264,18 @@ class ViewEmployeeRecords:
             )
             attributes_label.pack(pady=(5, 5))
 
+            attributes_frame = ctk.CTkFrame(content_frame, fg_color=COLORS["black"])
+            attributes_frame.pack(pady=(5, 5), fill="x")
+
             for attribute in item['attributes']:
+                attribute_frame = ctk.CTkFrame(attributes_frame, fg_color=COLORS["ash"])
+                attribute_frame.pack(pady=(5, 5), fill="x")
+
                 attribute_label = ctk.CTkLabel(
-                    content_frame,
+                    attribute_frame,
                     text=f"{attribute['name']}: {attribute['value']}",
                     font=ctk.CTkFont(size=14),
-                    text_color=COLORS["white"],
+                    text_color=COLORS["black"],
                     wraplength=360  # Allow text wrapping
                 )
                 attribute_label.pack(pady=(5, 5))
@@ -277,8 +283,8 @@ class ViewEmployeeRecords:
         # Notes (if available)
         if item.get('notes'):
             # Create a scrollable frame for notes if they are long
-            notes_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-            notes_frame.pack(pady=(5, 5), fill="x")
+            notes_frame = ctk.CTkScrollableFrame(content_frame, fg_color="transparent", scrollbar_button_color=COLORS["pink"], scrollbar_button_hover_color=COLORS["darker_pink"])
+            notes_frame.pack(pady=(5, 5), fill="both", expand=True)
 
             notes_label = ctk.CTkLabel(
                 notes_frame,
@@ -298,7 +304,7 @@ class ViewEmployeeRecords:
                 border_width=1,
                 text_color=COLORS["white"]
             )
-            notes_text.pack(fill="x")
+            notes_text.pack(fill="both", expand=True)
             notes_text.insert("0.0", item['notes'])
             notes_text.configure(state="disabled")  # Make read-only
 
@@ -323,9 +329,13 @@ class ViewEmployeeRecords:
         # Set a maximum height to prevent oversized windows
         window_height = min(window_height, 600)
 
-        # Set the window geometry
-        self.details_window.geometry(f"{window_width}x{window_height}")
-        
+        # Center the window on the screen
+        screen_width = self.details_window.winfo_screenwidth()
+        screen_height = self.details_window.winfo_screenheight()
+        x = (screen_width // 2) - (window_width // 2)
+        y = (screen_height // 2) - (window_height // 2)
+        self.details_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
     def perform_search(self):
         search_term = self.search_entry.get().lower()
         self.filtered_employees = [
