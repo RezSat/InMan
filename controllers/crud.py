@@ -578,6 +578,62 @@ def log_action(action_type: str, details: str, user_id: int = None):
         db.close()
         return log_entry
 
+def save_item_attribute(item_id, name, value):
+    with session_scope() as db:
+        try:
+            # Check if the item exists
+            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id).first()
+            if not item:
+                raise ValueError("Item not found")
+
+            # Check if the attribute already exists for the item
+            existing_attribute = db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == item.id,
+                EmployeeItemAttribute.name == name
+            ).first()
+            if existing_attribute:
+                # Update the existing attribute
+                existing_attribute.value = value
+            else:
+                # Create a new attribute
+                new_attribute = EmployeeItemAttribute(
+                    emp_item_id=item.id,
+                    name=name,
+                    value=value
+                )
+                db.add(new_attribute)
+
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            log_action(action_type="error", details=f"Error saving item attribute: {str(e)}")
+            return False
+
+def remove_item_attribute(item_id, name):
+    with session_scope() as db:
+        try:
+            # Check if the item exists
+            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id).first()
+            if not item:
+                raise ValueError("Item not found")
+
+            # Find the attribute to remove
+            attribute = db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == item.id,
+                EmployeeItemAttribute.name == name
+            ).first()
+            if attribute:
+                db.delete(attribute)
+                db.commit()
+                return True
+            else:
+                raise ValueError("Attribute not found")
+        except Exception as e:
+            db.rollback()
+            log_action(action_type="error", details=f"Error removing item attribute: {str(e)}")
+            return False
+              
 def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: dict, notes: str = ""):
     with session_scope() as db:
         # First, check if the item exists
@@ -617,43 +673,90 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: d
         return True
       
 # Item Transfer
-def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = ""):
+def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = "") -> bool:
     with session_scope() as db:
-        # Remove from current employee
-        current_assignment = db.query(EmployeeItem).filter(
-            EmployeeItem.emp_id == from_emp_id,
-            EmployeeItem.item_id == item_id
-        ).first()
-        
-        if current_assignment:
+        try:
+            # Clean up orphaned EmployeeItemAttributes (emp_item_id = NULL)
+            db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id.is_(None)
+            ).delete()
+
+            # Find the current EmployeeItem assignment
+            current_assignment = db.query(EmployeeItem).filter(
+                EmployeeItem.emp_id == from_emp_id,
+                EmployeeItem.item_id == item_id
+            ).first()
+
+            if not current_assignment:
+                # If no assignment is found, return False
+                log_action(action_type="error", details=f"No assignment found for item {item_id} and employee {from_emp_id}")
+                return False
+
+            # Get the associated EmployeeItemAttributes
+            attributes = db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == current_assignment.id
+            ).all()
+
+            # Remove the current assignment
             db.delete(current_assignment)
+
+            # Update item count for the from_employee
+            from_employee = db.query(Employee).filter(Employee.emp_id == from_emp_id).first()
+            if from_employee:
+                from_employee.item_count -= 1
+
+            # Create a new assignment for the to_employee
+            new_assignment = EmployeeItem(
+                emp_id=to_emp_id,
+                item_id=item_id,
+                unique_key=unique_key,
+                notes=notes,
+                date_assigned=datetime.utcnow()
+            )
+            db.add(new_assignment)
+            db.flush()  # Flush to get the new_assignment.id
+
+            # Transfer the attributes to the new assignment
+            for attribute in attributes:
+                new_attribute = EmployeeItemAttribute(
+                    emp_item_id=new_assignment.id,
+                    name=attribute.name,
+                    value=attribute.value
+                )
+                db.add(new_attribute)
+
+            # Update item count for the to_employee
+            to_employee = db.query(Employee).filter(Employee.emp_id == to_emp_id).first()
+            if to_employee:
+                to_employee.item_count += 1
+
+            # Log the transfer
+            log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
+
+            # Add a record to ItemTransferHistory
+            transfer_record = ItemTransferHistory(
+                item_id=item_id,
+                from_emp_id=from_emp_id,
+                to_emp_id=to_emp_id,
+                transfer_date=datetime.utcnow(),
+                notes=notes
+            )
+            db.add(transfer_record)
+
+            db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id.is_(None)
+            ).delete()
+            
+            # Commit the transaction
             db.commit()
+            return True
 
-            # Update item count for from_emp
-            from_employee = get_employee(from_emp_id)
-            from_employee.item_count -= 1
-            db.commit()
+        except Exception as e:
+            # Handle any exceptions that occur during the transaction
+            db.rollback()
+            log_action(action_type="error", details=f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {str(e)}")
+            return False
         
-        # Assign to new employee
-        new_assignment = assign_item_to_employee(to_emp_id, item_id, unique_key=unique_key, notes=notes)
-        
-        # Log transfer
-        log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
-
-        # Update ItemTransferHistory
-        transfer_record = ItemTransferHistory(
-            item_id=item_id,
-            from_emp_id=from_emp_id,
-            to_emp_id=to_emp_id,
-            transfer_date=datetime.utcnow(),
-            notes=notes
-        )
-        db.add(transfer_record)
-        db.commit()
-        db.close()
-
-        return new_assignment
-
 # Update Employee Info
 def update_employee(emp_id: str, new_name: str = None, new_division_id: int = None):
     with session_scope() as db:
@@ -705,25 +808,41 @@ def update_employee_id(old_emp_id: str, new_emp_id: str):
         logger.error(f"Error updating employee ID: {str(e)}")
         return None
     
-# Remove item from an employee's list (does not delete item from DB)
-def remove_item_from_employee(emp_id: str, item_id: int):
+def remove_item_from_employee(emp_id: str, item_id: int) -> bool:
     with session_scope() as db:
-        assignment = db.query(EmployeeItem).filter(
-            EmployeeItem.emp_id == emp_id,
-            EmployeeItem.item_id == item_id
-        ).first()
+        try:
+            # Find the EmployeeItem assignment
+            assignment = db.query(EmployeeItem).filter(
+                EmployeeItem.emp_id == emp_id,
+                EmployeeItem.item_id == item_id
+            ).first()
 
-        if assignment:
-            db.delete(assignment)
-            db.commit()
+            if assignment:
+                # Delete all associated EmployeeItemAttributes
+                db.query(EmployeeItemAttribute).filter(
+                    EmployeeItemAttribute.emp_item_id == assignment.id
+                ).delete()
 
-            # Update item count for employee
-            employee = get_employee(emp_id)
-            employee.item_count -= 1
-            db.commit()
+                # Remove the EmployeeItem assignment
+                db.delete(assignment)
 
-            log_action(action_type="remove_item", details=f"Removed item {item_id} from employee {emp_id}")
-            db.close()
-            return True
+                # Update item count for the employee
+                employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+                if employee:
+                    employee.item_count -= 1
 
-    return False
+                # Log the action
+                log_action(action_type="remove_item", details=f"Removed item {item_id} from employee {emp_id}")
+
+                # Commit the transaction
+                db.commit()
+                return True
+            else:
+                # If no assignment was found, return False
+                return False
+
+        except Exception as e:
+            # Handle any exceptions that occur during the transaction
+            db.rollback()
+            log_action(action_type="error", details=f"Error removing item {item_id} from employee {emp_id}: {str(e)}")
+            return False

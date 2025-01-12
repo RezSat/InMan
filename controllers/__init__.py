@@ -30,6 +30,8 @@ from .crud import (
     get_all_items_names_dict,
     get_employee_details_with_items_one,
     get_all_employees_ids,
+    save_item_attribute,
+    remove_item_attribute
 )
 
 from .auth import hash_password, verify_password, create_user, authenticate_user
@@ -66,6 +68,8 @@ __all__ = [
     'get_all_items_names_dict',
     'get_employee_details_with_items_one',
     'get_all_employees_ids',
+    'save_item_attribute',
+    'remove_item_attribute'
 
     'hash_password', 
     'verify_password', 

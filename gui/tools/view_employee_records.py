@@ -243,15 +243,6 @@ class ViewEmployeeRecords:
         )
         item_id_label.pack(pady=(5, 5))
 
-        # Status
-        status_label = ctk.CTkLabel(
-            content_frame,
-            text=f"Status: {'Active' if item.get('is_common', False) else 'Individual'}",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["white"]
-        )
-        status_label.pack(pady=(5, 5))
-
         # Unique Key (if available)
         if item.get('unique_key'):
             unique_key_label = ctk.CTkLabel(
@@ -262,6 +253,26 @@ class ViewEmployeeRecords:
                 wraplength=360  # Allow text wrapping
             )
             unique_key_label.pack(pady=(5, 5))
+
+        # Attributes
+        if item.get('attributes'):
+            attributes_label = ctk.CTkLabel(
+                content_frame,
+                text="Attributes:",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=COLORS["white"]
+            )
+            attributes_label.pack(pady=(5, 5))
+
+            for attribute in item['attributes']:
+                attribute_label = ctk.CTkLabel(
+                    content_frame,
+                    text=f"{attribute['name']}: {attribute['value']}",
+                    font=ctk.CTkFont(size=14),
+                    text_color=COLORS["white"],
+                    wraplength=360  # Allow text wrapping
+                )
+                attribute_label.pack(pady=(5, 5))
 
         # Notes (if available)
         if item.get('notes'):
@@ -314,7 +325,7 @@ class ViewEmployeeRecords:
 
         # Set the window geometry
         self.details_window.geometry(f"{window_width}x{window_height}")
-
+        
     def perform_search(self):
         search_term = self.search_entry.get().lower()
         self.filtered_employees = [
