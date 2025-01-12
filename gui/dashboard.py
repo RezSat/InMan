@@ -8,6 +8,7 @@ from controllers import (
     get_division_details_with_counts
 )
 from controllers.crud import get_all_divisions_with_counts
+import webbrowser
 
 class Dashboard:
     def __init__(self, main_frame, inventory):
@@ -29,12 +30,28 @@ class Dashboard:
             text_color=COLORS["white"]
         ).pack(side="top", anchor="w")
         
+        # Create a frame for the credit text and link
+        credit_frame = ctk.CTkFrame(title_frame, fg_color="transparent")
+        credit_frame.pack(side="top", anchor="w")
+        
+        # Static text part
         ctk.CTkLabel(
-            title_frame,
-            text="Office Inventory Management System by RezSat:",
+            credit_frame,
+            text="Office Inventory Management System by RezSat: ",
             font=ctk.CTkFont(size=14),
             text_color=COLORS["ash"]
-        ).pack(side="top", anchor="w")
+        ).pack(side="left")
+        
+        # Clickable link part
+        link_label = ctk.CTkLabel(
+            credit_frame,
+            text="http://rezsat.vercel.app",
+            font=ctk.CTkFont(size=14, underline=True),
+            text_color=COLORS["pink"],
+            cursor="hand2"
+        )
+        link_label.pack(side="left")
+        link_label.bind("<Button-1>", lambda e: webbrowser.open("http://rezsat.vercel.app"))
 
     def create_stat_card(self, parent, title, value, icon_text="📊", secondary_text=None):
         card = ctk.CTkFrame(
