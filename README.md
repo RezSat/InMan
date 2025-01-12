@@ -18,7 +18,7 @@ The application uses the following database models:
 - **Employee**: Represents employees, linked to divisions and items.
 - **Item**: Represents inventory items, with attributes and status.
 - **EmployeeItem**: An associative table linking employees to items.
-- **ItemAttribute**: Represents dynamic attributes for items.
+- **EmployeeItemAttribute**: Represents dynamic attributes for items.
 - **User**: Represents system users (managers).
 - **Log**: For logging actions performed in the system.
 - **ItemTransferHistory**: Tracks the history of item transfers between employees.
@@ -63,6 +63,10 @@ Some reusable utility functions lies here including search functions
 
 ### Database Schema in detail
 
+Here is the revised database schema in Markdown format:
+
+### Database Schema in detail
+
 #### 1. **Employee Table**
    *Now includes division ID as a foreign key and keeps track of each employee's division and details.*
 
@@ -72,7 +76,7 @@ Some reusable utility functions lies here including search functions
 | name            | String  | Employee name                        |
 | division_id     | Integer | Foreign key to `Division`            |
 | item_count      | Integer | Total number of assigned items       |
-| date_joined     | Date    | Date employee joined the company     |
+| date_joined     | DateTime | Date employee joined the company     |
 
 #### 2. **Division Table**
    *Includes a count of employees in each division.*
@@ -81,7 +85,6 @@ Some reusable utility functions lies here including search functions
 |------------------|---------|--------------------------------------|
 | division_id      | Integer | Unique ID for each division         |
 | name             | String  | Name of the division                |
-| employee_count   | Integer | Number of employees in this division|
 
 #### 3. **Item Table**
    *Now includes additional details for item status and history tracking.*
@@ -90,10 +93,7 @@ Some reusable utility functions lies here including search functions
 |-----------------|---------|---------------------------------------|
 | item_id         | Integer | Unique ID for each item              |
 | name            | String  | Item name                            |
-| unique_key      | String  | Unique identifier (e.g., serial)     |
-| is_common       | Boolean | Whether the item is common or unique |
-| status          | String  | Current status (`active`, `retired`, `lost`, etc.)|
-| last_assigned   | Date    | Date when the item was last assigned |
+| last_assigned   | DateTime | Date when the item was last assigned |
 
 #### 4. **EmployeeItem Table** (Associative Table for Many-to-Many Relationship)
    *Tracks unique or shared items and keeps records of item ownership.*
@@ -103,11 +103,21 @@ Some reusable utility functions lies here including search functions
 | id              | Integer | Primary key                          |
 | emp_id          | String  | Foreign key to `Employee`            |
 | item_id         | Integer | Foreign key to `Item`                |
-| is_unique       | Boolean | Indicates if item is unique to this employee |
-| date_assigned   | Date    | Date when item was assigned          |
+| unique_key      | String  | Unique identifier (e.g., serial)     |
+| date_assigned   | DateTime | Date when item was assigned          |
 | notes           | Text    | Additional notes (e.g., item conditions) |
 
-#### 5. **User Table** (For System Manager)
+#### 5. **EmployeeItemAttribute Table**
+   *Tracks dynamic attributes for employee items.*
+
+| Column          | Type    | Description                           |
+|-----------------|---------|---------------------------------------|
+| emp_attribute_id | Integer | Primary key                          |
+| emp_item_id     | Integer | Foreign key to `EmployeeItem`        |
+| name            | String  | Attribute name                        |
+| value           | String  | Attribute value                       |
+
+#### 6. **User Table** (For System Manager)
    *Manager login table.*
 
 | Column          | Type    | Description                           |
@@ -117,7 +127,7 @@ Some reusable utility functions lies here including search functions
 | password        | String  | Hashed login password                |
 | role            | String  | Role of the user (`manager`)         |
 
-#### 6. **Log Table**
+#### 7. **Log Table**
    *Enhanced to log all user actions, including system changes, searches, and item updates.*
 
 | Column          | Type      | Description                           |
@@ -128,7 +138,7 @@ Some reusable utility functions lies here including search functions
 | timestamp       | DateTime  | When the action occurred             |
 | user_id         | Integer   | Foreign key to `User` performing the action (nullable for searches) |
 
-#### 7. **ItemTransferHistory Table**
+#### 8. **ItemTransferHistory Table**
    *Tracks historical transfers of items between employees.*
 
 | Column          | Type      | Description                           |
@@ -139,12 +149,6 @@ Some reusable utility functions lies here including search functions
 | to_emp_id       | String    | Employee ID of the new holder        |
 | transfer_date   | Date      | Date of transfer                     |
 | notes           | Text      | Optional notes (e.g., reason for transfer)|
-
----
-
-## To do
-
-- chnage the db model with new attributes values for employee record .
 
 ### Screenshots
 
