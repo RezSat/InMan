@@ -578,11 +578,11 @@ def log_action(action_type: str, details: str, user_id: int = None):
         db.close()
         return log_entry
 
-def save_item_attribute(item_id, name, value):
+def save_item_attribute(emp_id, item_id, name, value):
     with session_scope() as db:
         try:
             # Check if the item exists
-            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id).first()
+            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id, EmployeeItem.emp_id == emp_id).first()
             if not item:
                 raise ValueError("Item not found")
 
@@ -610,11 +610,11 @@ def save_item_attribute(item_id, name, value):
             log_action(action_type="error", details=f"Error saving item attribute: {str(e)}")
             return False
 
-def remove_item_attribute(item_id, name):
+def remove_item_attribute(emp_id, item_id, name):
     with session_scope() as db:
         try:
             # Check if the item exists
-            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id).first()
+            item = db.query(EmployeeItem).filter(EmployeeItem.item_id == item_id, EmployeeItem.emp_id == emp_id).first()
             if not item:
                 raise ValueError("Item not found")
 

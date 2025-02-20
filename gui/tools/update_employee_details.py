@@ -263,44 +263,47 @@ class UpdateEmployeeDetail:
             remove_btn.pack(side="right", padx=10, pady=5)
 
             # Attributes Section
-        attributes_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
-        attributes_frame.pack(fill="x", pady=5)
+            attributes_frame = ctk.CTkFrame(item_frame, fg_color=COLORS["black"])
+            attributes_frame.pack(fill="x", pady=5)
+            
+            if item.get('attributes'):
+                # Display existing attributes for the item
+                for attribute in item.get('attributes', []):
+                    attr_frame = ctk.CTkFrame(attributes_frame, fg_color=COLORS["black"])
+                    attr_frame.pack(fill="x", pady=2)
 
-        # Display existing attributes for the item
-        for attribute in item.get('attributes', []):
-            attr_frame = ctk.CTkFrame(attributes_frame, fg_color=COLORS["black"])
-            attr_frame.pack(fill="x", pady=2)
+                    ctk.CTkLabel(
+                        attr_frame,
+                        text=f"{attribute['name']}: {attribute['value']}",
+                        font=ctk.CTkFont(size=12),
+                        text_color=COLORS["white"]
+                    ).pack(side="left", padx=10, pady=5)
 
-            ctk.CTkLabel(
-                attr_frame,
-                text=f"{attribute['name']}: {attribute['value']}",
-                font=ctk.CTkFont(size=12),
-                text_color=COLORS["white"]
-            ).pack(side="left", padx=10, pady=5)
+                    # Button to remove attribute
+                    remove_attr_btn = ctk.CTkButton(
+                        attr_frame,
+                        text="Remove",
+                        command=lambda a=attribute, item_id=item['item_id']: self.remove_attribute(employee['emp_id'], item_id, a['name']),
+                        fg_color=COLORS["pink"],
+                        hover_color=COLORS["darker_pink"],
+                        width=70,
+                        height=25
+                    )
+                    remove_attr_btn.pack(side="right", padx=10, pady=5)
+            else:
+                attributes_frame.pack_forget()
 
-            # Button to remove attribute
-            remove_attr_btn = ctk.CTkButton(
-                attr_frame,
-                text="Remove",
-                command=lambda a=attribute, item_id=item['item_id']: self.remove_attribute(employee['emp_id'], item_id, a['name']),
+            # Button to add new attribute
+            add_attr_btn = ctk.CTkButton(
+                item_frame,
+                text="+ Add Attribute",
+                command=lambda item_id=item['item_id']: self.add_attribute(employee['emp_id'],item_id),
                 fg_color=COLORS["pink"],
                 hover_color=COLORS["darker_pink"],
-                width=70,
+                width=120,
                 height=25
             )
-            remove_attr_btn.pack(side="right", padx=10, pady=5)
-
-        # Button to add new attribute
-        add_attr_btn = ctk.CTkButton(
-            item_frame,
-            text="+ Add Attribute",
-            command=lambda item_id=item['item_id']: self.add_attribute(employee['emp_id'],item_id),
-            fg_color=COLORS["pink"],
-            hover_color=COLORS["darker_pink"],
-            width=120,
-            height=25
-        )
-        add_attr_btn.pack(side="right", padx=10, pady=5)
+            add_attr_btn.pack(side="right", padx=10, pady=5)
 
         # Button Frame for Update and Cancel
         button_frame = ctk.CTkFrame(main_container, fg_color="transparent")
@@ -368,7 +371,7 @@ class UpdateEmployeeDetail:
             messagebox.showerror("Error", "Both key and value must be provided.")
             return
 
-        result = save_item_attribute(item_id, name, value)
+        result = save_item_attribute(emp_id, item_id, name, value)
         if result:
             window.destroy()
             self.load_employees()  # Refresh the employee data
@@ -383,7 +386,7 @@ class UpdateEmployeeDetail:
             messagebox.showerror("Error", "Failed to save attribute.")
             
     def remove_attribute(self, emp_id, item_id, name):
-        result = remove_item_attribute(item_id, name)
+        result = remove_item_attribute(emp_id, item_id, name)
         if result:
             self.update_window.destroy()
             self.load_employees()  # Refresh the employee data
