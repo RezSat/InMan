@@ -1,0 +1,1 @@
+#pyinstaller --noconfirm --onedir --windowed --icon "D:\yehan\github\InMan\venv\Lib\site-packages\customtkinter\assets\icons\CustomTkinter_icon_Windows.ico" --name "InMan" --add-data "D:\yehan\github\InMan\venv\Lib\site-packages\customtkinter;customtkinter/"  "D:\yehan\github\InMan\main.py"
