@@ -1,8 +1,10 @@
-from controllers.crud import assign_item_to_employee, get_all_employees, get_all_employees_ids, get_employee, get_item
+from controllers.crud import get_employee_details_with_items_one, get_all_employees, get_all_employees_ids, get_employee, get_item
 from models.models import Employee, EmployeeItem, Item
 from utils.search import search_items
 from models.database import SessionLocal, session_scope
 
+
+print(get_employee_details_with_items_one(1726))
 
 """
 list_employees = get_all_employees_ids()

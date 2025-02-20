@@ -25,7 +25,7 @@ def convert_employees_to_dict(employees):
         for emp in employees
     ]
 
-def search_employees(query: str, division_name: str = None):
+def search_employees(query: str, division_name: str = None, items_need=False):
     with session_scope() as db:
         # Base query to search by name or emp_id
         base_query = db.query(Employee).filter(
@@ -46,11 +46,15 @@ def search_employees(query: str, division_name: str = None):
         # Transform employees to list of dictionaries
         employee_list = []
         for emp in employees:
-            employee_dict = {
-                "emp_id": emp.emp_id,
-                "name": emp.name,
-                "division": emp.division.name if emp.division else None
-            }
+
+            if items_need:
+                employee_dict = get_employee_details_with_items_one(emp.emp_id)
+            else:
+                employee_dict = {
+                    "emp_id": emp.emp_id,
+                    "name": emp.name,
+                    "division": emp.division.name if emp.division else None,
+                }
             employee_list.append(employee_dict)
         
         return employee_list

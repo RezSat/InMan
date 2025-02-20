@@ -16,7 +16,6 @@ class InventoryDisplay:
     def __init__(self, main_frame, inv):
         self.main_frame = main_frame
         self.current_view = None
-        self.search_results = []
         self.search_results = {
             "Employees": [],
             "Items": [],
@@ -307,7 +306,7 @@ class InventoryDisplay:
         if search_type == "Employees":
             division_filter = getattr(self, 'division_filter', None)
             division_name = division_filter.get() if division_filter and division_filter.get() != "All Divisions" else None
-            results = search_employees(query, division_name)
+            results = search_employees(query, division_name, items_need=True)
             self.search_results["Employees"] = results
             self.display_search_results()
             self.display_employee_results(results)
@@ -427,27 +426,73 @@ class InventoryDisplay:
                         current_row += 1
                     
                 elif search_type == "Employees":
-                    headers = ["Employee ID", "Name", "Division"]
-                    for col, header in enumerate(headers, 1):
-                        cell = ws.cell(row=1, column=col)
-                        cell.value = header
-                        cell.font = header_font
-                        cell.fill = header_fill
-                        cell.alignment = center_alignment
-                        cell.border = thin_border
-                    
-                    current_row = 2
+                    current_row = 1
                     for emp in results:
-                        emp_id_cell = ws.cell(row=current_row, column=1, value=emp['emp_id'])
+                        # Merge and style Employee ID cell
+                        emp_id_cell = ws.cell(row=current_row, column=1, value="Employee ID")
+                        emp_id_cell.fill = header_fill
+                        emp_id_cell.font = header_font
+                        emp_id_cell.alignment = center_alignment
                         emp_id_cell.border = thin_border
-                        
-                        name_cell = ws.cell(row=current_row, column=2, value=emp['name'])
+                        ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=1)
+
+                        emp_id_value_cell = ws.cell(row=current_row, column=2, value=emp['emp_id'])
+                        emp_id_value_cell.fill = header_fill
+                        emp_id_value_cell.alignment = center_alignment
+                        emp_id_value_cell.border = thin_border
+                        ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=2)
+
+                        # Merge and style Employee Name cell
+                        name_cell = ws.cell(row=current_row, column=3, value="Employee Name")
+                        name_cell.fill = header_fill
+                        name_cell.font = header_font
+                        name_cell.alignment = center_alignment
                         name_cell.border = thin_border
-                        
-                        division_cell = ws.cell(row=current_row, column=3, value=emp['division'])
+                        ws.merge_cells(start_row=current_row, start_column=3, end_row=current_row, end_column=3)
+
+                        name_value_cell = ws.cell(row=current_row, column=4, value=emp['name'])
+                        name_value_cell.fill = header_fill
+                        name_value_cell.alignment = center_alignment
+                        name_value_cell.border = thin_border
+                        ws.merge_cells(start_row=current_row, start_column=4, end_row=current_row, end_column=4)
+
+                        # Merge and style Division cell
+                        division_cell = ws.cell(row=current_row, column=5, value="Division")
+                        division_cell.fill = header_fill
+                        division_cell.font = header_font
+                        division_cell.alignment = center_alignment
                         division_cell.border = thin_border
-                        
+                        ws.merge_cells(start_row=current_row, start_column=5, end_row=current_row, end_column=5)
+
+                        division_value_cell = ws.cell(row=current_row, column=6, value=emp['division'])
+                        division_value_cell.fill = header_fill
+                        division_value_cell.alignment = center_alignment
+                        division_value_cell.border = thin_border
+                        ws.merge_cells(start_row=current_row, start_column=6, end_row=current_row, end_column=6)
+
+                        # Move to the next row for items
+                        current_row += 2
+
+                        # Add item headers
+                        item_headers = ["Item Name", "Unique Key", "Attributes"]
+                        for col, header in enumerate(item_headers, 1):
+                            cell = ws.cell(row=current_row, column=col)
+                            cell.value = header
+                            cell.font = header_font
+                            cell.fill = header_fill
+                            cell.alignment = center_alignment
+                            cell.border = thin_border
+
                         current_row += 1
+
+                        # Add items for the current employee
+                        for item in emp['items']:
+                            ws.cell(row=current_row, column=1, value=item['name']).border = thin_border
+                            ws.cell(row=current_row, column=2, value=item['unique_key']).border = thin_border
+                            ws.cell(row=current_row, column=3, value=", ".join([f"{attr['name']}: {attr['value']}" for attr in item['attributes']])).border = thin_border
+                            current_row += 1
+
+                        current_row += 2
 
                 elif search_type == "Employee Items":
                     # Write headers
