@@ -246,7 +246,7 @@ class UpdateEmployeeDetail:
             
             ctk.CTkLabel(
                 item_frame,
-                text=f"{item['name']} (ID: {item['item_id']})",
+                text=f"{item['name']} (ID: {item['item_id']}) (U_KEY: {item['unique_key']})",
                 font=ctk.CTkFont(size=13)
             ).pack(side="left", padx=10, pady=5)
             
