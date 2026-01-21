@@ -21,7 +21,7 @@ class ProductKeyPrompt:
         self.root.title("Enter the Product Key to Unlock InMan")
         self.root.geometry("550x600")
         self.root.configure(fg_color=COLORS['secondary_bg'])
-        self.hashkey = "1de7d2fe4ccb7129667ce62c3bff4e9f33b9e158a107a1ca09e25a7abe8ea922"
+        self.hashkey = "c052eb83528666dfb18df5d39cf6ab1c3058bb7b5720135a1012b5a3ba093042"
         self.show_key = False
         
         # Center the window on screen
