@@ -50,17 +50,18 @@ class InventoryApp():
         # Initially show dashboard
         self.show_dashboard()
     
-    def show_dashboard(self):
+    def _show_screen(self, screen):
         self.clear_main_frame()
-        Dashboard(self.main_frame, self.inventory).display()
+        screen(self.main_frame, self.inventory).display()
+
+    def show_dashboard(self):
+        self._show_screen(Dashboard)
 
     def show_login(self):
-        self.clear_main_frame()
-        LoginPage(self.main_frame, self.inventory).display()
+        self._show_screen(LoginPage)
 
     def show_inventory(self):
-        self.clear_main_frame()
-        InventoryDisplay(self.main_frame, self.inventory).display()
+        self._show_screen(InventoryDisplay)
 
     def run(self):
         self.window.mainloop()
