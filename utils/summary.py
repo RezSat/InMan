@@ -99,6 +99,17 @@ def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
     
     return report
 
+def _write_report_headers(sheet, headers, font, fill, alignment, border):
+    """Apply the existing heading style consistently across Excel exports."""
+    for column, title in enumerate(headers, 1):
+        cell = sheet.cell(row=1, column=column)
+        cell.value = title
+        cell.font = font
+        cell.fill = fill
+        cell.alignment = alignment
+        cell.border = border
+
+
 def get_column_width(cell_value):
     """
     Calculate appropriate column width based on content.
@@ -184,13 +195,9 @@ def divison_wise_employee_items_to_excel():
         max_column_widths = {i+1: get_column_width(header) for i, header in enumerate(headers)}
         
         # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_align
-            cell.border = border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_align, border
+        )
         
         current_row = 2
         total_all_employees = 0
@@ -364,13 +371,9 @@ def employee_id_name_to_excel():
         max_column_widths = {i+1: get_column_width(header) for i, header in enumerate(headers)}
         
         # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_align
-            cell.border = border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_align, border
+        )
         
         # Current row to write data
         current_row = 2
@@ -482,13 +485,9 @@ def items_to_excel():
         headers = [
             "Name"
         ]
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_alignment
-            cell.border = thin_border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_alignment, thin_border
+        )
         
         # Current row to write data
         current_row = 2
