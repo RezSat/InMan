@@ -132,6 +132,19 @@ def get_division_details_with_counts(division_id: int):
         return _division_stats(db, [division])[0]
 
 
+def get_dashboard_counts():
+    """Counts for the three cards on the dashboard.
+
+    The Items card counts item types, matching the current interface.
+    """
+    with session_scope() as db:
+        return {
+            "employees": db.query(func.count(Employee.emp_id)).scalar(),
+            "items": db.query(func.count(Item.item_id)).scalar(),
+            "divisions": db.query(func.count(Division.division_id)).scalar(),
+        }
+
+
 def get_all_divisions_with_counts():
     with session_scope() as db:
         return _division_stats(db, db.query(Division).all())
