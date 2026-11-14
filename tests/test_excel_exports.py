@@ -37,6 +37,9 @@ class ExcelExportTests(unittest.TestCase):
         self.assertEqual([sheet.cell(2, col).value for col in range(1, 4)],
                          ["E101", "Employee One", "Operations"])
         self.assertEqual(sheet.cell(5, 2).value, 2)
+        self.assertTrue(sheet.cell(1, 1).font.bold)
+        self.assertEqual(sheet.cell(1, 1).alignment.horizontal, "center")
+        self.assertEqual(sheet.cell(1, 1).border.left.style, "thin")
 
     def test_item_types_report(self):
         path = self.save_path("items.xlsx")
@@ -57,6 +60,7 @@ class ExcelExportTests(unittest.TestCase):
         sheet = load_workbook(path)["Items"]
         self.assertEqual([sheet.cell(row, 1).value for row in range(1, 4)],
                          ["Name", "Laptop", "Monitor"])
+        self.assertTrue(sheet.cell(1, 1).font.bold)
 
     def test_division_inventory_keeps_headers_and_asset_rows(self):
         path = self.save_path("inventory.xlsx")
@@ -84,6 +88,7 @@ class ExcelExportTests(unittest.TestCase):
             "Operations", "Employee One", "E101", "Laptop", "ASSET-1",
             "RAM: 16GB",
         ])
+        self.assertTrue(sheet.cell(1, 1).fill.start_color.rgb.endswith("D3D3D3"))
 
 
 if __name__ == "__main__":
