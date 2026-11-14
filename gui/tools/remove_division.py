@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 from .selection import selected_ids, toggle_selected, update_remove_button, update_select_all_checkbox
 # gui/tools/remove_division.py
 
@@ -263,5 +264,4 @@ class RemoveDivision:
             messagebox.showinfo("Success", f"Successfully removed {removed_count} division(s).")
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
