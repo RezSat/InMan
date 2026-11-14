@@ -548,43 +548,38 @@ def remove_item_attribute(emp_id, item_id, name):
             return False
               
 def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: dict, notes: str = ""):
+    """Create an assignment, count it and save its attributes atomically."""
     with session_scope() as db:
-        # First, check if the item exists
         item = db.query(Item).filter(Item.item_id == item_id).first()
-        
-        if not item:
+        if item is None:
             raise ValueError(f"Item with ID {item_id} not found")
-        
-        # Create the employee item assignment
-        employee_item = EmployeeItem(
+
+        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+        if employee is None:
+            raise ValueError(f"Employee with ID {emp_id} not found")
+
+        assignment = EmployeeItem(
             emp_id=emp_id,
             item_id=item_id,
             unique_key=unique_key,
             date_assigned=datetime.utcnow(),
-            notes=notes
+            notes=notes,
         )
-        db.add(employee_item)
-        db.commit()
+        db.add(assignment)
+        db.flush()
 
-        # Update item count and log assignment
-        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
-        employee.item_count += 1
-        db.commit()
-
-        # Add attribute details
-        for name, value in attrs.items():
-            attribute = EmployeeItemAttribute(
-                emp_item_id=employee_item.id,
+        employee.item_count = (employee.item_count or 0) + 1
+        db.add_all([
+            EmployeeItemAttribute(
+                emp_item_id=assignment.id,
                 name=name,
-                value=value
+                value=value,
             )
-            db.add(attribute)
-        db.commit()
-
-        # Log the action
-        db.close()
+            for name, value in attrs.items()
+        ])
         return True
-      
+
+
 # Item Transfer
 def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = "") -> bool:
     with session_scope() as db:
