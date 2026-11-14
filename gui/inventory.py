@@ -1,17 +1,16 @@
 from gui.utils import clear_children
 import customtkinter as ctk
-from tkinter import messagebox, ttk, filedialog
-import pandas as pd
-import xlsxwriter
+from tkinter import messagebox, filedialog
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
 from config import COLORS
-from controllers import (get_all_employees, get_all_items, get_all_divisions, 
-                       get_division_details_with_counts, get_employee_details_with_items)
-from controllers.crud import get_all_division_names, get_division
-from models.database import SessionLocal
-from utils.search import search_divisions, search_employee_items, search_employees, search_items, search_unique_key
+from controllers.crud import get_all_division_names
+from utils.search import (
+    search_divisions, search_employee_items, search_employees,
+    search_items, search_unique_key,
+)
 
 class InventoryDisplay:
     def __init__(self, main_frame, inv):
