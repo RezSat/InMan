@@ -145,9 +145,12 @@ def get_dashboard_counts():
         }
 
 
-def get_all_divisions_with_counts():
+def get_all_divisions_with_counts(name_query=None):
     with session_scope() as db:
-        return _division_stats(db, db.query(Division).all())
+        divisions = db.query(Division)
+        if name_query is not None:
+            divisions = divisions.filter(Division.name.ilike(f"%{name_query}%"))
+        return _division_stats(db, divisions.all())
 
 
 def update_dvision(division_id, name):
