@@ -1,0 +1,51 @@
+name: InMan Windows build and regression tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build Windows executable
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-all customtkinter --icon assets/icon.ico --name InMan main.py
+
+      - name: Upload test build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InMan-Windows-test-build
+          path: dist/InMan.exe
+
+      - name: Publish v1.3.1 release after release merge
+        if: >-
+          github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v1.3.1')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create v1.3.1 dist/InMan.exe --target "${{ github.sha }}" --title "InMan v1.3.1 - Inventory integrity fixes" --notes "Fix Employee Items search failing on orphaned inventory rows. Prevent employee removal while assets are assigned. Bulk removal shows an error for protected employees. Includes automated regression tests."
