@@ -1,3 +1,4 @@
+from .selection import selected_ids, toggle_selected, update_remove_button, update_select_all_checkbox
 # gui/tools/remove_division.py
 
 import customtkinter as ctk
@@ -205,43 +206,26 @@ class RemoveDivision:
         self.update_bulk_remove_button()
 
     def toggle_select_all(self):
-        if self.select_all_checkbox.get():
-            # Select all filtered divisions
-            self.selected_divisions = {div["division_id"] for div in self.filtered_divisions}
-        else:
-            # Deselect all
-            self.selected_divisions.clear()
-
-        self.display()  # Refresh the view to show checkbox states
+        self.selected_divisions = selected_ids(
+            self.filtered_divisions, lambda division: division["division_id"], self.select_all_checkbox.get()
+        )
+        self.display()
         self.update_select_all_checkbox()
         self.update_bulk_remove_button()
 
     def toggle_division_selection(self, division):
-        div_id = division["division_id"]
-        if div_id in self.selected_divisions:
-            self.selected_divisions.remove(div_id)
-        else:
-            self.selected_divisions.add(div_id)
-
+        toggle_selected(self.selected_divisions, division["division_id"])
         self.update_bulk_remove_button()
         self.update_select_all_checkbox()
 
     def update_bulk_remove_button(self):
-        if self.selected_divisions:
-            self.bulk_remove_button.configure(state="normal")
-        else:
-            self.bulk_remove_button.configure(state="disabled")
+        update_remove_button(self.bulk_remove_button, self.selected_divisions)
 
     def update_select_all_checkbox(self):
-        filtered_div_ids = {div["division_id"] for div in self.filtered_divisions}
-        selected_filtered = self.selected_divisions.intersection(filtered_div_ids)
-
-        if not filtered_div_ids:
-            self.select_all_checkbox.deselect()
-        elif selected_filtered == filtered_div_ids:
-            self.select_all_checkbox.select()
-        else:
-            self.select_all_checkbox.deselect()
+        visible_ids = {record["division_id"] for record in self.filtered_divisions}
+        update_select_all_checkbox(
+            self.select_all_checkbox, self.selected_divisions, visible_ids
+        )
 
     def confirm_bulk_remove(self):
         if not self.selected_divisions:
