@@ -89,6 +89,17 @@ class EmployeeReadTests(unittest.TestCase):
         self.assertEqual(totals, {"employees": 4, "items": 2, "divisions": 2})
         self.assertLessEqual(queries, 3)
 
+    def test_division_search_keeps_field_contract(self):
+        matches, queries = self.sql_count(lambda: search.search_divisions("Oper"))
+        self.assertEqual(matches, [{
+            "division_id": 1,
+            "name": "Operations",
+            "employee_count": 4,
+            "item_count": 4,
+        }])
+        self.assertLessEqual(queries, 3)
+        self.assertEqual(search.search_divisions("does-not-exist"), [])
+
     def test_dashboard_counts_match_assignments(self):
         divisions, queries = self.sql_count(crud.get_all_divisions_with_counts)
         self.assertEqual(len(divisions), 2)
