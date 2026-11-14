@@ -84,6 +84,11 @@ class EmployeeReadTests(unittest.TestCase):
         self.assertEqual(matches[0]["attributes"], "RAM: 16GB")
         self.assertLessEqual(queries, 3, f"Employee items search issued {queries} queries")
 
+    def test_dashboard_headline_counts_use_bounded_queries(self):
+        totals, queries = self.sql_count(crud.get_dashboard_counts)
+        self.assertEqual(totals, {"employees": 4, "items": 2, "divisions": 2})
+        self.assertLessEqual(queries, 3)
+
     def test_dashboard_counts_match_assignments(self):
         divisions, queries = self.sql_count(crud.get_all_divisions_with_counts)
         self.assertEqual(len(divisions), 2)
