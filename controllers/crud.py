@@ -262,16 +262,16 @@ def get_employee_details_with_items_one(emp_id: str):
         raise
 
 
-def get_employee_details_with_items():
-    """Fetch the full inventory without a query for every employee and item."""
+def get_employee_details_with_items(emp_ids=None):
+    """Fetch all employees or a requested subset using batched relationships."""
     try:
         with session_scope() as db:
-            employees = (
-                db.query(Employee)
-                .options(*_employee_items_load_options())
-                .all()
-            )
-            return [_employee_with_items_to_dict(employee) for employee in employees]
+            query = db.query(Employee).options(*_employee_items_load_options())
+            if emp_ids is not None:
+                if not emp_ids:
+                    return []
+                query = query.filter(Employee.emp_id.in_(emp_ids))
+            return [_employee_with_items_to_dict(employee) for employee in query.all()]
     except Exception as exc:
         logger.error(f"Error retrieving employee details: {exc}")
         raise
