@@ -73,7 +73,10 @@ def search_employee_items(query: str, attr_name: str = None, attr_value: str = N
     """
     with SessionLocal() as db:
         # Base query to search by item name
-        base_query = db.query(EmployeeItem).join(Item).filter(
+        # Only show assignments that are linked to a real employee.
+        # Old databases may contain orphaned rows after employee deletion;
+        # attempting to read result.employee.name for those rows crashes.
+        base_query = db.query(EmployeeItem).join(Item).join(Employee).filter(
             Item.name.ilike(f"%{query}%")
         )
         
