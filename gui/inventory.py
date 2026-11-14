@@ -237,7 +237,6 @@ class InventoryDisplay:
             self.display_employee_results(results)
 
         elif search_type == "Employee Items":
-            print("HIITTTT THE BUTTON")
             attr_name = self.attr_name_filter.get() if hasattr(self, 'attr_name_filter') else None
             attr_value = self.attr_value_filter.get() if hasattr(self, 'attr_value_filter') else None
 
