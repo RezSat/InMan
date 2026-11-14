@@ -387,12 +387,27 @@ def get_employee_details_with_items():
         raise
 
 def delete_employee(emp_id: str):
+    """Delete an employee only after their assigned items have been handled.
+
+    Without this guard, SQLAlchemy may silently NULL the emp_id on existing
+    employee_items, leaving historical rows that crash inventory searches.
+    """
     with session_scope() as db:
-        employee = get_employee(emp_id)
-        if employee:
-            db.delete(employee)
-            db.commit()
-        db.close()
+        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+        if employee is None:
+            return None
+
+        assignment_count = db.query(EmployeeItem).filter(
+            EmployeeItem.emp_id == emp_id
+        ).count()
+        if assignment_count:
+            raise ValueError(
+                f"Cannot remove employee {emp_id}: {assignment_count} item(s) are "
+                "still assigned. Transfer or remove those assignments first."
+            )
+
+        db.delete(employee)
+        db.flush()
         return employee
 
 def add_item_attribute(item_id: int, name: str, value: str):
