@@ -1,6 +1,6 @@
 # utils/search.py
 from controllers.crud import *
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, contains_eager, selectinload
 from sqlalchemy import or_
 from models.models import Log, ItemTransferHistory, Employee, Item
 from datetime import datetime, timedelta
@@ -26,39 +26,37 @@ def convert_employees_to_dict(employees):
     ]
 
 def search_employees(query: str, division_name: str = None, items_need=False):
+    """Filter employee records without opening a session for each result."""
     with session_scope() as db:
-        # Base query to search by name or emp_id
-        base_query = db.query(Employee).filter(
-            (Employee.name.ilike(f"%{query}%")) |
-            (Employee.emp_id.ilike(f"%{query}%"))
-        )
-        
-        # If division name is provided, add division filter
-        if division_name:
-            print(division_name)
-            base_query = base_query.join(Division).filter(
-                Division.name == division_name
+        base_query = (
+            db.query(Employee)
+            .options(joinedload(Employee.division))
+            .filter(
+                (Employee.name.ilike(f"%{query}%")) |
+                (Employee.emp_id.ilike(f"%{query}%"))
             )
-        
-        # Execute the query
-        employees = base_query.all()
-        
-        # Transform employees to list of dictionaries
-        employee_list = []
-        for emp in employees:
+        )
+        if division_name:
+            base_query = base_query.join(Division).filter(Division.name == division_name)
 
-            if items_need:
-                employee_dict = get_employee_details_with_items_one(emp.emp_id)
-            else:
-                employee_dict = {
-                    "emp_id": emp.emp_id,
-                    "name": emp.name,
-                    "division": emp.division.name if emp.division else None,
-                }
-            employee_list.append(employee_dict)
-        
-        return employee_list
-    
+        matches = [
+            (emp.emp_id, emp.name, emp.division.name if emp.division else None)
+            for emp in base_query.all()
+        ]
+
+    if not items_need:
+        return [
+            {"emp_id": emp_id, "name": name, "division": division}
+            for emp_id, name, division in matches
+        ]
+
+    records = {
+        record["emp_id"]: record
+        for record in get_employee_details_with_items([emp_id for emp_id, _, _ in matches])
+    }
+    return [records[emp_id] for emp_id, _, _ in matches]
+
+
 def search_employee_items(query: str, attr_name: str = None, attr_value: str = None):
     """
     Search for employee items by item name, attribute name, or attribute value.
@@ -76,8 +74,16 @@ def search_employee_items(query: str, attr_name: str = None, attr_value: str = N
         # Only show assignments that are linked to a real employee.
         # Old databases may contain orphaned rows after employee deletion;
         # attempting to read result.employee.name for those rows crashes.
-        base_query = db.query(EmployeeItem).join(Item).join(Employee).filter(
-            Item.name.ilike(f"%{query}%")
+        base_query = (
+            db.query(EmployeeItem)
+            .join(Item)
+            .join(Employee)
+            .options(
+                contains_eager(EmployeeItem.item),
+                joinedload(EmployeeItem.employee),
+                selectinload(EmployeeItem.attributes),
+            )
+            .filter(Item.name.ilike(f"%{query}%"))
         )
         
         # If attribute name is provided, add attribute filter
