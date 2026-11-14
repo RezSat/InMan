@@ -79,6 +79,47 @@ class EmployeeInventoryIntegrityTests(unittest.TestCase):
             self.assertEqual(db.query(EmployeeItem).count(), 2)
             self.assertEqual(db.get(Employee, "E002").item_count, 0)
 
+    def test_transfer_moves_exact_asset_and_keeps_attributes(self):
+        with self.Session.begin() as db:
+            db.add(EmployeeItem(
+                id=3, emp_id="E001", item_id=1, unique_key="ANOTHER-LAPTOP"
+            ))
+            db.add(EmployeeItemAttribute(
+                emp_item_id=1, name="Serial", value="S-101"
+            ))
+            db.get(Employee, "E001").item_count = 2
+
+        self.assertTrue(crud.transfer_item(
+            "E001", "E002", 1, "CURRENT", notes="Moved"
+        ))
+        with self.Session() as db:
+            source_keys = {
+                record.unique_key for record in db.query(EmployeeItem).filter(
+                    EmployeeItem.emp_id == "E001"
+                ).all()
+            }
+            self.assertEqual(source_keys, {"ANOTHER-LAPTOP"})
+            target = db.query(EmployeeItem).filter(
+                EmployeeItem.emp_id == "E002"
+            ).one()
+            self.assertEqual(target.unique_key, "CURRENT")
+            attrs = db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == target.id
+            ).all()
+            self.assertEqual([(a.name, a.value) for a in attrs],
+                             [("Serial", "S-101")])
+            self.assertEqual(db.get(Employee, "E001").item_count, 1)
+            self.assertEqual(db.get(Employee, "E002").item_count, 1)
+
+    def test_transfer_failure_does_not_move_other_instance(self):
+        self.assertFalse(crud.transfer_item("E001", "E002", 1, "NO-SUCH-KEY"))
+        self.assertFalse(crud.transfer_item("E001", "MISSING", 1, "CURRENT"))
+        with self.Session() as db:
+            assignment = db.get(EmployeeItem, 1)
+            self.assertEqual(assignment.emp_id, "E001")
+            self.assertEqual(db.get(Employee, "E001").item_count, 1)
+            self.assertEqual(db.get(Employee, "E002").item_count, 0)
+
     def test_missing_employee_is_noop(self):
         self.assertIsNone(crud.delete_employee("NOT-FOUND"))
 
