@@ -7,7 +7,7 @@ from models.models import (
     Log, ItemTransferHistory, Employee, Item, Division,
     EmployeeItem, EmployeeItemAttribute,
 )
-from sqlalchemy.orm import Session, joinedload, contains_eager, selectinload
+from sqlalchemy.orm import Session, joinedload, contains_eager, selectinload, aliased
 from sqlalchemy import or_, func
 from datetime import datetime, timedelta
 
@@ -249,44 +249,38 @@ def search_logs(search_term: str = None,
         db.close()
 
 def search_item_transfer_history(
-    search_term: str = None, 
-    start_date: datetime = None, 
-    end_date: datetime = None
+    search_term: str = None,
+    start_date: datetime = None,
+    end_date: datetime = None,
 ):
-    db = SessionLocal()
-    
-    try:
-        query = db.query(ItemTransferHistory).join(Item).join(
-            Employee, ItemTransferHistory.from_emp_id == Employee.emp_id
-        ).join(
-            Employee, ItemTransferHistory.to_emp_id == Employee.emp_id,
-            isouter=True
-        )
-        
-        # Apply search term filter across multiple fields
-        if search_term:
-            query = query.filter(
-                or_(
-                    Employee.name.ilike(f"%{search_term}%"),
-                    Item.name.ilike(f"%{search_term}%"),
-                    ItemTransferHistory.notes.ilike(f"%{search_term}%")
-                )
+    """Search transfers using distinct source and destination employee aliases."""
+    with SessionLocal() as db:
+        source = aliased(Employee)
+        destination = aliased(Employee)
+        query = (
+            db.query(ItemTransferHistory)
+            .join(Item, ItemTransferHistory.item_id == Item.item_id)
+            .outerjoin(source, ItemTransferHistory.from_emp_id == source.emp_id)
+            .outerjoin(destination, ItemTransferHistory.to_emp_id == destination.emp_id)
+            .options(
+                joinedload(ItemTransferHistory.item),
+                joinedload(ItemTransferHistory.from_employee),
+                joinedload(ItemTransferHistory.to_employee),
             )
-        
-        # Apply date range filter
+        )
+        if search_term:
+            query = query.filter(or_(
+                source.name.ilike(f"%{search_term}%"),
+                destination.name.ilike(f"%{search_term}%"),
+                Item.name.ilike(f"%{search_term}%"),
+                ItemTransferHistory.notes.ilike(f"%{search_term}%"),
+            ))
         if start_date:
             query = query.filter(ItemTransferHistory.transfer_date >= start_date)
-        
         if end_date:
             query = query.filter(ItemTransferHistory.transfer_date <= end_date)
-        
-        # Order by most recent first
-        query = query.order_by(ItemTransferHistory.transfer_date.desc())
-        
-        return query.all()
-    
-    finally:
-        db.close()
+        return query.order_by(ItemTransferHistory.transfer_date.desc()).all()
+
 
 def get_recent_logs(days: int = 30, limit: int = 100):
     db = SessionLocal()
@@ -331,11 +325,11 @@ def get_transfer_history_summary(days: int = 30):
         
         # Group transfers by item
         item_transfer_counts = (
-            db.query(Item.name, db.func.count(ItemTransferHistory.transfer_id))
+            db.query(Item.name, func.count(ItemTransferHistory.transfer_id))
             .join(ItemTransferHistory, Item.item_id == ItemTransferHistory.item_id)
             .filter(ItemTransferHistory.transfer_date >= threshold_date)
             .group_by(Item.name)
-            .order_by(db.func.count(ItemTransferHistory.transfer_id).desc())
+            .order_by(func.count(ItemTransferHistory.transfer_id).desc())
             .limit(10)
             .all()
         )
