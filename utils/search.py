@@ -1,8 +1,14 @@
 # utils/search.py
-from controllers.crud import *
-from sqlalchemy.orm import joinedload, contains_eager, selectinload
-from sqlalchemy import or_
-from models.models import Log, ItemTransferHistory, Employee, Item
+from controllers.crud import (
+    get_division, get_employee_details_with_items, get_all_divisions_with_counts,
+)
+from models.database import SessionLocal, session_scope
+from models.models import (
+    Log, ItemTransferHistory, Employee, Item, Division,
+    EmployeeItem, EmployeeItemAttribute,
+)
+from sqlalchemy.orm import Session, joinedload, contains_eager, selectinload
+from sqlalchemy import or_, func
 from datetime import datetime, timedelta
 
 def convert_items_to_dict(items):
@@ -160,47 +166,18 @@ def search_unique_key(query=""):
   
 # Search Divisions by name
 def search_divisions(query: str):
-    """
-    Search for divisions by name with employee and item counts
-    
-    Args:
-        query (str): Search term to find divisions
-    
-    Returns:
-        List of dictionaries containing division details
-    """
-    with session_scope() as db:
-        # Search for divisions matching the query
-        divisions = (
-            db.query(Division)
-            .filter(Division.name.ilike(f"%{query}%"))
-            .all()
-        )
-        
-        division_details_list = []
-        
-        for division in divisions:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(
-                EmployeeItem.emp_id == Employee.emp_id, 
-                Employee.division_id == division.division_id
-            ).count()
-            
-            # Prepare the details for the division
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count
-            }
-            
-            division_details_list.append(division_details)
-        
-        return division_details_list
-    
+    """Return division counts with the original inventory search fields."""
+    return [
+        {
+            "division_id": division["division_id"],
+            "name": division["name"],
+            "employee_count": division["employee_count"],
+            "item_count": division["item_count"],
+        }
+        for division in get_all_divisions_with_counts(query)
+    ]
+
+
 # Get item by its unique key
 def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).join(EmployeeItem).filter(EmployeeItem.unique_key == unique_key).first()
