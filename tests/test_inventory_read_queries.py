@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from controllers import crud
+from utils import search
 import models.database as database
 from models.database import Base
 from models.models import Division, Employee, Item, EmployeeItem, EmployeeItemAttribute
@@ -19,6 +20,9 @@ class EmployeeReadTests(unittest.TestCase):
         self.session_patch = patch.object(database, "Session", self.Session)
         self.session_patch.start()
         self.addCleanup(self.session_patch.stop)
+        self.search_patch = patch.object(search, "SessionLocal", self.Session)
+        self.search_patch.start()
+        self.addCleanup(self.search_patch.stop)
         self.addCleanup(self.engine.dispose)
         with self.Session.begin() as db:
             db.add(Division(division_id=1, name="Operations"))
@@ -36,6 +40,7 @@ class EmployeeReadTests(unittest.TestCase):
                 EmployeeItem(id=2, emp_id="E001", item_id=2, unique_key="MN-01"),
                 EmployeeItem(id=3, emp_id="E001", item_id=1, unique_key="LP-02"),
                 EmployeeItem(id=4, emp_id="E002", item_id=2, unique_key="MN-02"),
+                EmployeeItem(id=5, emp_id=None, item_id=1, unique_key="OLD-ORPHAN"),
             ])
             db.flush()
             db.add_all([
@@ -57,6 +62,27 @@ class EmployeeReadTests(unittest.TestCase):
         finally:
             event.remove(self.engine, "before_cursor_execute", on_query)
         return result, count
+
+    def test_employee_search_keeps_order_and_item_payload(self):
+        matches, queries = self.sql_count(
+            lambda: search.search_employees("Employee", items_need=True)
+        )
+        self.assertEqual([row["emp_id"] for row in matches],
+                         ["E001", "E002", "E003", "E004"])
+        self.assertEqual(matches[0]["items"][0]["unique_key"], "LP-01")
+        self.assertLessEqual(queries, 5, f"Employee search issued {queries} queries")
+        self.assertEqual(
+            [row["emp_id"] for row in search.search_employees("E002")],
+            ["E002"],
+        )
+
+    def test_employee_items_search_ignores_orphans_in_bounded_queries(self):
+        matches, queries = self.sql_count(lambda: search.search_employee_items("Laptop"))
+        self.assertEqual([row["unique_key"] for row in matches],
+                         ["LP-01", "LP-02"])
+        self.assertEqual(matches[0]["emp_name"], "Employee 1")
+        self.assertEqual(matches[0]["attributes"], "RAM: 16GB")
+        self.assertLessEqual(queries, 3, f"Employee items search issued {queries} queries")
 
     def test_dashboard_counts_match_assignments(self):
         divisions, queries = self.sql_count(crud.get_all_divisions_with_counts)
