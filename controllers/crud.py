@@ -1,7 +1,7 @@
 # controllers/crud.py
 
 from venv import logger
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from models.models import *
 from models.database import session_scope, SessionLocal
 from datetime import datetime
@@ -212,179 +212,87 @@ def get_all_employees_ids():
         x = [ i.emp_id for i in employees]
         return x
     
+def _employee_items_load_options():
+    """Load the inventory needed by the employee screens in bounded queries."""
+    return (
+        joinedload(Employee.division),
+        selectinload(Employee.items).joinedload(EmployeeItem.item),
+        selectinload(Employee.items).selectinload(EmployeeItem.attributes),
+    )
+
+
+def _employee_with_items_to_dict(employee):
+    """Preserve the original item grouping and response fields.
+
+    An employee may have multiple assignments for the same item type.
+    Group by item type before returning rows, matching the previous report
+    ordering rather than interleaving individual assignments.
+    """
+    assignments_by_item = {}
+    for assignment in sorted(employee.items, key=lambda row: row.id):
+        item = assignment.item
+        if item is None:
+            continue
+
+        record = {
+            "item_id": item.item_id,
+            "name": item.name,
+            "unique_key": assignment.unique_key,
+            "date_assigned": (
+                assignment.date_assigned.strftime("%Y-%m-%d")
+                if assignment.date_assigned else None
+            ),
+            "attributes": [
+                {"name": attribute.name, "value": attribute.value}
+                for attribute in sorted(assignment.attributes, key=lambda row: row.emp_attribute_id)
+            ],
+        }
+        assignments_by_item.setdefault(item.item_id, []).append(record)
+
+    return {
+        "emp_id": employee.emp_id,
+        "name": employee.name,
+        "division": employee.division.name if employee.division else "Unassigned",
+        "items": [
+            record
+            for grouped_records in assignments_by_item.values()
+            for record in grouped_records
+        ],
+    }
+
+
 def get_employee_details_with_items_one(emp_id: str):
-    """
-    Retrieve employee details along with their associated items
-    
-    Args:
-        emp_id (str): Employee ID
-    
-    Returns:
-        Dictionary containing employee and item information
-    """
+    """Return one employee with their assigned assets and custom attributes."""
     try:
         with session_scope() as db:
-            # Query employee with their items and division in a single query
             employee = (
                 db.query(Employee)
-                .options(joinedload(Employee.division))  # Load division data
+                .options(*_employee_items_load_options())
                 .filter(Employee.emp_id == emp_id)
                 .first()
             )
-            
-            if not employee:
+            if employee is None:
                 raise ValueError(f"Employee with ID {emp_id} not found")
-            
-            # Get items through EmployeeItem relationship
-            items_query = (
-                db.query(Item)
-                .join(EmployeeItem)
-                .filter(EmployeeItem.emp_id == emp_id)
-                .all()
-            )
-
-            # Format items data
-            items_data = []
-            for item in items_query:
-                # Get all EmployeeItem records for the current item
-                emp_items = (
-                    db.query(EmployeeItem)
-                    .filter(
-                        EmployeeItem.emp_id == emp_id,
-                        EmployeeItem.item_id == item.item_id
-                    )
-                    .all()
-                )
-                
-                # Prepare item data for each EmployeeItem record
-                for emp_item in emp_items:
-                    # Get attribute details for the current EmployeeItem record
-                    attributes_query = (
-                        db.query(EmployeeItemAttribute)
-                        .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
-                        .all()
-                    )
-                    
-                    # Format attribute data
-                    attributes_data = []
-                    for attribute in attributes_query:
-                        attribute_data = {
-                            "name": attribute.name,
-                            "value": attribute.value
-                        }
-                        attributes_data.append(attribute_data)
-                    
-                    # Prepare item data
-                    item_data = {
-                        "item_id": item.item_id,
-                        "name": item.name,
-                        "unique_key": emp_item.unique_key,
-                        "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                        "attributes": attributes_data
-                    }
-                    items_data.append(item_data)
-            
-            # Prepare employee data
-            emp_data = {
-                "emp_id": employee.emp_id,
-                "name": employee.name,
-                "division": employee.division.name if employee.division else "Unassigned",
-                "items": items_data
-            }
-
-            db.close()
-            
-            return emp_data
-    
-    except Exception as e:
-        logger.error(f"Error retrieving employee details for {emp_id}: {str(e)}")
+            return _employee_with_items_to_dict(employee)
+    except Exception as exc:
+        logger.error(f"Error retrieving employee details for {emp_id}: {exc}")
         raise
+
 
 def get_employee_details_with_items():
-    """
-    Retrieve all employee details along with their associated items
-    
-    Returns:
-        List of dictionaries containing employee and item information
-    """
+    """Fetch the full inventory without a query for every employee and item."""
     try:
         with session_scope() as db:
-            # Query employees with their items and division in a single query
             employees = (
                 db.query(Employee)
-                .options(joinedload(Employee.division))  # Load division data
+                .options(*_employee_items_load_options())
                 .all()
             )
-            
-            # Transform query results into desired format
-            employee_details = []
-            for emp in employees:
-                # Get items through EmployeeItem relationship
-                items_query = (
-                    db.query(Item)
-                    .join(EmployeeItem)
-                    .filter(EmployeeItem.emp_id == emp.emp_id)
-                    .all()
-                )
-
-                # Format items data
-                items_data = []
-                for item in items_query:
-                    # Get all EmployeeItem records for the current item
-                    emp_items = (
-                        db.query(EmployeeItem)
-                        .filter(
-                            EmployeeItem.emp_id == emp.emp_id,
-                            EmployeeItem.item_id == item.item_id
-                        )
-                        .all()
-                    )
-                    
-                    # Prepare item data for each EmployeeItem record
-                    for emp_item in emp_items:
-                        # Get attribute details for the current EmployeeItem record
-                        attributes_query = (
-                            db.query(EmployeeItemAttribute)
-                            .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
-                            .all()
-                        )
-                        
-                        # Format attribute data
-                        attributes_data = []
-                        for attribute in attributes_query:
-                            attribute_data = {
-                                "name": attribute.name,
-                                "value": attribute.value
-                            }
-                            attributes_data.append(attribute_data)
-                        
-                        # Prepare item data
-                        item_data = {
-                            "item_id": item.item_id,
-                            "name": item.name,
-                            "unique_key": emp_item.unique_key,
-                            "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                            "attributes": attributes_data
-                        }
-                        items_data.append(item_data)
-                
-                # Prepare employee data
-                emp_data = {
-                    "emp_id": emp.emp_id,
-                    "name": emp.name,
-                    "division": emp.division.name if emp.division else "Unassigned",
-                    "items": items_data
-                }
-                employee_details.append(emp_data)
-
-  
-            db.close()
-            
-            return employee_details
-    
-    except Exception as e:
-        logger.error(f"Error retrieving employee details: {str(e)}")
+            return [_employee_with_items_to_dict(employee) for employee in employees]
+    except Exception as exc:
+        logger.error(f"Error retrieving employee details: {exc}")
         raise
+
 
 def delete_employee(emp_id: str):
     """Delete an employee only after their assigned items have been handled.
