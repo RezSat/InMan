@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/update_division.py
 
 import customtkinter as ctk
@@ -270,5 +271,4 @@ class UpdateDivision:
         self.create_divisions_view()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
