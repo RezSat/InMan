@@ -413,16 +413,10 @@ def update_item_details(item_dict):
         return None
         
 def get_item(item_id: int):
+    """Return an item type. Instance attributes live on EmployeeItem."""
     with session_scope() as db:
-        # Fetch the item with its attributes in a single query
-        item = (
-            db.query(Item)
-            .options(joinedload(Item.attributes))  # Eagerly load attributes
-            .filter(Item.item_id == item_id)
-            .first()
-        )
-                
-        return item
+        return db.query(Item).filter(Item.item_id == item_id).first()
+
 
 def get_all_items():
     db = SessionLocal()
