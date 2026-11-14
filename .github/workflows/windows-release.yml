@@ -33,7 +33,7 @@ jobs:
 
       - name: Build Windows executable
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-all customtkinter --icon assets/icon.ico --name InMan main.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --collect-all customtkinter --icon assets/CustomTkinter_icon_Windows.ico --name InMan main.py
 
       - name: Upload test build artifact
         uses: actions/upload-artifact@v4
@@ -41,11 +41,11 @@ jobs:
           name: InMan-Windows-test-build
           path: dist/InMan.exe
 
-      - name: Publish v1.3.1 release after release merge
+      - name: Publish v1.3.2 release after release merge
         if: >-
-          github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v1.3.1')
+          github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v1.3.2')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create v1.3.1 dist/InMan.exe --target "${{ github.sha }}" --title "InMan v1.3.1 - Inventory integrity fixes" --notes "Fix Employee Items search failing on orphaned inventory rows. Prevent employee removal while assets are assigned. Bulk removal shows an error for protected employees. Includes automated regression tests."
+          gh release create v1.3.2 dist/InMan.exe --target "${{ github.sha }}" --title "InMan v1.3.2 - Original icon restored" --notes "Retains v1.3.1 inventory integrity protections and restores the original pink-and-cream IM executable icon. Unsigned Windows builds can still trigger Microsoft Defender SmartScreen reputation warnings."
