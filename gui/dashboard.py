@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # 
 import customtkinter as ctk
 from config import COLORS
@@ -269,5 +270,4 @@ class Dashboard:
         self.main_frame = original_main_frame
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
