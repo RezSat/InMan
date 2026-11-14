@@ -4,7 +4,7 @@ from .sidebar import create_sidebar
 from .inventory import InventoryDisplay
 from .dashboard import Dashboard
 from .login import LoginPage
-from .utils import load_inventory, save_inventory
+from .utils import load_inventory, save_inventory, clear_children
 from config import  COLORS
 
 class InventoryApp():
@@ -66,6 +66,5 @@ class InventoryApp():
         self.window.mainloop()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
