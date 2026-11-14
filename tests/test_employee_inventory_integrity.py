@@ -13,6 +13,7 @@ from models.database import Base
 from models.models import Division, Employee, EmployeeItem, EmployeeItemAttribute, Item, ItemTransferHistory
 from controllers import crud
 from utils import search
+from utils import search
 import models.database as database
 
 
@@ -79,6 +80,19 @@ class EmployeeInventoryIntegrityTests(unittest.TestCase):
         with self.Session() as db:
             self.assertEqual(db.query(EmployeeItem).count(), 2)
             self.assertEqual(db.get(Employee, "E002").item_count, 0)
+
+    def test_transfer_history_search_and_summary(self):
+        with self.Session.begin() as db:
+            db.add(ItemTransferHistory(
+                item_id=1, from_emp_id="E001", to_emp_id="E002",
+                transfer_date=date.today(), notes="Moved"
+            ))
+        by_source = search.search_item_transfer_history("Current")
+        by_destination = search.search_item_transfer_history("No Items")
+        self.assertEqual(len(by_source), 1)
+        self.assertEqual(len(by_destination), 1)
+        self.assertEqual(by_source[0].item.name, "Monitor")
+        self.assertEqual(search.get_transfer_history_summary(days=30)["total_transfers"], 1)
 
     def test_employee_id_changes_preserve_asset_and_transfer_references(self):
         with self.Session.begin() as db:
