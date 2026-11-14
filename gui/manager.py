@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 import customtkinter as ctk
 from config import COLORS
 from gui.tools import (
@@ -238,5 +239,4 @@ class ManagerTools():
                 card.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
