@@ -13,7 +13,6 @@ from models.database import Base
 from models.models import Division, Employee, EmployeeItem, EmployeeItemAttribute, Item, ItemTransferHistory
 from controllers import crud
 from utils import search
-from utils import search
 import models.database as database
 
 
