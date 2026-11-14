@@ -208,12 +208,17 @@ class RemoveEmployee:
             self.remove_employee(employee)
 
     def remove_employee(self, employee):
-        # Remove employee from data source
-        d = delete_employee(employee["emp_id"])
+        try:
+            delete_employee(employee["emp_id"])
+        except ValueError as exc:
+            messagebox.showerror("Employee has assigned items", str(exc))
+            return
+        except Exception as exc:
+            messagebox.showerror("Remove Employee Error", str(exc))
+            return
+
         self.employees_data = get_all_employees()
         self.filtered_employees = self.employees_data.copy()
-        
-        # Refresh the employee view
         self.display()
 
     def display(self):
