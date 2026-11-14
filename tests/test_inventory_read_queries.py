@@ -22,6 +22,7 @@ class EmployeeReadTests(unittest.TestCase):
         self.addCleanup(self.engine.dispose)
         with self.Session.begin() as db:
             db.add(Division(division_id=1, name="Operations"))
+            db.add(Division(division_id=2, name="Empty Division"))
             db.add(Item(item_id=1, name="Laptop"))
             db.add(Item(item_id=2, name="Monitor"))
             for number in range(1, 5):
@@ -56,6 +57,37 @@ class EmployeeReadTests(unittest.TestCase):
         finally:
             event.remove(self.engine, "before_cursor_execute", on_query)
         return result, count
+
+    def test_dashboard_counts_match_assignments(self):
+        divisions, queries = self.sql_count(crud.get_all_divisions_with_counts)
+        self.assertEqual(len(divisions), 2)
+        self.assertEqual(divisions[0], {
+            "division_id": 1,
+            "name": "Operations",
+            "employee_count": 4,
+            "item_count": 4,
+            "items": [
+                {"name": "Laptop", "count": 2},
+                {"name": "Monitor", "count": 2},
+            ],
+        })
+        self.assertEqual(divisions[1], {
+            "division_id": 2,
+            "name": "Empty Division",
+            "employee_count": 0,
+            "item_count": 0,
+            "items": [],
+        })
+        self.assertLessEqual(queries, 3, f"Dashboard issued {queries} queries")
+
+    def test_single_division_keeps_response_contract(self):
+        division, queries = self.sql_count(
+            lambda: crud.get_division_details_with_counts(1)
+        )
+        self.assertEqual(division["item_count"], 4)
+        self.assertEqual(division["employee_count"], 4)
+        self.assertLessEqual(queries, 3)
+        self.assertIsNone(crud.get_division_details_with_counts(999))
 
     def test_single_employee_items_keep_fields_and_grouping(self):
         employee = crud.get_employee_details_with_items_one("E001")
