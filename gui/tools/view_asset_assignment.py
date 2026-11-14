@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/view_asset_assignment.py
 
 import customtkinter as ctk
@@ -135,5 +136,4 @@ class ViewAssetAssignment:
         self.create_logs_layout()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
