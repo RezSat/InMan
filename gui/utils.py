@@ -12,3 +12,9 @@ def load_inventory():
 def save_inventory(inventory):
     with open('inventory.json', 'w') as file:
         json.dump(inventory, file, indent=4)
+
+
+def clear_children(frame):
+    """Destroy all children without changing the parent frame layout."""
+    for widget in frame.winfo_children():
+        widget.destroy()

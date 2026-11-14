@@ -1,3 +1,5 @@
+from gui.utils import clear_children
+from .selection import selected_ids, toggle_selected, update_remove_button, update_select_all_checkbox
 # gui/tools/remove_items.py
 
 import customtkinter as ctk
@@ -250,43 +252,26 @@ class RemoveItem:
         self.update_bulk_remove_button()
 
     def toggle_select_all(self):
-        if self.select_all_checkbox.get():
-            # Select all filtered items
-            self.selected_items = {item.item_id for item in self.filtered_items}
-        else:
-            # Deselect all
-            self.selected_items.clear()
-
-        self.display()  # Refresh the view to show checkbox states
+        self.selected_items = selected_ids(
+            self.filtered_items, lambda item: item.item_id, self.select_all_checkbox.get()
+        )
+        self.display()
         self.update_select_all_checkbox()
         self.update_bulk_remove_button()
 
     def toggle_item_selection(self, item):
-        item_id = item.item_id
-        if item_id in self.selected_items:
-            self.selected_items.remove(item_id)
-        else:
-            self.selected_items.add(item_id)
-
+        toggle_selected(self.selected_items, item.item_id)
         self.update_bulk_remove_button()
         self.update_select_all_checkbox()
 
     def update_bulk_remove_button(self):
-        if self.selected_items:
-            self.bulk_remove_button.configure(state="normal")
-        else:
-            self.bulk_remove_button.configure(state="disabled")
+        update_remove_button(self.bulk_remove_button, self.selected_items)
 
     def update_select_all_checkbox(self):
-        filtered_item_ids = {item.item_id for item in self.filtered_items}
-        selected_filtered = self.selected_items.intersection(filtered_item_ids)
-
-        if not filtered_item_ids:
-            self.select_all_checkbox.deselect()
-        elif selected_filtered == filtered_item_ids:
-            self.select_all_checkbox.select()
-        else:
-            self.select_all_checkbox.deselect()
+        visible_ids = {record.item_id for record in self.filtered_items}
+        update_select_all_checkbox(
+            self.select_all_checkbox, self.selected_items, visible_ids
+        )
 
     def confirm_bulk_remove(self):
         if not self.selected_items:
@@ -324,5 +309,4 @@ class RemoveItem:
             messagebox.showinfo("Success", f"Successfully removed {removed_count} item(s).")
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

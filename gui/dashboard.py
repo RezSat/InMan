@@ -1,13 +1,8 @@
+from gui.utils import clear_children
 # 
 import customtkinter as ctk
 from config import COLORS
-from controllers import (
-    get_all_employees,
-    get_all_items,
-    get_all_divisions,
-    get_division_details_with_counts
-)
-from controllers.crud import get_all_divisions_with_counts
+from controllers.crud import get_all_divisions_with_counts, get_dashboard_counts
 import webbrowser
 
 class Dashboard:
@@ -184,12 +179,10 @@ class Dashboard:
         # Configure grid for responsive layout
         overview_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
         
-        # Fetch data
-        total_employees = len(get_all_employees())
-        total_items = len(get_all_items())
-        all_divisions = get_all_divisions()
-        total_divisions = len(all_divisions)
-        active_items = sum(1 for item in get_all_items())
+        totals = get_dashboard_counts()
+        total_employees = totals["employees"]
+        total_items = totals["items"]
+        total_divisions = totals["divisions"]
         
         # Create stat cards
         self.create_stat_card(
@@ -269,5 +262,4 @@ class Dashboard:
         self.main_frame = original_main_frame
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

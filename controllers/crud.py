@@ -1,7 +1,7 @@
 # controllers/crud.py
 
 from venv import logger
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from models.models import *
 from models.database import session_scope, SessionLocal
 from datetime import datetime
@@ -75,84 +75,83 @@ def get_all_division_names():
         db.close()
         return [name[0] for name in division_names]
 
+def _division_stats(db, divisions):
+    """Build dashboard totals with a fixed number of queries.
+
+    Counts refer to employee-owned assignments, not unassigned inventory.
+    The response shape is shared by the dashboard and division details view.
+    """
+    if not divisions:
+        return []
+
+    ids = [division.division_id for division in divisions]
+    employees_by_division = dict(
+        db.query(Employee.division_id, func.count(Employee.emp_id))
+        .filter(Employee.division_id.in_(ids))
+        .group_by(Employee.division_id)
+        .all()
+    )
+    rows = (
+        db.query(
+            Employee.division_id,
+            Item.name,
+            Item.item_id,
+            func.count(EmployeeItem.id),
+        )
+        .join(EmployeeItem, EmployeeItem.emp_id == Employee.emp_id)
+        .join(Item, Item.item_id == EmployeeItem.item_id)
+        .filter(Employee.division_id.in_(ids))
+        .group_by(Employee.division_id, Item.name, Item.item_id)
+        .order_by(Item.name, Item.item_id)
+        .all()
+    )
+
+    items_by_division = {division_id: [] for division_id in ids}
+    item_counts = {division_id: 0 for division_id in ids}
+    for division_id, item_name, _, count in rows:
+        items_by_division[division_id].append({"name": item_name, "count": count})
+        item_counts[division_id] += count
+
+    return [
+        {
+            "division_id": division.division_id,
+            "name": division.name,
+            "employee_count": employees_by_division.get(division.division_id, 0),
+            "item_count": item_counts[division.division_id],
+            "items": items_by_division[division.division_id],
+        }
+        for division in divisions
+    ]
+
+
 def get_division_details_with_counts(division_id: int):
     with session_scope() as db:
-        # Get the division
         division = db.query(Division).filter(Division.division_id == division_id).first()
-        
-        if division:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division_id).count()
-            
-            # Prepare items data
-            items_data = db.query(Item.name, func.count(EmployeeItem.id).label('count')) \
-                .join(EmployeeItem) \
-                .join(Employee) \
-                .filter(Employee.division_id == division_id) \
-                .group_by(Item.name) \
-                .all()
-            
-            # Format items data
-            items_list = [{"name": item.name, "count": item.count} for item in items_data]
-            
-            # Prepare the details to return
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count,
-                "items": items_list
-            }
-
-            db.close()
-            
-            return division_details
-        else:
-            db.close()
+        if division is None:
             return None
+        return _division_stats(db, [division])[0]
 
-def get_all_divisions_with_counts():
+
+def get_dashboard_counts():
+    """Counts for the three cards on the dashboard.
+
+    The Items card counts item types, matching the current interface.
+    """
     with session_scope() as db:
-        # Get all divisions
-        divisions = db.query(Division).all()
-        
-        division_details_list = []
-        
-        for division in divisions:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division.division_id).count()
-            
-            # Prepare items data
-            items_data = db.query(Item.name, Item.item_id, func.count(EmployeeItem.id).label('count')) \
-                .join(EmployeeItem) \
-                .join(Employee) \
-                .filter(Employee.division_id == division.division_id) \
-                .group_by(Item.name, Item.item_id) \
-                .all()
-            
-            # Format items data
-            items_list = [{"name": item.name, "count": item.count} for item in items_data]
-            
-            # Prepare the details for the division
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count,
-                "items": items_list
-            }
-            
-            division_details_list.append(division_details)
+        return {
+            "employees": db.query(func.count(Employee.emp_id)).scalar(),
+            "items": db.query(func.count(Item.item_id)).scalar(),
+            "divisions": db.query(func.count(Division.division_id)).scalar(),
+        }
 
-        db.close()
-        
-        return division_details_list
+
+def get_all_divisions_with_counts(name_query=None):
+    with session_scope() as db:
+        divisions = db.query(Division)
+        if name_query is not None:
+            divisions = divisions.filter(Division.name.ilike(f"%{name_query}%"))
+        return _division_stats(db, divisions.all())
+
 
 def update_dvision(division_id, name):
     with session_scope() as db:
@@ -193,18 +192,18 @@ def get_employee(emp_id: str):
         return y
 
 def get_all_employees():
+    """Load employee and division labels in one database round trip."""
     with session_scope() as db:
-        employees = db.query(Employee).all()
-        x = [
+        employees = db.query(Employee).options(joinedload(Employee.division)).all()
+        return [
             {
-                'emp_id': emp.emp_id,
-                'name': emp.name,
-                'division_id': emp.division_id,
-                'division': str(get_division(emp.division_id).name)
-            } for emp in employees
+                "emp_id": emp.emp_id,
+                "name": emp.name,
+                "division_id": emp.division_id,
+                "division": str(emp.division.name),
+            }
+            for emp in employees
         ]
-        db.close()
-        return x
 
 def get_all_employees_ids():
     with session_scope() as db:
@@ -212,179 +211,87 @@ def get_all_employees_ids():
         x = [ i.emp_id for i in employees]
         return x
     
+def _employee_items_load_options():
+    """Load the inventory needed by the employee screens in bounded queries."""
+    return (
+        joinedload(Employee.division),
+        selectinload(Employee.items).joinedload(EmployeeItem.item),
+        selectinload(Employee.items).selectinload(EmployeeItem.attributes),
+    )
+
+
+def _employee_with_items_to_dict(employee):
+    """Preserve the original item grouping and response fields.
+
+    An employee may have multiple assignments for the same item type.
+    Group by item type before returning rows, matching the previous report
+    ordering rather than interleaving individual assignments.
+    """
+    assignments_by_item = {}
+    for assignment in sorted(employee.items, key=lambda row: row.id):
+        item = assignment.item
+        if item is None:
+            continue
+
+        record = {
+            "item_id": item.item_id,
+            "name": item.name,
+            "unique_key": assignment.unique_key,
+            "date_assigned": (
+                assignment.date_assigned.strftime("%Y-%m-%d")
+                if assignment.date_assigned else None
+            ),
+            "attributes": [
+                {"name": attribute.name, "value": attribute.value}
+                for attribute in sorted(assignment.attributes, key=lambda row: row.emp_attribute_id)
+            ],
+        }
+        assignments_by_item.setdefault(item.item_id, []).append(record)
+
+    return {
+        "emp_id": employee.emp_id,
+        "name": employee.name,
+        "division": employee.division.name if employee.division else "Unassigned",
+        "items": [
+            record
+            for grouped_records in assignments_by_item.values()
+            for record in grouped_records
+        ],
+    }
+
+
 def get_employee_details_with_items_one(emp_id: str):
-    """
-    Retrieve employee details along with their associated items
-    
-    Args:
-        emp_id (str): Employee ID
-    
-    Returns:
-        Dictionary containing employee and item information
-    """
+    """Return one employee with their assigned assets and custom attributes."""
     try:
         with session_scope() as db:
-            # Query employee with their items and division in a single query
             employee = (
                 db.query(Employee)
-                .options(joinedload(Employee.division))  # Load division data
+                .options(*_employee_items_load_options())
                 .filter(Employee.emp_id == emp_id)
                 .first()
             )
-            
-            if not employee:
+            if employee is None:
                 raise ValueError(f"Employee with ID {emp_id} not found")
-            
-            # Get items through EmployeeItem relationship
-            items_query = (
-                db.query(Item)
-                .join(EmployeeItem)
-                .filter(EmployeeItem.emp_id == emp_id)
-                .all()
-            )
-
-            # Format items data
-            items_data = []
-            for item in items_query:
-                # Get all EmployeeItem records for the current item
-                emp_items = (
-                    db.query(EmployeeItem)
-                    .filter(
-                        EmployeeItem.emp_id == emp_id,
-                        EmployeeItem.item_id == item.item_id
-                    )
-                    .all()
-                )
-                
-                # Prepare item data for each EmployeeItem record
-                for emp_item in emp_items:
-                    # Get attribute details for the current EmployeeItem record
-                    attributes_query = (
-                        db.query(EmployeeItemAttribute)
-                        .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
-                        .all()
-                    )
-                    
-                    # Format attribute data
-                    attributes_data = []
-                    for attribute in attributes_query:
-                        attribute_data = {
-                            "name": attribute.name,
-                            "value": attribute.value
-                        }
-                        attributes_data.append(attribute_data)
-                    
-                    # Prepare item data
-                    item_data = {
-                        "item_id": item.item_id,
-                        "name": item.name,
-                        "unique_key": emp_item.unique_key,
-                        "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                        "attributes": attributes_data
-                    }
-                    items_data.append(item_data)
-            
-            # Prepare employee data
-            emp_data = {
-                "emp_id": employee.emp_id,
-                "name": employee.name,
-                "division": employee.division.name if employee.division else "Unassigned",
-                "items": items_data
-            }
-
-            db.close()
-            
-            return emp_data
-    
-    except Exception as e:
-        logger.error(f"Error retrieving employee details for {emp_id}: {str(e)}")
+            return _employee_with_items_to_dict(employee)
+    except Exception as exc:
+        logger.error(f"Error retrieving employee details for {emp_id}: {exc}")
         raise
 
-def get_employee_details_with_items():
-    """
-    Retrieve all employee details along with their associated items
-    
-    Returns:
-        List of dictionaries containing employee and item information
-    """
+
+def get_employee_details_with_items(emp_ids=None):
+    """Fetch all employees or a requested subset using batched relationships."""
     try:
         with session_scope() as db:
-            # Query employees with their items and division in a single query
-            employees = (
-                db.query(Employee)
-                .options(joinedload(Employee.division))  # Load division data
-                .all()
-            )
-            
-            # Transform query results into desired format
-            employee_details = []
-            for emp in employees:
-                # Get items through EmployeeItem relationship
-                items_query = (
-                    db.query(Item)
-                    .join(EmployeeItem)
-                    .filter(EmployeeItem.emp_id == emp.emp_id)
-                    .all()
-                )
-
-                # Format items data
-                items_data = []
-                for item in items_query:
-                    # Get all EmployeeItem records for the current item
-                    emp_items = (
-                        db.query(EmployeeItem)
-                        .filter(
-                            EmployeeItem.emp_id == emp.emp_id,
-                            EmployeeItem.item_id == item.item_id
-                        )
-                        .all()
-                    )
-                    
-                    # Prepare item data for each EmployeeItem record
-                    for emp_item in emp_items:
-                        # Get attribute details for the current EmployeeItem record
-                        attributes_query = (
-                            db.query(EmployeeItemAttribute)
-                            .filter(EmployeeItemAttribute.emp_item_id == emp_item.id)
-                            .all()
-                        )
-                        
-                        # Format attribute data
-                        attributes_data = []
-                        for attribute in attributes_query:
-                            attribute_data = {
-                                "name": attribute.name,
-                                "value": attribute.value
-                            }
-                            attributes_data.append(attribute_data)
-                        
-                        # Prepare item data
-                        item_data = {
-                            "item_id": item.item_id,
-                            "name": item.name,
-                            "unique_key": emp_item.unique_key,
-                            "date_assigned": emp_item.date_assigned.strftime('%Y-%m-%d') if emp_item.date_assigned else None,
-                            "attributes": attributes_data
-                        }
-                        items_data.append(item_data)
-                
-                # Prepare employee data
-                emp_data = {
-                    "emp_id": emp.emp_id,
-                    "name": emp.name,
-                    "division": emp.division.name if emp.division else "Unassigned",
-                    "items": items_data
-                }
-                employee_details.append(emp_data)
-
-  
-            db.close()
-            
-            return employee_details
-    
-    except Exception as e:
-        logger.error(f"Error retrieving employee details: {str(e)}")
+            query = db.query(Employee).options(*_employee_items_load_options())
+            if emp_ids is not None:
+                if not emp_ids:
+                    return []
+                query = query.filter(Employee.emp_id.in_(emp_ids))
+            return [_employee_with_items_to_dict(employee) for employee in query.all()]
+    except Exception as exc:
+        logger.error(f"Error retrieving employee details: {exc}")
         raise
+
 
 def delete_employee(emp_id: str):
     """Delete an employee only after their assigned items have been handled.
@@ -509,16 +416,10 @@ def update_item_details(item_dict):
         return None
         
 def get_item(item_id: int):
+    """Return an item type. Instance attributes live on EmployeeItem."""
     with session_scope() as db:
-        # Fetch the item with its attributes in a single query
-        item = (
-            db.query(Item)
-            .options(joinedload(Item.attributes))  # Eagerly load attributes
-            .filter(Item.item_id == item_id)
-            .first()
-        )
-                
-        return item
+        return db.query(Item).filter(Item.item_id == item_id).first()
+
 
 def get_all_items():
     db = SessionLocal()
@@ -650,128 +551,124 @@ def remove_item_attribute(emp_id, item_id, name):
             return False
               
 def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: dict, notes: str = ""):
+    """Create an assignment, count it and save its attributes atomically."""
     with session_scope() as db:
-        # First, check if the item exists
         item = db.query(Item).filter(Item.item_id == item_id).first()
-        
-        if not item:
+        if item is None:
             raise ValueError(f"Item with ID {item_id} not found")
-        
-        # Create the employee item assignment
-        employee_item = EmployeeItem(
+
+        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
+        if employee is None:
+            raise ValueError(f"Employee with ID {emp_id} not found")
+
+        assignment = EmployeeItem(
             emp_id=emp_id,
             item_id=item_id,
             unique_key=unique_key,
             date_assigned=datetime.utcnow(),
-            notes=notes
+            notes=notes,
         )
-        db.add(employee_item)
-        db.commit()
+        db.add(assignment)
+        db.flush()
 
-        # Update item count and log assignment
-        employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
-        employee.item_count += 1
-        db.commit()
-
-        # Add attribute details
-        for name, value in attrs.items():
-            attribute = EmployeeItemAttribute(
-                emp_item_id=employee_item.id,
+        employee.item_count = (employee.item_count or 0) + 1
+        db.add_all([
+            EmployeeItemAttribute(
+                emp_item_id=assignment.id,
                 name=name,
-                value=value
+                value=value,
             )
-            db.add(attribute)
-        db.commit()
-
-        # Log the action
-        db.close()
+            for name, value in attrs.items()
+        ])
         return True
-      
+
+
 # Item Transfer
 def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = "") -> bool:
-    with session_scope() as db:
-        try:
-            # Clean up orphaned EmployeeItemAttributes (emp_item_id = NULL)
-            db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id.is_(None)
-            ).delete()
+    """Move one physical asset and its attributes in a single transaction.
 
-            # Find the current EmployeeItem assignment
-            current_assignment = db.query(EmployeeItem).filter(
-                EmployeeItem.emp_id == from_emp_id,
-                EmployeeItem.item_id == item_id
-            ).first()
-
-            if not current_assignment:
-                # If no assignment is found, return False
-                log_action(action_type="error", details=f"No assignment found for item {item_id} and employee {from_emp_id}")
+    Item type is not a unique assignment identifier: employees can hold
+    several instances of the same type. Always match the provided asset key.
+    """
+    try:
+        with session_scope() as db:
+            assignment = (
+                db.query(EmployeeItem)
+                .filter(
+                    EmployeeItem.emp_id == from_emp_id,
+                    EmployeeItem.item_id == item_id,
+                    EmployeeItem.unique_key == unique_key,
+                )
+                .first()
+            )
+            if assignment is None:
+                db.add(Log(
+                    action_type="error",
+                    details=f"No assignment found for item {item_id} and employee {from_emp_id}",
+                    timestamp=datetime.utcnow(),
+                ))
                 return False
 
-            # Get the associated EmployeeItemAttributes
-            attributes = db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id == current_assignment.id
-            ).all()
+            source = db.query(Employee).filter(Employee.emp_id == from_emp_id).first()
+            destination = db.query(Employee).filter(Employee.emp_id == to_emp_id).first()
+            if source is None or destination is None:
+                raise ValueError("Both source and destination employees must exist")
 
-            # Remove the current assignment
-            db.delete(current_assignment)
+            attributes = [
+                (attribute.name, attribute.value)
+                for attribute in db.query(EmployeeItemAttribute).filter(
+                    EmployeeItemAttribute.emp_item_id == assignment.id
+                ).all()
+            ]
 
-            # Update item count for the from_employee
-            from_employee = db.query(Employee).filter(Employee.emp_id == from_emp_id).first()
-            if from_employee:
-                from_employee.item_count -= 1
+            # The old assignment and its attribute rows cannot outlive the transfer.
+            db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == assignment.id
+            ).delete(synchronize_session=False)
+            db.delete(assignment)
+            db.flush()
 
-            # Create a new assignment for the to_employee
-            new_assignment = EmployeeItem(
+            replacement = EmployeeItem(
                 emp_id=to_emp_id,
                 item_id=item_id,
                 unique_key=unique_key,
                 notes=notes,
-                date_assigned=datetime.utcnow()
+                date_assigned=datetime.utcnow(),
             )
-            db.add(new_assignment)
-            db.flush()  # Flush to get the new_assignment.id
-
-            # Transfer the attributes to the new assignment
-            for attribute in attributes:
-                new_attribute = EmployeeItemAttribute(
-                    emp_item_id=new_assignment.id,
-                    name=attribute.name,
-                    value=attribute.value
+            db.add(replacement)
+            db.flush()
+            db.add_all([
+                EmployeeItemAttribute(
+                    emp_item_id=replacement.id, name=name, value=value
                 )
-                db.add(new_attribute)
+                for name, value in attributes
+            ])
 
-            # Update item count for the to_employee
-            to_employee = db.query(Employee).filter(Employee.emp_id == to_emp_id).first()
-            if to_employee:
-                to_employee.item_count += 1
-
-            # Log the transfer
-            log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
-
-            # Add a record to ItemTransferHistory
-            transfer_record = ItemTransferHistory(
+            source.item_count = (source.item_count or 0) - 1
+            destination.item_count = (destination.item_count or 0) + 1
+            db.add(ItemTransferHistory(
                 item_id=item_id,
                 from_emp_id=from_emp_id,
                 to_emp_id=to_emp_id,
                 transfer_date=datetime.utcnow(),
-                notes=notes
-            )
-            db.add(transfer_record)
-
-            db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id.is_(None)
-            ).delete()
-            
-            # Commit the transaction
-            db.commit()
+                notes=notes,
+            ))
+            db.add(Log(
+                action_type="transfer_item",
+                details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}",
+                timestamp=datetime.utcnow(),
+            ))
             return True
 
-        except Exception as e:
-            # Handle any exceptions that occur during the transaction
-            db.rollback()
-            log_action(action_type="error", details=f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {str(e)}")
-            return False
-        
+    except Exception as exc:
+        logger.error(f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {exc}")
+        log_action(
+            action_type="error",
+            details=f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {exc}",
+        )
+        return False
+
+
 # Update Employee Info
 def update_employee(emp_id: str, new_name: str = None, new_division_id: int = None):
     with session_scope() as db:
@@ -789,40 +686,44 @@ def update_employee(emp_id: str, new_name: str = None, new_division_id: int = No
     return None
 
 def update_employee_id(old_emp_id: str, new_emp_id: str):
+    """Change an employee ID without orphaning assigned assets or history."""
     try:
         with session_scope() as db:
-            # Find the existing employee
             employee = db.query(Employee).filter(Employee.emp_id == old_emp_id).first()
-            
-            if not employee:
+            if employee is None:
                 logger.warning(f"Employee with ID {old_emp_id} not found")
                 return None
-            
-            # Update the employee ID
+
+            # SQLite does not have ON UPDATE CASCADE on this legacy schema.
+            # Defer FK checks until all dependent references have been changed.
+            db.connection().exec_driver_sql("PRAGMA defer_foreign_keys = ON")
+            db.query(EmployeeItem).filter(
+                EmployeeItem.emp_id == old_emp_id
+            ).update({EmployeeItem.emp_id: new_emp_id}, synchronize_session=False)
+            db.query(ItemTransferHistory).filter(
+                ItemTransferHistory.from_emp_id == old_emp_id
+            ).update({ItemTransferHistory.from_emp_id: new_emp_id}, synchronize_session=False)
+            db.query(ItemTransferHistory).filter(
+                ItemTransferHistory.to_emp_id == old_emp_id
+            ).update({ItemTransferHistory.to_emp_id: new_emp_id}, synchronize_session=False)
+
             employee.emp_id = new_emp_id
-            
-            # Commit the changes
-            db.commit()
-            db.refresh(employee)
-            
-            # Log the action
-            log_action(
-                action_type="update_employee_id", 
-                details=f"Changed employee ID from {old_emp_id} to {new_emp_id}"
-            )
-            db.close()
-            
+            db.flush()
+            db.add(Log(
+                action_type="update_employee_id",
+                details=f"Changed employee ID from {old_emp_id} to {new_emp_id}",
+                timestamp=datetime.utcnow(),
+            ))
             return employee
-    
+
     except IntegrityError:
-        # Handle potential unique constraint violation
         logger.error(f"Could not update employee ID. The new ID {new_emp_id} might already exist.")
         return None
-    
-    except Exception as e:
-        logger.error(f"Error updating employee ID: {str(e)}")
+    except Exception as exc:
+        logger.error(f"Error updating employee ID: {exc}")
         return None
-    
+
+
 def remove_item_from_employee(emp_id: str, item_id: int) -> bool:
     with session_scope() as db:
         try:

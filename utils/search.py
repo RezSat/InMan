@@ -1,8 +1,14 @@
 # utils/search.py
-from controllers.crud import *
-from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
-from models.models import Log, ItemTransferHistory, Employee, Item
+from controllers.crud import (
+    get_division, get_employee_details_with_items, get_all_divisions_with_counts,
+)
+from models.database import SessionLocal, session_scope
+from models.models import (
+    Log, ItemTransferHistory, Employee, Item, Division,
+    EmployeeItem, EmployeeItemAttribute,
+)
+from sqlalchemy.orm import Session, joinedload, contains_eager, selectinload, aliased
+from sqlalchemy import or_, func
 from datetime import datetime, timedelta
 
 def convert_items_to_dict(items):
@@ -26,39 +32,37 @@ def convert_employees_to_dict(employees):
     ]
 
 def search_employees(query: str, division_name: str = None, items_need=False):
+    """Filter employee records without opening a session for each result."""
     with session_scope() as db:
-        # Base query to search by name or emp_id
-        base_query = db.query(Employee).filter(
-            (Employee.name.ilike(f"%{query}%")) |
-            (Employee.emp_id.ilike(f"%{query}%"))
-        )
-        
-        # If division name is provided, add division filter
-        if division_name:
-            print(division_name)
-            base_query = base_query.join(Division).filter(
-                Division.name == division_name
+        base_query = (
+            db.query(Employee)
+            .options(joinedload(Employee.division))
+            .filter(
+                (Employee.name.ilike(f"%{query}%")) |
+                (Employee.emp_id.ilike(f"%{query}%"))
             )
-        
-        # Execute the query
-        employees = base_query.all()
-        
-        # Transform employees to list of dictionaries
-        employee_list = []
-        for emp in employees:
+        )
+        if division_name:
+            base_query = base_query.join(Division).filter(Division.name == division_name)
 
-            if items_need:
-                employee_dict = get_employee_details_with_items_one(emp.emp_id)
-            else:
-                employee_dict = {
-                    "emp_id": emp.emp_id,
-                    "name": emp.name,
-                    "division": emp.division.name if emp.division else None,
-                }
-            employee_list.append(employee_dict)
-        
-        return employee_list
-    
+        matches = [
+            (emp.emp_id, emp.name, emp.division.name if emp.division else None)
+            for emp in base_query.all()
+        ]
+
+    if not items_need:
+        return [
+            {"emp_id": emp_id, "name": name, "division": division}
+            for emp_id, name, division in matches
+        ]
+
+    records = {
+        record["emp_id"]: record
+        for record in get_employee_details_with_items([emp_id for emp_id, _, _ in matches])
+    }
+    return [records[emp_id] for emp_id, _, _ in matches]
+
+
 def search_employee_items(query: str, attr_name: str = None, attr_value: str = None):
     """
     Search for employee items by item name, attribute name, or attribute value.
@@ -76,8 +80,16 @@ def search_employee_items(query: str, attr_name: str = None, attr_value: str = N
         # Only show assignments that are linked to a real employee.
         # Old databases may contain orphaned rows after employee deletion;
         # attempting to read result.employee.name for those rows crashes.
-        base_query = db.query(EmployeeItem).join(Item).join(Employee).filter(
-            Item.name.ilike(f"%{query}%")
+        base_query = (
+            db.query(EmployeeItem)
+            .join(Item)
+            .join(Employee)
+            .options(
+                contains_eager(EmployeeItem.item),
+                joinedload(EmployeeItem.employee),
+                selectinload(EmployeeItem.attributes),
+            )
+            .filter(Item.name.ilike(f"%{query}%"))
         )
         
         # If attribute name is provided, add attribute filter
@@ -107,8 +119,6 @@ def search_employee_items(query: str, attr_name: str = None, attr_value: str = N
             }
             result_list.append(result_dict)
 
-        print(result_list)
-        
         return result_list
     
 def search_items(query: str, status: str = None, is_common: bool = None):
@@ -156,47 +166,18 @@ def search_unique_key(query=""):
   
 # Search Divisions by name
 def search_divisions(query: str):
-    """
-    Search for divisions by name with employee and item counts
-    
-    Args:
-        query (str): Search term to find divisions
-    
-    Returns:
-        List of dictionaries containing division details
-    """
-    with session_scope() as db:
-        # Search for divisions matching the query
-        divisions = (
-            db.query(Division)
-            .filter(Division.name.ilike(f"%{query}%"))
-            .all()
-        )
-        
-        division_details_list = []
-        
-        for division in divisions:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(
-                EmployeeItem.emp_id == Employee.emp_id, 
-                Employee.division_id == division.division_id
-            ).count()
-            
-            # Prepare the details for the division
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count
-            }
-            
-            division_details_list.append(division_details)
-        
-        return division_details_list
-    
+    """Return division counts with the original inventory search fields."""
+    return [
+        {
+            "division_id": division["division_id"],
+            "name": division["name"],
+            "employee_count": division["employee_count"],
+            "item_count": division["item_count"],
+        }
+        for division in get_all_divisions_with_counts(query)
+    ]
+
+
 # Get item by its unique key
 def get_item_by_key(db: Session, unique_key: str):
     return db.query(Item).join(EmployeeItem).filter(EmployeeItem.unique_key == unique_key).first()
@@ -268,44 +249,38 @@ def search_logs(search_term: str = None,
         db.close()
 
 def search_item_transfer_history(
-    search_term: str = None, 
-    start_date: datetime = None, 
-    end_date: datetime = None
+    search_term: str = None,
+    start_date: datetime = None,
+    end_date: datetime = None,
 ):
-    db = SessionLocal()
-    
-    try:
-        query = db.query(ItemTransferHistory).join(Item).join(
-            Employee, ItemTransferHistory.from_emp_id == Employee.emp_id
-        ).join(
-            Employee, ItemTransferHistory.to_emp_id == Employee.emp_id,
-            isouter=True
-        )
-        
-        # Apply search term filter across multiple fields
-        if search_term:
-            query = query.filter(
-                or_(
-                    Employee.name.ilike(f"%{search_term}%"),
-                    Item.name.ilike(f"%{search_term}%"),
-                    ItemTransferHistory.notes.ilike(f"%{search_term}%")
-                )
+    """Search transfers using distinct source and destination employee aliases."""
+    with SessionLocal() as db:
+        source = aliased(Employee)
+        destination = aliased(Employee)
+        query = (
+            db.query(ItemTransferHistory)
+            .join(Item, ItemTransferHistory.item_id == Item.item_id)
+            .outerjoin(source, ItemTransferHistory.from_emp_id == source.emp_id)
+            .outerjoin(destination, ItemTransferHistory.to_emp_id == destination.emp_id)
+            .options(
+                joinedload(ItemTransferHistory.item),
+                joinedload(ItemTransferHistory.from_employee),
+                joinedload(ItemTransferHistory.to_employee),
             )
-        
-        # Apply date range filter
+        )
+        if search_term:
+            query = query.filter(or_(
+                source.name.ilike(f"%{search_term}%"),
+                destination.name.ilike(f"%{search_term}%"),
+                Item.name.ilike(f"%{search_term}%"),
+                ItemTransferHistory.notes.ilike(f"%{search_term}%"),
+            ))
         if start_date:
             query = query.filter(ItemTransferHistory.transfer_date >= start_date)
-        
         if end_date:
             query = query.filter(ItemTransferHistory.transfer_date <= end_date)
-        
-        # Order by most recent first
-        query = query.order_by(ItemTransferHistory.transfer_date.desc())
-        
-        return query.all()
-    
-    finally:
-        db.close()
+        return query.order_by(ItemTransferHistory.transfer_date.desc()).all()
+
 
 def get_recent_logs(days: int = 30, limit: int = 100):
     db = SessionLocal()
@@ -350,11 +325,11 @@ def get_transfer_history_summary(days: int = 30):
         
         # Group transfers by item
         item_transfer_counts = (
-            db.query(Item.name, db.func.count(ItemTransferHistory.transfer_id))
+            db.query(Item.name, func.count(ItemTransferHistory.transfer_id))
             .join(ItemTransferHistory, Item.item_id == ItemTransferHistory.item_id)
             .filter(ItemTransferHistory.transfer_date >= threshold_date)
             .group_by(Item.name)
-            .order_by(db.func.count(ItemTransferHistory.transfer_id).desc())
+            .order_by(func.count(ItemTransferHistory.transfer_id).desc())
             .limit(10)
             .all()
         )

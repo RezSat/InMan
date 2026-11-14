@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Database Configuration
 DATABASE_URL = "sqlite:///inventory.db"
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Session = scoped_session(SessionLocal)
 Base = declarative_base()

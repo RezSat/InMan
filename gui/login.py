@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/login.py
 import customtkinter as ctk
 from config import COLORS
@@ -143,5 +144,4 @@ class LoginPage:
         ManagerTools(self.main_frame, self.app).display()
               
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

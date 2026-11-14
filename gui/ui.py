@@ -4,7 +4,7 @@ from .sidebar import create_sidebar
 from .inventory import InventoryDisplay
 from .dashboard import Dashboard
 from .login import LoginPage
-from .utils import load_inventory, save_inventory
+from .utils import load_inventory, save_inventory, clear_children
 from config import  COLORS
 
 class InventoryApp():
@@ -50,22 +50,22 @@ class InventoryApp():
         # Initially show dashboard
         self.show_dashboard()
     
-    def show_dashboard(self):
+    def _show_screen(self, screen):
         self.clear_main_frame()
-        Dashboard(self.main_frame, self.inventory).display()
+        screen(self.main_frame, self.inventory).display()
+
+    def show_dashboard(self):
+        self._show_screen(Dashboard)
 
     def show_login(self):
-        self.clear_main_frame()
-        LoginPage(self.main_frame, self.inventory).display()
+        self._show_screen(LoginPage)
 
     def show_inventory(self):
-        self.clear_main_frame()
-        InventoryDisplay(self.main_frame, self.inventory).display()
+        self._show_screen(InventoryDisplay)
 
     def run(self):
         self.window.mainloop()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 

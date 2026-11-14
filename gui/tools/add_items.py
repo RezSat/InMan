@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/add_items.py
 
 import customtkinter as ctk
@@ -237,8 +238,7 @@ class AddItems:
         self.create_scrollable_form()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def add_item(self):
         try:

@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/add_division.py
 
 import customtkinter as ctk
@@ -149,5 +150,4 @@ class AddDivision:
         self.create_spreadsheet()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

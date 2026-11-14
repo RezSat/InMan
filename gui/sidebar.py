@@ -73,7 +73,7 @@ def create_sidebar(window, app):
     # Version label at bottom
     version_label = ctk.CTkLabel(
         sidebar,
-        text="v1.3",
+        text="v1.4",
         font=ctk.CTkFont(size=11, family="Verdana")
     )
     version_label.grid(row=6, column=0, padx=10, pady=290, sticky="s")

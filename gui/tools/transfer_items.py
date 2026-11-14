@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/transfer_items.py
 
 from tkinter import messagebox
@@ -233,14 +234,18 @@ class TransferItemBetweenEmployees:
             for item in self.selected_items_to_transfer:
                 try:
                     # Use the transfer_item function from CRUD
-                    transfer_item(
-                        from_emp_id=self.selected_source_user['emp_id'], 
-                        to_emp_id=self.selected_destination_user['emp_id'], 
+                    transferred = transfer_item(
+                        from_emp_id=self.selected_source_user['emp_id'],
+                        to_emp_id=self.selected_destination_user['emp_id'],
                         item_id=item['id'],
                         unique_key=item['unique_key'],
-                        notes=f"Transferred between employees"
+                        notes="Transferred between employees"
                     )
-                    successful_transfers += 1
+                    if transferred:
+                        successful_transfers += 1
+                    else:
+                        failed_transfers += 1
+                        failed_items.append(item['name'])
 
                 except Exception as e:
                     messagebox.showerror("Transfer Error", 
@@ -329,8 +334,7 @@ class TransferItemBetweenEmployees:
         self.create_transfer_layout()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def search_user(self, emp_id_or_name, is_source=True):
         # Clear previous results

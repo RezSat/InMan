@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/bulk_employee_import.py
 
 import customtkinter as ctk
@@ -187,5 +188,4 @@ class BulkEmployeeImport:
         self.create_import_section()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

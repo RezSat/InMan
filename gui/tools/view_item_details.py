@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 import customtkinter as ctk
 from config import COLORS
 from controllers import get_all_items
@@ -166,5 +167,4 @@ class ViewItemDetails:
         self.create_items_view()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

@@ -1,13 +1,12 @@
-# utils/summary.py
-
-from controllers.crud import *
-from .search  import search_items_by_attribute
+"""Inventory summaries and Excel exports."""
+from sqlalchemy.orm import Session
+from models.models import Division, Employee, Item, EmployeeItem, ItemTransferHistory
+from controllers.crud import get_all_items, get_all_employees, get_employee_details_with_items
+from .search import search_items_by_attribute
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-import tkinter as tk
 from tkinter import filedialog, messagebox
-from controllers.crud import get_employee_details_with_items
 
 # Get all items assigned to an employee
 def get_employee_items(db: Session, emp_id: str):
@@ -27,7 +26,7 @@ def get_item_transfer_history(db: Session):
 
 # Generate a report of all items assigned to an employee
 def generate_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
+    employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
     if not employee:
         return "Employee not found."
     
@@ -45,7 +44,7 @@ def generate_employee_report(db: Session, emp_id: str):
 
 # Generate a report of all items in the system
 def generate_item_report(db: Session):
-    items = get_all_items(db)
+    items = db.query(Item).all()
     report = "System-wide Item Report\n\n"
     
     if not items:
@@ -55,14 +54,14 @@ def generate_item_report(db: Session):
             # Fetch unique keys from all assignments of this item type
             emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
             for emp_item in emp_items:
-                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}, Is Common: {'Yes' if item.is_common else 'No'}\n"
+                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}\n"
     
     return report
 
 
 # Generate a detailed report of items assigned to an employee, including attributes
 def generate_detailed_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
+    employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
     if not employee:
         return "Employee not found."
     
@@ -74,7 +73,7 @@ def generate_detailed_employee_report(db: Session, emp_id: str):
     else:
         for emp_item in items:
             report += f"Item Name: {emp_item.item.name}, Unique Key: {emp_item.unique_key}\n"
-            attributes = get_item_attributes(db, emp_item.item_id)
+            attributes = emp_item.attributes
             for attr in attributes:
                 report += f"  - {attr.name}: {attr.value}\n"
     
@@ -93,12 +92,23 @@ def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
             emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
             for emp_item in emp_items:
                 report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}\n"
-                attributes = get_item_attributes(db, emp_item.item_id)
+                attributes = emp_item.attributes
                 for attr in attributes:
                     report += f"  - {attr.name}: {attr.value}\n"
                 report += "\n"
     
     return report
+
+def _write_report_headers(sheet, headers, font, fill, alignment, border):
+    """Apply the existing heading style consistently across Excel exports."""
+    for column, title in enumerate(headers, 1):
+        cell = sheet.cell(row=1, column=column)
+        cell.value = title
+        cell.font = font
+        cell.fill = fill
+        cell.alignment = alignment
+        cell.border = border
+
 
 def get_column_width(cell_value):
     """
@@ -185,13 +195,9 @@ def divison_wise_employee_items_to_excel():
         max_column_widths = {i+1: get_column_width(header) for i, header in enumerate(headers)}
         
         # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_align
-            cell.border = border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_align, border
+        )
         
         current_row = 2
         total_all_employees = 0
@@ -365,13 +371,9 @@ def employee_id_name_to_excel():
         max_column_widths = {i+1: get_column_width(header) for i, header in enumerate(headers)}
         
         # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_align
-            cell.border = border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_align, border
+        )
         
         # Current row to write data
         current_row = 2
@@ -483,13 +485,9 @@ def items_to_excel():
         headers = [
             "Name"
         ]
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = center_alignment
-            cell.border = thin_border
+        _write_report_headers(
+            ws, headers, header_font, header_fill, center_alignment, thin_border
+        )
         
         # Current row to write data
         current_row = 2

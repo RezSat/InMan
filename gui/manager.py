@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 import customtkinter as ctk
 from config import COLORS
 from gui.tools import (
@@ -65,69 +66,56 @@ class ManagerTools():
         self.clear_main_frame()
         self.display()
 
+    def _open_tool(self, screen):
+        screen(self.main_frame, self.return_to_manager_function).display()
+
     def add_item_cmd(self):
-        add_items = AddItems(self.main_frame, self.return_to_manager_function)
-        add_items.display()
+        self._open_tool(AddItems)
 
     def add_employee_cmd(self):
-        add_employee = AddEmployee(self.main_frame, self.return_to_manager_function)
-        add_employee.display()
-    
+        self._open_tool(AddEmployee)
+
     def add_division_cmd(self):
-        add_division = AddDivision(self.main_frame, self.return_to_manager_function)
-        add_division.display()
+        self._open_tool(AddDivision)
 
     def bulk_employee_import_cmd(self):
-        bulk_employee_import = BulkEmployeeImport(self.main_frame, self.return_to_manager_function)
-        bulk_employee_import.display()
+        self._open_tool(BulkEmployeeImport)
 
     def assign_items_cmd(self):
-        assign_items = AssignItemsToEmployees(self.main_frame, self.return_to_manager_function)
-        assign_items.display()
+        self._open_tool(AssignItemsToEmployees)
 
     def transfer_items_cmd(self):
-        transfer_items = TransferItemBetweenEmployees(self.main_frame, self.return_to_manager_function)
-        transfer_items.display()
+        self._open_tool(TransferItemBetweenEmployees)
 
     def view_item_details_cmd(self):
-        view_item_details = ViewItemDetails(self.main_frame, self.return_to_manager_function)
-        view_item_details.display()
-    
+        self._open_tool(ViewItemDetails)
+
     def update_item_details_cmd(self):
-        update_item_details = UpdateItemDetails(self.main_frame, self.return_to_manager_function)
-        update_item_details.display()
+        self._open_tool(UpdateItemDetails)
 
     def remove_item_cmd(self):
-        remove_item = RemoveItem(self.main_frame, self.return_to_manager_function)
-        remove_item.display()
+        self._open_tool(RemoveItem)
 
     def update_employee_details_cmd(self):
-        update_employee_details = UpdateEmployeeDetail(self.main_frame, self.return_to_manager_function)
-        update_employee_details.display()
+        self._open_tool(UpdateEmployeeDetail)
 
     def view_employee_records_cmd(self):
-        view_employee_records = ViewEmployeeRecords(self.main_frame, self.return_to_manager_function)
-        view_employee_records.display()
+        self._open_tool(ViewEmployeeRecords)
 
     def remove_employee_cmd(self):
-        remove_employee = RemoveEmployee(self.main_frame, self.return_to_manager_function)
-        remove_employee.display()
+        self._open_tool(RemoveEmployee)
 
     def update_division_cmd(self):
-        update_division = UpdateDivision(self.main_frame, self.return_to_manager_function)
-        update_division.display()
+        self._open_tool(UpdateDivision)
 
     def remove_division_cmd(self):
-        remove_division = RemoveDivision(self.main_frame,  self.return_to_manager_function)
-        remove_division.display()
+        self._open_tool(RemoveDivision)
 
     def view_division_structure_cmd(self):
-        view_division_structure = ViewDivisionStructure(self.main_frame, self.return_to_manager_function)
-        view_division_structure.display()
+        self._open_tool(ViewDivisionStructure)
 
     def view_asset_assignment_cmd(self):
-        view_asset_assignment = ViewAssetAssignment(self.main_frame, self.return_to_manager_function)
-        view_asset_assignment.display()
+        self._open_tool(ViewAssetAssignment)
 
     def divison_wise_employee_items_to_excel(self):
         divison_wise_employee_items_to_excel()
@@ -238,5 +226,4 @@ class ManagerTools():
                 card.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)

@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - main
-      - 'fix/**'
   pull_request:
     branches:
       - main
 
 permissions:
   contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test-and-build:
@@ -28,6 +31,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Compile Python sources
+        run: python -m compileall -q controllers models gui utils tests main.py
+
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
 
@@ -41,11 +47,11 @@ jobs:
           name: InMan-Windows-test-build
           path: dist/InMan.exe
 
-      - name: Publish v1.3.2 release after release merge
+      - name: Publish v1.4 release after release merge
         if: >-
-          github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v1.3.2')
+          github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v1.4')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create v1.3.2 dist/InMan.exe --target "${{ github.sha }}" --title "InMan v1.3.2 - Original icon restored" --notes "Retains v1.3.1 inventory integrity protections and restores the original pink-and-cream IM executable icon. Unsigned Windows builds can still trigger Microsoft Defender SmartScreen reputation warnings."
+          gh release create v1.4 dist/InMan.exe --target "${{ github.sha }}" --title "InMan v1.4 - Internal refactor" --notes "Refactored internals with the original screen layouts, inventory workflows and classic IM icon. Uses the same SQLite schema. Release binaries are not Authenticode signed."

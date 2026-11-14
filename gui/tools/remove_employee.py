@@ -1,3 +1,5 @@
+from gui.utils import clear_children
+from .selection import selected_ids, toggle_selected, update_remove_button, update_select_all_checkbox
 import customtkinter as ctk
 from config import COLORS
 import tkinter.messagebox as messagebox
@@ -229,47 +231,29 @@ class RemoveEmployee:
         self.update_bulk_remove_button()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def toggle_select_all(self):
-        if self.select_all_checkbox.get():
-            # Select all filtered employees
-            self.selected_employees = {emp["emp_id"] for emp in self.filtered_employees}
-        else:
-            # Deselect all
-            self.selected_employees.clear()
-
-        self.display()  # Refresh the view to show checkbox states
+        self.selected_employees = selected_ids(
+            self.filtered_employees, lambda employee: employee["emp_id"], self.select_all_checkbox.get()
+        )
+        self.display()
         self.update_select_all_checkbox()
         self.update_bulk_remove_button()
 
     def toggle_employee_selection(self, employee):
-        emp_id = employee["emp_id"]
-        if emp_id in self.selected_employees:
-            self.selected_employees.remove(emp_id)
-        else:
-            self.selected_employees.add(emp_id)
-
+        toggle_selected(self.selected_employees, employee["emp_id"])
         self.update_bulk_remove_button()
         self.update_select_all_checkbox()
 
     def update_bulk_remove_button(self):
-        if self.selected_employees:
-            self.bulk_remove_button.configure(state="normal")
-        else:
-            self.bulk_remove_button.configure(state="disabled")
+        update_remove_button(self.bulk_remove_button, self.selected_employees)
 
     def update_select_all_checkbox(self):
-        filtered_emp_ids = {emp["emp_id"] for emp in self.filtered_employees}
-        selected_filtered = self.selected_employees.intersection(filtered_emp_ids)
-
-        if not filtered_emp_ids:
-            self.select_all_checkbox.deselect()
-        elif selected_filtered == filtered_emp_ids:
-            self.select_all_checkbox.select()
-        else:
-            self.select_all_checkbox.deselect()
+        visible_ids = {record["emp_id"] for record in self.filtered_employees}
+        update_select_all_checkbox(
+            self.select_all_checkbox, self.selected_employees, visible_ids
+        )
 
     def confirm_bulk_remove(self):
         if not self.selected_employees:
