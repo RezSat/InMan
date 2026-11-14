@@ -15,7 +15,6 @@ from utils.search import search_divisions, search_employee_items, search_employe
 class InventoryDisplay:
     def __init__(self, main_frame, inv):
         self.main_frame = main_frame
-        self.current_view = None
         self.search_results = {
             "Employees": [],
             "Items": [],
@@ -23,79 +22,6 @@ class InventoryDisplay:
             "Unique Key": [],
             "Employee Items": []
         }
-        # State preservation attributes
-        self.preserved_state = {
-            "search_type": "Select type",
-            "query": "",
-            "filters": {}
-        }
-
-    def preserve_current_state(self):
-            """
-            Capture the current search state before recreation
-            """
-            # Preserve search type
-            self.preserved_state["search_type"] = self.search_type.get()
-            
-            # Preserve search query
-            self.preserved_state["query"] = self.search_entry.get()
-            
-            # Preserve specific filters based on search type
-            if self.preserved_state["search_type"] == "Employees":
-                if hasattr(self, 'division_filter'):
-                    self.preserved_state["filters"]["division"] = self.division_filter.get()
-            
-            elif self.preserved_state["search_type"] == "Items":
-                # Preserve item-specific filters if any
-                if hasattr(self, 'status_filter'):
-                    self.preserved_state["filters"]["status"] = self.status_filter.get()
-                if hasattr(self, 'type_filter'):
-                    self.preserved_state["filters"]["type"] = self.type_filter.get()
-
-    def restore_preserved_state(self):
-        """
-        Restore the preserved search state after recreation
-        """
-        # Restore search type
-        self.search_type.set(self.preserved_state["search_type"])
-        
-        # Create appropriate filters for the search type
-        self.create_advanced_filters(self.preserved_state["search_type"])
-        
-        # Restore search query
-        self.search_entry.delete(0, 'end')
-        self.search_entry.insert(0, self.preserved_state["query"])
-        
-        # Restore specific filters
-        if self.preserved_state["search_type"] == "Employees":
-            if hasattr(self, 'division_filter') and 'division' in self.preserved_state["filters"]:
-                self.division_filter.set(self.preserved_state["filters"]["division"])
-        
-        elif self.preserved_state["search_type"] == "Items":
-            # Restore item-specific filters
-            if hasattr(self, 'status_filter') and 'status' in self.preserved_state["filters"]:
-                self.status_filter.set(self.preserved_state["filters"]["status"])
-            if hasattr(self, 'type_filter') and 'type' in self.preserved_state["filters"]:
-                self.type_filter.set(self.preserved_state["filters"]["type"])
-
-    def display_search_results(self):
-        """
-        Recreate the entire view while preserving search state
-        """
-        # Preserve current state before clearing
-        self.preserve_current_state()
-        
-        # Clear the main frame
-        self.clear_main_frame()
-        
-        # Recreate the basic structure
-        self.create_header()
-        self.create_search_panel()
-        self.create_results_view()
-        
-        # Restore the preserved state
-        self.restore_preserved_state()
-        
 
     def create_header(self):
         header_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -308,7 +234,6 @@ class InventoryDisplay:
             division_name = division_filter.get() if division_filter and division_filter.get() != "All Divisions" else None
             results = search_employees(query, division_name, items_need=True)
             self.search_results["Employees"] = results
-            self.display_search_results()
             self.display_employee_results(results)
 
         elif search_type == "Employee Items":
@@ -330,7 +255,6 @@ class InventoryDisplay:
             elif is_common_filter == "Not Common":
                 is_common = 0
             status = None if status_filter == "All Status" else status_filter
-            self.display_search_results()
             results = search_items(
                 query, 
                 status=status, 
@@ -341,13 +265,11 @@ class InventoryDisplay:
             self.display_item_results(results)
 
         elif search_type == "Divisions":
-            self.display_search_results()
             results = search_divisions(query)
             self.search_results["Divisions"] = results
             self.display_division_results(results)
 
         elif search_type == "Unique Key":
-            self.display_search_results()
             results = search_unique_key(query)
             self.search_results["Unique Key"] = results
             self.display_unique_key_results(results)
@@ -651,26 +573,6 @@ class InventoryDisplay:
         """Handle changes in the search type selection."""
         self.create_advanced_filters(selected_type)
 
-    def create_headers_for_current_view(self):
-        """Create headers for the current view based on the search type."""
-        search_type = self.search_type.get()
-        # Clear existing headers if any
-        for widget in self.results_frame.winfo_children():
-            widget.destroy()
-        
-        if search_type == "Employees":
-            headers = ["Name", "ID", "Division"]
-        elif search_type == "Items":
-            headers = ["Item Name"]
-        elif search_type == "Divisions":
-            headers = ["Division Name", "Employee Count"]
-        else:
-            headers = ["Search Results"]
-        
-        for header in headers:
-            label = ctk.CTkLabel(self.results_frame, text=header)
-            label.pack(side="top", padx=5, pady=5)
-
     def display_employee_results(self, results):
         # Configure grid columns
         self.results_frame.grid_columnconfigure(0, weight=0, minsize=100)  # ID
@@ -892,282 +794,6 @@ class InventoryDisplay:
                 font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=COLORS["white"]
             ).pack(padx=8, pady=2)
-
-    def display_combined_results(self, emp_results, item_results, div_results):
-        """
-        NOT IN USE
-        Display search results in separate, independent containers
-        
-        Args:
-            emp_results (list): List of employee search results
-            item_results (list): List of item search results
-            div_results (list): List of division search results
-        """
-        # Clear existing results frame
-        for widget in self.results_frame.winfo_children():
-            widget.destroy()
-
-        # Create a scrollable main container
-        main_container = ctk.CTkScrollableFrame(
-            self.results_frame, 
-            fg_color="transparent",
-            scrollbar_button_color=COLORS["pink"],
-            scrollbar_button_hover_color=COLORS["darker_pink"]
-        )
-        main_container.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Employees Results Container
-        if emp_results:
-            # Employees Container
-            employees_container = ctk.CTkFrame(
-                main_container, 
-                fg_color=COLORS["secondary_bg"],
-                corner_radius=10
-            )
-            employees_container.pack(fill="x", pady=10)
-
-            # Employees Header
-            emp_header = ctk.CTkFrame(employees_container, fg_color=COLORS["black"])
-            emp_header.pack(fill="x", padx=2, pady=2)
-            ctk.CTkLabel(
-                emp_header,
-                text="Employees Search Results",
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
-
-            # Employees Results Grid
-            emp_results_grid = ctk.CTkFrame(employees_container, fg_color="transparent")
-            emp_results_grid.pack(fill="x", padx=5, pady=5)
-
-            # Configure grid columns
-            emp_results_grid.grid_columnconfigure(0, weight=0, minsize=100)  # ID
-            emp_results_grid.grid_columnconfigure(1, weight=1, minsize=200)  # Name
-            emp_results_grid.grid_columnconfigure(2, weight=0, minsize=150)  # Division
-
-            # Headers
-            headers = ["Employee ID", "Name", "Division"]
-            for col, header in enumerate(headers):
-                header_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
-                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    header_frame,
-                    text=header,
-                    font=ctk.CTkFont(size=14, weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=10, pady=8)
-
-            # Add employee rows
-            for idx, employee in enumerate(emp_results, 1):
-                # ID Cell
-                id_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
-                id_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    id_frame,
-                    text=str(employee['emp_id']),
-                    font=ctk.CTkFont(size=13)
-                ).pack(padx=10, pady=8)
-                
-                # Name Cell
-                name_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
-                name_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    name_frame,
-                    text=employee['name'],
-                    font=ctk.CTkFont(size=13)
-                ).pack(padx=10, pady=8)
-                
-                # Division Cell
-                div_frame = ctk.CTkFrame(emp_results_grid, fg_color=COLORS["black"])
-                div_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
-                
-                div_tag = ctk.CTkFrame(
-                    div_frame,
-                    fg_color=COLORS["pink"],
-                    corner_radius=6
-                )
-                div_tag.pack(padx=10, pady=8)
-                ctk.CTkLabel(
-                    div_tag,
-                    text=employee['division'],
-                    font=ctk.CTkFont(size=12, weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=8, pady=2)
-
-        # Items Results Container
-        if item_results:
-            # Items Container
-            items_container = ctk.CTkFrame(
-                main_container, 
-                fg_color=COLORS["secondary_bg"],
-                corner_radius=10
-            )
-            items_container.pack(fill="x", pady=10)
-
-            # Items Header
-            items_header = ctk.CTkFrame(items_container, fg_color=COLORS["black"])
-            items_header.pack(fill="x", padx=2, pady=2)
-            ctk.CTkLabel(
-                items_header,
-                text="Items Search Results",
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
-
-            # Items Results Grid
-            items_results_grid = ctk.CTkFrame(items_container, fg_color="transparent")
-            items_results_grid.pack(fill="x", padx=5, pady=5)
-
-            # Configure grid columns
-            items_results_grid.grid_columnconfigure(0, weight=1, minsize=200)  # Name
-            items_results_grid.grid_columnconfigure(1, weight=0, minsize=100)  # Status
-            items_results_grid.grid_columnconfigure(2, weight=0, minsize=300)  # Attributes
-
-            # Headers
-            headers = ["Item Name", "Status", "Attributes"]
-            for col, header in enumerate(headers):
-                header_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
-                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    header_frame,
-                    text=header,
-                    font=ctk.CTkFont(size=14, weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=10, pady=8)
-
-            # Add item rows
-            for idx, item in enumerate(item_results, 1):
-                # Name Cell
-                name_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
-                name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    name_frame,
-                    text=item['name'],
-                    font=ctk.CTkFont(size=13),
-                    wraplength=300
-                ).pack(padx=10, pady=8)
-                
-                # Status Cell
-                status_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
-                status_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
-                
-                status_tag = ctk.CTkFrame(
-                    status_frame,
-                    fg_color={
-                        "active": "#4CAF50",
-                        "retired": "#FFA726",
-                        "lost": "#EF5350"
-                    }.get(item.get('status', '').lower(), COLORS["black"]),
-                    corner_radius=6
-                )
-                status_tag.pack(padx=10, pady=8)
-                ctk.CTkLabel(
-                    status_tag,
-                    text=item.get('status', 'N/A').upper(),
-                    font=ctk.CTkFont(size=12 , weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=8, pady=2)
-                
-                # Attributes Cell
-                attrs_frame = ctk.CTkFrame(items_results_grid, fg_color=COLORS["black"])
-                attrs_frame.grid(row=idx, column=2, padx=2, pady=2, sticky="nsew")
-                
-                attrs_container = ctk.CTkFrame(attrs_frame, fg_color="transparent")
-                attrs_container.pack(padx=10, pady=8, fill="x")
-                
-                if 'attributes' in item:
-                    for attr in item['attributes']:
-                        attr_tag = ctk.CTkFrame(
-                            attrs_container,
-                            fg_color=COLORS["secondary_bg"],
-                            corner_radius=6
-                        )
-                        attr_tag.pack(side="left", padx=2, pady=2)
-                        ctk.CTkLabel(
-                            attr_tag,
-                            text=f"{attr['name']}: {attr['value']}",
-                            font=ctk.CTkFont(size=12),
-                            text_color=COLORS["white"]
-                        ).pack(padx=6, pady=4)
-
-        # Divisions Results Container
-        if div_results:
-            # Divisions Container
-            divisions_container = ctk.CTkFrame(
-                main_container, 
-                fg_color=COLORS["secondary_bg"],
-                corner_radius=10
-            )
-            divisions_container.pack(fill="x", pady=10)
-
-            # Divisions Header
-            div_header = ctk.CTkFrame(divisions_container, fg_color=COLORS["black"])
-            div_header.pack(fill="x", padx=2, pady=2)
-            ctk.CTkLabel(
-                div_header,
-                text="Divisions Search Results",
-                font=ctk.CTkFont(size=16, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
-
-            # Divisions Results Grid
-            div_results_grid = ctk.CTkFrame(divisions_container, fg_color="transparent")
-            div_results_grid.pack(fill="x", padx=5, pady=5)
-
-            # Configure grid columns
-            div_results_grid.grid_columnconfigure(0, weight=1, minsize=200)  # Name
-            div_results_grid.grid_columnconfigure(1, weight=0, minsize=150)  # Employee Count
-
-            # Headers
-            headers = ["Division Name", "Employee Count"]
-            for col, header in enumerate(headers):
-                header_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
-                header_frame.grid(row=0, column=col, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    header_frame,
-                    text=header,
-                    font=ctk.CTkFont(size=14, weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=10, pady=8)
-
-            # Add division rows
-            for idx, division in enumerate(div_results, 1):
-                # Name Cell
-                name_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
-                name_frame.grid(row=idx, column=0, padx=2, pady=2, sticky="nsew")
-                ctk.CTkLabel(
-                    name_frame,
-                    text=division['name'],
-                    font=ctk.CTkFont(size=13)
-                ).pack(padx=10, pady=8)
-                
-                # Employee Count Cell
-                count_frame = ctk.CTkFrame(div_results_grid, fg_color=COLORS["black"])
-                count_frame.grid(row=idx, column=1, padx=2, pady=2, sticky="nsew")
-                
-                count_tag = ctk.CTkFrame(
-                    count_frame,
-                    fg_color=COLORS["green"],
-                    corner_radius=6
-                )
-                count_tag.pack(padx=10, pady=8)
-                ctk.CTkLabel(
-                    count_tag,
-                    text=str(division['employee_count']),
-                    font=ctk.CTkFont(size=12, weight="bold"),
-                    text_color=COLORS["white"]
-                ).pack(padx=8, pady=2)
-
-        # Optional: Add a message if no results were found
-        if not emp_results and not item_results and not div_results:
-            no_results_frame = ctk.CTkFrame(main_container, fg_color=COLORS["black"])
-            no_results_frame.pack(fill="x", padx=2, pady=(10, 2))
-            ctk.CTkLabel(
-                no_results_frame,
-                text="No results found.",
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color=COLORS["white"]
-            ).pack(padx=10, pady=8)
 
     def display_unique_key_results(self, results):
         # Configure grid columns
