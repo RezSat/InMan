@@ -1,13 +1,12 @@
-# utils/summary.py
-
-from controllers.crud import *
-from .search  import search_items_by_attribute
+"""Inventory summaries and Excel exports."""
+from sqlalchemy.orm import Session
+from models.models import Division, Employee, Item, EmployeeItem, ItemTransferHistory
+from controllers.crud import get_all_items, get_all_employees, get_employee_details_with_items
+from .search import search_items_by_attribute
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-import tkinter as tk
 from tkinter import filedialog, messagebox
-from controllers.crud import get_employee_details_with_items
 
 # Get all items assigned to an employee
 def get_employee_items(db: Session, emp_id: str):
