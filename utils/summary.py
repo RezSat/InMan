@@ -26,7 +26,7 @@ def get_item_transfer_history(db: Session):
 
 # Generate a report of all items assigned to an employee
 def generate_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
+    employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
     if not employee:
         return "Employee not found."
     
@@ -44,7 +44,7 @@ def generate_employee_report(db: Session, emp_id: str):
 
 # Generate a report of all items in the system
 def generate_item_report(db: Session):
-    items = get_all_items(db)
+    items = db.query(Item).all()
     report = "System-wide Item Report\n\n"
     
     if not items:
@@ -54,14 +54,14 @@ def generate_item_report(db: Session):
             # Fetch unique keys from all assignments of this item type
             emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
             for emp_item in emp_items:
-                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}, Is Common: {'Yes' if item.is_common else 'No'}\n"
+                report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}\n"
     
     return report
 
 
 # Generate a detailed report of items assigned to an employee, including attributes
 def generate_detailed_employee_report(db: Session, emp_id: str):
-    employee = get_employee(db, emp_id)
+    employee = db.query(Employee).filter(Employee.emp_id == emp_id).first()
     if not employee:
         return "Employee not found."
     
@@ -73,7 +73,7 @@ def generate_detailed_employee_report(db: Session, emp_id: str):
     else:
         for emp_item in items:
             report += f"Item Name: {emp_item.item.name}, Unique Key: {emp_item.unique_key}\n"
-            attributes = get_item_attributes(db, emp_item.item_id)
+            attributes = emp_item.attributes
             for attr in attributes:
                 report += f"  - {attr.name}: {attr.value}\n"
     
@@ -92,7 +92,7 @@ def generate_attribute_filtered_item_report(db: Session, name: str, value: str):
             emp_items = db.query(EmployeeItem).filter(EmployeeItem.item_id == item.item_id).all()
             for emp_item in emp_items:
                 report += f"Item Name: {item.name}, Unique Key: {emp_item.unique_key}\n"
-                attributes = get_item_attributes(db, emp_item.item_id)
+                attributes = emp_item.attributes
                 for attr in attributes:
                     report += f"  - {attr.name}: {attr.value}\n"
                 report += "\n"
