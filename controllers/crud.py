@@ -683,40 +683,44 @@ def update_employee(emp_id: str, new_name: str = None, new_division_id: int = No
     return None
 
 def update_employee_id(old_emp_id: str, new_emp_id: str):
+    """Change an employee ID without orphaning assigned assets or history."""
     try:
         with session_scope() as db:
-            # Find the existing employee
             employee = db.query(Employee).filter(Employee.emp_id == old_emp_id).first()
-            
-            if not employee:
+            if employee is None:
                 logger.warning(f"Employee with ID {old_emp_id} not found")
                 return None
-            
-            # Update the employee ID
+
+            # SQLite does not have ON UPDATE CASCADE on this legacy schema.
+            # Defer FK checks until all dependent references have been changed.
+            db.connection().exec_driver_sql("PRAGMA defer_foreign_keys = ON")
+            db.query(EmployeeItem).filter(
+                EmployeeItem.emp_id == old_emp_id
+            ).update({EmployeeItem.emp_id: new_emp_id}, synchronize_session=False)
+            db.query(ItemTransferHistory).filter(
+                ItemTransferHistory.from_emp_id == old_emp_id
+            ).update({ItemTransferHistory.from_emp_id: new_emp_id}, synchronize_session=False)
+            db.query(ItemTransferHistory).filter(
+                ItemTransferHistory.to_emp_id == old_emp_id
+            ).update({ItemTransferHistory.to_emp_id: new_emp_id}, synchronize_session=False)
+
             employee.emp_id = new_emp_id
-            
-            # Commit the changes
-            db.commit()
-            db.refresh(employee)
-            
-            # Log the action
-            log_action(
-                action_type="update_employee_id", 
-                details=f"Changed employee ID from {old_emp_id} to {new_emp_id}"
-            )
-            db.close()
-            
+            db.flush()
+            db.add(Log(
+                action_type="update_employee_id",
+                details=f"Changed employee ID from {old_emp_id} to {new_emp_id}",
+                timestamp=datetime.utcnow(),
+            ))
             return employee
-    
+
     except IntegrityError:
-        # Handle potential unique constraint violation
         logger.error(f"Could not update employee ID. The new ID {new_emp_id} might already exist.")
         return None
-    
-    except Exception as e:
-        logger.error(f"Error updating employee ID: {str(e)}")
+    except Exception as exc:
+        logger.error(f"Error updating employee ID: {exc}")
         return None
-    
+
+
 def remove_item_from_employee(emp_id: str, item_id: int) -> bool:
     with session_scope() as db:
         try:
