@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from models.database import Base
-from models.models import Division, Employee, EmployeeItem, EmployeeItemAttribute, Item
+from models.models import Division, Employee, EmployeeItem, EmployeeItemAttribute, Item, ItemTransferHistory
 from controllers import crud
 from utils import search
 import models.database as database
@@ -78,6 +78,31 @@ class EmployeeInventoryIntegrityTests(unittest.TestCase):
         with self.Session() as db:
             self.assertEqual(db.query(EmployeeItem).count(), 2)
             self.assertEqual(db.get(Employee, "E002").item_count, 0)
+
+    def test_employee_id_changes_preserve_asset_and_transfer_references(self):
+        with self.Session.begin() as db:
+            db.add(ItemTransferHistory(
+                item_id=1, from_emp_id="E001", to_emp_id="E002",
+            ))
+        employee = crud.update_employee_id("E001", "E100")
+        self.assertIsNotNone(employee)
+        with self.Session() as db:
+            self.assertIsNone(db.get(Employee, "E001"))
+            self.assertEqual(db.get(Employee, "E100").name, "Current Employee")
+            self.assertEqual(db.get(EmployeeItem, 1).emp_id, "E100")
+            transfer = db.query(ItemTransferHistory).one()
+            self.assertEqual((transfer.from_emp_id, transfer.to_emp_id),
+                             ("E100", "E002"))
+        self.assertEqual(
+            crud.get_employee_details_with_items_one("E100")["items"][0]["unique_key"],
+            "CURRENT",
+        )
+
+    def test_duplicate_employee_id_rolls_back_all_references(self):
+        self.assertIsNone(crud.update_employee_id("E001", "E002"))
+        with self.Session() as db:
+            self.assertIsNotNone(db.get(Employee, "E001"))
+            self.assertEqual(db.get(EmployeeItem, 1).emp_id, "E001")
 
     def test_transfer_moves_exact_asset_and_keeps_attributes(self):
         with self.Session.begin() as db:
