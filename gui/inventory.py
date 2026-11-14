@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 import customtkinter as ctk
 from tkinter import messagebox, ttk, filedialog
 import pandas as pd
@@ -565,8 +566,7 @@ class InventoryDisplay:
         self.create_results_view()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def on_search_type_change(self, selected_type):
         """Handle changes in the search type selection."""
