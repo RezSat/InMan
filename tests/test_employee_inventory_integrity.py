@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from models.database import Base
-from models.models import Division, Employee, EmployeeItem, Item
+from models.models import Division, Employee, EmployeeItem, EmployeeItemAttribute, Item
 from controllers import crud
 from utils import search
 import models.database as database
@@ -54,6 +54,30 @@ class EmployeeInventoryIntegrityTests(unittest.TestCase):
         with self.Session() as db:
             self.assertIsNone(db.get(Employee, "E002"))
             self.assertEqual(db.query(EmployeeItem).count(), 2)
+
+    def test_assign_item_persists_attributes_and_count_together(self):
+        self.assertTrue(crud.assign_item_to_employee(
+            "E002", 1, "NEW-ASSET", {"Serial": "123", "RAM": "8GB"}
+        ))
+        with self.Session() as db:
+            assignment = db.query(EmployeeItem).filter(
+                EmployeeItem.unique_key == "NEW-ASSET"
+            ).one()
+            attributes = db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == assignment.id
+            ).all()
+            self.assertEqual({a.name: a.value for a in attributes},
+                             {"Serial": "123", "RAM": "8GB"})
+            self.assertEqual(db.get(Employee, "E002").item_count, 1)
+
+    def test_failed_assignment_has_no_partial_rows(self):
+        with self.assertRaisesRegex(ValueError, "Employee .* not found"):
+            crud.assign_item_to_employee("BAD-ID", 1, "GHOST", {"Serial": "x"})
+        with self.assertRaisesRegex(ValueError, "Item .* not found"):
+            crud.assign_item_to_employee("E002", 999, "BAD-ITEM", {})
+        with self.Session() as db:
+            self.assertEqual(db.query(EmployeeItem).count(), 2)
+            self.assertEqual(db.get(Employee, "E002").item_count, 0)
 
     def test_missing_employee_is_noop(self):
         self.assertIsNone(crud.delete_employee("NOT-FOUND"))
