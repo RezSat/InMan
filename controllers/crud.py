@@ -75,84 +75,67 @@ def get_all_division_names():
         db.close()
         return [name[0] for name in division_names]
 
+def _division_stats(db, divisions):
+    """Build dashboard totals with a fixed number of queries.
+
+    Counts refer to employee-owned assignments, not unassigned inventory.
+    The response shape is shared by the dashboard and division details view.
+    """
+    if not divisions:
+        return []
+
+    ids = [division.division_id for division in divisions]
+    employees_by_division = dict(
+        db.query(Employee.division_id, func.count(Employee.emp_id))
+        .filter(Employee.division_id.in_(ids))
+        .group_by(Employee.division_id)
+        .all()
+    )
+    rows = (
+        db.query(
+            Employee.division_id,
+            Item.name,
+            Item.item_id,
+            func.count(EmployeeItem.id),
+        )
+        .join(EmployeeItem, EmployeeItem.emp_id == Employee.emp_id)
+        .join(Item, Item.item_id == EmployeeItem.item_id)
+        .filter(Employee.division_id.in_(ids))
+        .group_by(Employee.division_id, Item.name, Item.item_id)
+        .order_by(Item.name, Item.item_id)
+        .all()
+    )
+
+    items_by_division = {division_id: [] for division_id in ids}
+    item_counts = {division_id: 0 for division_id in ids}
+    for division_id, item_name, _, count in rows:
+        items_by_division[division_id].append({"name": item_name, "count": count})
+        item_counts[division_id] += count
+
+    return [
+        {
+            "division_id": division.division_id,
+            "name": division.name,
+            "employee_count": employees_by_division.get(division.division_id, 0),
+            "item_count": item_counts[division.division_id],
+            "items": items_by_division[division.division_id],
+        }
+        for division in divisions
+    ]
+
+
 def get_division_details_with_counts(division_id: int):
     with session_scope() as db:
-        # Get the division
         division = db.query(Division).filter(Division.division_id == division_id).first()
-        
-        if division:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division_id).count()
-            
-            # Prepare items data
-            items_data = db.query(Item.name, func.count(EmployeeItem.id).label('count')) \
-                .join(EmployeeItem) \
-                .join(Employee) \
-                .filter(Employee.division_id == division_id) \
-                .group_by(Item.name) \
-                .all()
-            
-            # Format items data
-            items_list = [{"name": item.name, "count": item.count} for item in items_data]
-            
-            # Prepare the details to return
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count,
-                "items": items_list
-            }
-
-            db.close()
-            
-            return division_details
-        else:
-            db.close()
+        if division is None:
             return None
+        return _division_stats(db, [division])[0]
+
 
 def get_all_divisions_with_counts():
     with session_scope() as db:
-        # Get all divisions
-        divisions = db.query(Division).all()
-        
-        division_details_list = []
-        
-        for division in divisions:
-            # Count employees in the division
-            employee_count = db.query(Employee).filter(Employee.division_id == division.division_id).count()
-            
-            # Count items owned by employees in the division
-            item_count = db.query(Item).join(EmployeeItem).filter(EmployeeItem.emp_id == Employee.emp_id, Employee.division_id == division.division_id).count()
-            
-            # Prepare items data
-            items_data = db.query(Item.name, Item.item_id, func.count(EmployeeItem.id).label('count')) \
-                .join(EmployeeItem) \
-                .join(Employee) \
-                .filter(Employee.division_id == division.division_id) \
-                .group_by(Item.name, Item.item_id) \
-                .all()
-            
-            # Format items data
-            items_list = [{"name": item.name, "count": item.count} for item in items_data]
-            
-            # Prepare the details for the division
-            division_details = {
-                "division_id": division.division_id,
-                "name": division.name,
-                "employee_count": employee_count,
-                "item_count": item_count,
-                "items": items_list
-            }
-            
-            division_details_list.append(division_details)
+        return _division_stats(db, db.query(Division).all())
 
-        db.close()
-        
-        return division_details_list
 
 def update_dvision(division_id, name):
     with session_scope() as db:
