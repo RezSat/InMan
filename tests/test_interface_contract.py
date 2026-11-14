@@ -39,6 +39,7 @@ class InterfaceContractTests(unittest.TestCase):
     def test_sidebar_routes_remain_present(self):
         buttons = source_literals("gui/sidebar.py")
         self.assertTrue({"Dashboard", "Login", "View Inventory", "Package to Share"}.issubset(buttons))
+        self.assertIn("v1.4", buttons)
 
     def test_palette_remains_stable(self):
         tree = ast.parse((ROOT / "config.py").read_text(encoding="utf-8"))
