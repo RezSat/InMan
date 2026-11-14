@@ -113,8 +113,6 @@ def search_employee_items(query: str, attr_name: str = None, attr_value: str = N
             }
             result_list.append(result_dict)
 
-        print(result_list)
-        
         return result_list
     
 def search_items(query: str, status: str = None, is_common: bool = None):
