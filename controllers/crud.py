@@ -176,18 +176,18 @@ def get_employee(emp_id: str):
         return y
 
 def get_all_employees():
+    """Load employee and division labels in one database round trip."""
     with session_scope() as db:
-        employees = db.query(Employee).all()
-        x = [
+        employees = db.query(Employee).options(joinedload(Employee.division)).all()
+        return [
             {
-                'emp_id': emp.emp_id,
-                'name': emp.name,
-                'division_id': emp.division_id,
-                'division': str(get_division(emp.division_id).name)
-            } for emp in employees
+                "emp_id": emp.emp_id,
+                "name": emp.name,
+                "division_id": emp.division_id,
+                "division": str(emp.division.name),
+            }
+            for emp in employees
         ]
-        db.close()
-        return x
 
 def get_all_employees_ids():
     with session_scope() as db:
