@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 # gui/tools/transfer_items.py
 
 from tkinter import messagebox
@@ -329,8 +330,7 @@ class TransferItemBetweenEmployees:
         self.create_transfer_layout()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def search_user(self, emp_id_or_name, is_source=True):
         # Clear previous results
