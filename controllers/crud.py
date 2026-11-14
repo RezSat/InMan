@@ -582,89 +582,90 @@ def assign_item_to_employee(emp_id: str, item_id: int, unique_key: str, attrs: d
 
 # Item Transfer
 def transfer_item(from_emp_id: str, to_emp_id: str, item_id: int, unique_key: str, notes: str = "") -> bool:
-    with session_scope() as db:
-        try:
-            # Clean up orphaned EmployeeItemAttributes (emp_item_id = NULL)
-            db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id.is_(None)
-            ).delete()
+    """Move one physical asset and its attributes in a single transaction.
 
-            # Find the current EmployeeItem assignment
-            current_assignment = db.query(EmployeeItem).filter(
-                EmployeeItem.emp_id == from_emp_id,
-                EmployeeItem.item_id == item_id
-            ).first()
-
-            if not current_assignment:
-                # If no assignment is found, return False
-                log_action(action_type="error", details=f"No assignment found for item {item_id} and employee {from_emp_id}")
+    Item type is not a unique assignment identifier: employees can hold
+    several instances of the same type. Always match the provided asset key.
+    """
+    try:
+        with session_scope() as db:
+            assignment = (
+                db.query(EmployeeItem)
+                .filter(
+                    EmployeeItem.emp_id == from_emp_id,
+                    EmployeeItem.item_id == item_id,
+                    EmployeeItem.unique_key == unique_key,
+                )
+                .first()
+            )
+            if assignment is None:
+                db.add(Log(
+                    action_type="error",
+                    details=f"No assignment found for item {item_id} and employee {from_emp_id}",
+                    timestamp=datetime.utcnow(),
+                ))
                 return False
 
-            # Get the associated EmployeeItemAttributes
-            attributes = db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id == current_assignment.id
-            ).all()
+            source = db.query(Employee).filter(Employee.emp_id == from_emp_id).first()
+            destination = db.query(Employee).filter(Employee.emp_id == to_emp_id).first()
+            if source is None or destination is None:
+                raise ValueError("Both source and destination employees must exist")
 
-            # Remove the current assignment
-            db.delete(current_assignment)
+            attributes = [
+                (attribute.name, attribute.value)
+                for attribute in db.query(EmployeeItemAttribute).filter(
+                    EmployeeItemAttribute.emp_item_id == assignment.id
+                ).all()
+            ]
 
-            # Update item count for the from_employee
-            from_employee = db.query(Employee).filter(Employee.emp_id == from_emp_id).first()
-            if from_employee:
-                from_employee.item_count -= 1
+            # The old assignment and its attribute rows cannot outlive the transfer.
+            db.query(EmployeeItemAttribute).filter(
+                EmployeeItemAttribute.emp_item_id == assignment.id
+            ).delete(synchronize_session=False)
+            db.delete(assignment)
+            db.flush()
 
-            # Create a new assignment for the to_employee
-            new_assignment = EmployeeItem(
+            replacement = EmployeeItem(
                 emp_id=to_emp_id,
                 item_id=item_id,
                 unique_key=unique_key,
                 notes=notes,
-                date_assigned=datetime.utcnow()
+                date_assigned=datetime.utcnow(),
             )
-            db.add(new_assignment)
-            db.flush()  # Flush to get the new_assignment.id
-
-            # Transfer the attributes to the new assignment
-            for attribute in attributes:
-                new_attribute = EmployeeItemAttribute(
-                    emp_item_id=new_assignment.id,
-                    name=attribute.name,
-                    value=attribute.value
+            db.add(replacement)
+            db.flush()
+            db.add_all([
+                EmployeeItemAttribute(
+                    emp_item_id=replacement.id, name=name, value=value
                 )
-                db.add(new_attribute)
+                for name, value in attributes
+            ])
 
-            # Update item count for the to_employee
-            to_employee = db.query(Employee).filter(Employee.emp_id == to_emp_id).first()
-            if to_employee:
-                to_employee.item_count += 1
-
-            # Log the transfer
-            log_action(action_type="transfer_item", details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}")
-
-            # Add a record to ItemTransferHistory
-            transfer_record = ItemTransferHistory(
+            source.item_count = (source.item_count or 0) - 1
+            destination.item_count = (destination.item_count or 0) + 1
+            db.add(ItemTransferHistory(
                 item_id=item_id,
                 from_emp_id=from_emp_id,
                 to_emp_id=to_emp_id,
                 transfer_date=datetime.utcnow(),
-                notes=notes
-            )
-            db.add(transfer_record)
-
-            db.query(EmployeeItemAttribute).filter(
-                EmployeeItemAttribute.emp_item_id.is_(None)
-            ).delete()
-            
-            # Commit the transaction
-            db.commit()
+                notes=notes,
+            ))
+            db.add(Log(
+                action_type="transfer_item",
+                details=f"Transferred item {item_id} from {from_emp_id} to {to_emp_id}",
+                timestamp=datetime.utcnow(),
+            ))
             return True
 
-        except Exception as e:
-            # Handle any exceptions that occur during the transaction
-            db.rollback()
-            log_action(action_type="error", details=f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {str(e)}")
-            return False
-        
+    except Exception as exc:
+        logger.error(f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {exc}")
+        log_action(
+            action_type="error",
+            details=f"Error transferring item {item_id} from {from_emp_id} to {to_emp_id}: {exc}",
+        )
+        return False
+
+
 # Update Employee Info
 def update_employee(emp_id: str, new_name: str = None, new_division_id: int = None):
     with session_scope() as db:
