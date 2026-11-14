@@ -128,6 +128,11 @@ class EmployeeReadTests(unittest.TestCase):
         self.assertEqual([a["value"] for a in employee["items"][1]["attributes"]], ["32GB"])
         self.assertEqual(employee["division"], "Operations")
 
+    def test_item_lookup_uses_existing_schema(self):
+        item = crud.get_item(1)
+        self.assertEqual(item.name, "Laptop")
+        self.assertIsNone(crud.get_item(999))
+
     def test_missing_employee_still_raises(self):
         with self.assertRaisesRegex(ValueError, "not found"):
             crud.get_employee_details_with_items_one("missing")
