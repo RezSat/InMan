@@ -3,6 +3,7 @@
 Uses an isolated in-memory SQLite database; never opens inventory.db.
 """
 import unittest
+from datetime import date
 from unittest.mock import patch
 
 from sqlalchemy import create_engine
@@ -83,6 +84,7 @@ class EmployeeInventoryIntegrityTests(unittest.TestCase):
         with self.Session.begin() as db:
             db.add(ItemTransferHistory(
                 item_id=1, from_emp_id="E001", to_emp_id="E002",
+                transfer_date=date.today(),
             ))
         employee = crud.update_employee_id("E001", "E100")
         self.assertIsNotNone(employee)
