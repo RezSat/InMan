@@ -1,3 +1,4 @@
+from gui.utils import clear_children
 from .selection import selected_ids, toggle_selected, update_remove_button, update_select_all_checkbox
 import customtkinter as ctk
 from config import COLORS
@@ -230,8 +231,7 @@ class RemoveEmployee:
         self.update_bulk_remove_button()
 
     def clear_main_frame(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        clear_children(self.main_frame)
 
     def toggle_select_all(self):
         self.selected_employees = selected_ids(
