@@ -1,8 +1,23 @@
-use crate::{db::{self,Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
+use crate::{db::{self,Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, logging, reports, VERSION, PALETTE};
 use eframe::egui::{self, Color32, RichText, Ui};
-use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf};
+use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf, sync::atomic::{AtomicBool, Ordering}};
 
 mod tools;
+
+/// Set once the UI has produced its first frame. Used to distinguish a startup
+/// failure (safe to retry on another graphics backend) from a late event-loop
+/// error (which must not silently reopen the application).
+static RENDERED_FRAME: AtomicBool = AtomicBool::new(false);
+
+pub fn has_rendered_frame() -> bool {
+    RENDERED_FRAME.load(Ordering::SeqCst)
+}
+
+fn record_first_frame() {
+    if !RENDERED_FRAME.swap(true, Ordering::SeqCst) {
+        logging::startup("render", "first UI frame rendered");
+    }
+}
 
 fn color(rgb: [u8;3]) -> Color32 { Color32::from_rgb(rgb[0],rgb[1],rgb[2]) }
 fn pink() -> Color32 { color(PALETTE.pink) }
@@ -127,11 +142,34 @@ pub struct InManApp {
 impl Default for InManApp {
     fn default() -> Self {
         let activated=licensing::is_activated();
+        logging::startup("licensing", if activated {
+            "stored product key verified"
+        } else {
+            "no activated product key; showing the activation screen"
+        });
         let working_dir=std::env::current_dir().unwrap_or_else(|_|PathBuf::from("."));
         let executable=std::env::current_exe()
             .unwrap_or_else(|_|working_dir.join("InMan.exe"));
         let database_path=db::resolve_inventory_path(&working_dir,&executable);
-        let db=if activated {Database::open(&database_path).ok()} else {None};
+        logging::startup("database", format!("resolved inventory database: {}",database_path.display()));
+        let mut db_error=None;
+        let db=if activated {
+            match Database::open(&database_path) {
+                Ok(db)=>{
+                    logging::startup("database", "inventory database opened and ready");
+                    Some(db)
+                }
+                Err(error)=>{
+                    logging::error("database", format!(
+                        "could not open {}: {error:#}",database_path.display()
+                    ));
+                    db_error=Some(format!(
+                        "Cannot open {}.\n{error:#}",database_path.display()
+                    ));
+                    None
+                }
+            }
+        }else{None};
         let mut state=Self {
             db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
@@ -151,19 +189,26 @@ impl Default for InManApp {
             staged:vec![],selection:BTreeSet::new(),
             transfer_selection:BTreeSet::new(),pending_removal:None,
         };
-        if activated && state.db.is_none() {
-            state.message=format!(
-                "Cannot open {}. Check the database location.",
-                state.database_path.display()
-            );
+        if let Some(error)=db_error {
+            state.message=error;
         }
         state.reload();
+        logging::startup("app", "InManApp constructed");
         state
     }
 }
 
 impl InManApp {
     pub fn new(cc:&eframe::CreationContext<'_>) -> Self {
+        if let Some(render_state)=cc.wgpu_render_state.as_ref() {
+            let info=render_state.adapter.get_info();
+            logging::startup("graphics", format!(
+                "wgpu adapter: {} (backend {:?}, device type {:?}, driver {}, {})",
+                info.name,info.backend,info.device_type,info.driver,info.driver_info
+            ));
+        }else{
+            logging::warn("graphics", "eframe did not provide a wgpu render state");
+        }
         let mut visuals=egui::Visuals::dark();
         visuals.panel_fill=color(PALETTE.secondary_bg);
         visuals.window_fill=color(PALETTE.black);
@@ -178,7 +223,13 @@ impl InManApp {
     fn reload(&mut self) {
         self.division_item_cache.clear();
         let Some(db)=self.db.as_ref() else{return};
-        self.manager_setup_needed=db.manager_count().unwrap_or(-1)==0;
+        self.manager_setup_needed=match db.manager_count() {
+            Ok(count)=>count==0,
+            Err(error)=>{
+                logging::error("database", format!("manager account check failed: {error:#}"));
+                false
+            }
+        };
         let data=(
             db.dashboard_counts(), db.divisions(""),
             db.employees("",None),db.items(""),
@@ -190,7 +241,19 @@ impl InManApp {
                 self.employees=employees;
                 self.items=items;
             }
-            _=> self.message="Could not load inventory data. Database format may be invalid.".into(),
+            (counts,divisions,employees,items)=>{
+                for (stage,error) in [
+                    ("dashboard counts",counts.err()),
+                    ("divisions",divisions.err()),
+                    ("employees",employees.err()),
+                    ("items",items.err()),
+                ] {
+                    if let Some(error)=error {
+                        logging::error("database", format!("loading {stage} failed: {error:#}"));
+                    }
+                }
+                self.message="Could not load inventory data. Database format may be invalid.".into();
+            }
         }
     }
 
@@ -263,21 +326,28 @@ impl InManApp {
                 if !self.show_key {editor=editor.password(true)}
                 ui.add_sized([350.0,42.0],editor);
                 if ui.small_button(if self.show_key {"Hide"}else{"Show"}).clicked(){
-                    self.show_key=!self.show_key;
+                    self.show_key = !self.show_key;
                 }
                 if control(ui,"Unlock InMan") {
                     if licensing::valid_product_key(&self.key_input) {
                         match licensing::activate(&self.key_input)
                             .and_then(|_|Database::open(&self.database_path)) {
                             Ok(db)=>{
+                                logging::startup("licensing", "product key accepted and stored");
                                 self.db=Some(db);
                                 self.activated=true;
                                 self.reload();
                                 self.open(Screen::Dashboard);
                             }
-                            Err(err)=>self.message=err.to_string(),
+                            Err(err)=>{
+                                logging::error("licensing", format!("activation failed: {err:#}"));
+                                self.message=format!("{err:#}");
+                            }
                         }
-                    } else {self.message="Invalid Product Key".into();}
+                    } else {
+                        logging::warn("licensing", "an invalid product key was entered");
+                        self.message="Invalid Product Key".into();
+                    }
                 }
             });
         });
@@ -450,7 +520,10 @@ impl InManApp {
             InventoryMode::UniqueKey=>db.unique_keys(&self.query)
                 .map(|rows|{self.inventory_assignments=rows}),
         };
-        if let Err(err)=outcome {self.message=err.to_string();}
+        if let Err(err)=outcome {
+            logging::error("database", format!("inventory search failed: {err:#}"));
+            self.message=err.to_string();
+        }
     }
 
     fn inventory(&mut self,ui:&mut Ui) {
@@ -696,6 +769,7 @@ impl eframe::App for InManApp {
             if !self.message.is_empty(){
                 ui.colored_label(pink(),&self.message);
             }
+            record_first_frame();
             return;
         }
         egui::Panel::left("inman_sidebar").exact_size(205.0)
@@ -745,5 +819,12 @@ impl eframe::App for InManApp {
                 }
             }
         }
+        record_first_frame();
+    }
+}
+
+impl Drop for InManApp {
+    fn drop(&mut self) {
+        logging::startup("shutdown", "application state dropped");
     }
 }
