@@ -23,6 +23,7 @@ pub(super) enum Tool {
     AddEmployee, BulkEmployees, UpdateEmployee, RemoveEmployees, ViewEmployees,
     AddDivision, UpdateDivision, RemoveDivisions, ViewDivisions,
     Assign, Transfer, ReportInventory, ReportEmployees, ReportItems,
+    #[expect(dead_code, reason = "Legacy asset log viewer remains internal, as in v1.4")]
     ViewAssignmentLog,
 }
 
@@ -663,8 +664,9 @@ impl eframe::App for InManApp {
                     });
                 });
             if let Some(confirmed)=choice {
-                if let Some(removal)=self.pending_removal.take() {
-                    if confirmed {self.execute_removal(removal);}
+                let selected=self.pending_removal.take();
+                if confirmed && let Some(removal)=selected {
+                    self.execute_removal(removal);
                 }
             }
         }
