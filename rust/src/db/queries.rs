@@ -80,10 +80,21 @@ impl Database {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
-    /// A bounded read: assignments and custom attributes require only two SQL queries.
+    /// Query only the matching assets. Attribute loading is batched.
     pub fn assignments(
         &self, item_query: &str, employee_id: Option<&str>,
         attr_name: Option<&str>, attr_value: Option<&str>
+    ) -> Result<Vec<Assignment>> {
+        self.matching_assignments(item_query,employee_id,attr_name,attr_value,None)
+    }
+
+    pub fn unique_keys(&self, query: &str) -> Result<Vec<Assignment>> {
+        self.matching_assignments("",None,None,None,Some(query))
+    }
+
+    fn matching_assignments(
+        &self, item_query: &str, employee_id: Option<&str>,
+        attr_name: Option<&str>, attr_value: Option<&str>, key_query: Option<&str>
     ) -> Result<Vec<Assignment>> {
         let mut statement = self.conn.prepare_cached(
             "SELECT ei.id, e.emp_id, e.name, i.item_id, i.name,
@@ -100,11 +111,13 @@ impl Database {
                        AND (?3 IS NULL OR a.name=?3)
                        AND (?4 IS NULL OR a.value LIKE '%'||?4||'%')
                 ))
+                AND (?5 IS NULL OR ei.unique_key LIKE '%'||?5||'%')
               ORDER BY ei.id"
         )?;
         let rows = statement.query_map(
-            params![item_query, employee_id, attr_name.filter(|s| !s.is_empty()),
-                    attr_value.filter(|s| !s.is_empty())],
+            params![item_query, employee_id,
+                    attr_name.filter(|s| !s.is_empty()),
+                    attr_value.filter(|s| !s.is_empty()),key_query],
             |r| Ok(Assignment {
                 id: r.get(0)?, employee_id: r.get(1)?, employee_name: r.get(2)?,
                 item_id: r.get(3)?, item_name: r.get(4)?, unique_key: r.get(5)?,
@@ -115,37 +128,33 @@ impl Database {
         drop(statement);
         if records.is_empty() { return Ok(records); }
 
-        // Group related rows in memory instead of querying every asset separately.
-        let placeholders = vec!["?"; records.len()].join(",");
-        let sql = format!(
-            "SELECT emp_attribute_id,emp_item_id,name,value
-               FROM employee_item_attributes WHERE emp_item_id IN ({placeholders})
-              ORDER BY emp_attribute_id"
-        );
+        // SQLite has a parameter limit. Chunking prevents larger inventories
+        // from failing when attributes are retrieved for thousands of assets.
         let mut by_id: HashMap<i64, Vec<Attribute>> = HashMap::new();
-        let mut attrs = self.conn.prepare(&sql)?;
-        let entries = attrs.query_map(
-            params_from_iter(records.iter().map(|a| a.id)),
-            |r| Ok(Attribute {
-                id: r.get(0)?, assignment_id: r.get(1)?,
-                name: r.get(2)?, value: r.get(3)?
-            })
-        )?;
-        for entry in entries {
-            let attribute = entry?;
-            by_id.entry(attribute.assignment_id).or_default().push(attribute);
+        for chunk in records.chunks(800) {
+            let placeholders = vec!["?"; chunk.len()].join(",");
+            let sql = format!(
+                "SELECT emp_attribute_id,emp_item_id,name,value
+                   FROM employee_item_attributes WHERE emp_item_id IN ({placeholders})
+                  ORDER BY emp_attribute_id"
+            );
+            let mut attrs = self.conn.prepare(&sql)?;
+            let entries = attrs.query_map(
+                params_from_iter(chunk.iter().map(|a| a.id)),
+                |r| Ok(Attribute {
+                    id: r.get(0)?, assignment_id: r.get(1)?,
+                    name: r.get(2)?, value: r.get(3)?
+                })
+            )?;
+            for entry in entries {
+                let attribute = entry?;
+                by_id.entry(attribute.assignment_id).or_default().push(attribute);
+            }
         }
         for assignment in &mut records {
             assignment.attributes = by_id.remove(&assignment.id).unwrap_or_default();
         }
         Ok(records)
-    }
-
-    pub fn unique_keys(&self, query: &str) -> Result<Vec<Assignment>> {
-        // Search all item types; match keys once the two-query loader has returned.
-        let all = self.assignments("", None, None, None)?;
-        let needle = query.to_lowercase();
-        Ok(all.into_iter().filter(|a| a.unique_key.to_lowercase().contains(&needle)).collect())
     }
 
     pub fn logs(&self, query: &str, limit: usize) -> Result<Vec<AuditLog>> {
