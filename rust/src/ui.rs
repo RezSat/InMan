@@ -117,7 +117,7 @@ pub struct InManApp {
     pub(super) staged_assets: Vec<StagedAsset>,
     pub(super) new_attr_name: String,
     pub(super) new_attr_value: String,
-    pub(super) staged: Vec<(String,String,i64)>,
+    pub(super) staged: Vec<(String,String,Option<i64>)>,
     pub(super) selection: BTreeSet<String>,
     pub(super) transfer_selection: BTreeSet<i64>,
     pub(super) pending_removal: Option<PendingRemoval>,
