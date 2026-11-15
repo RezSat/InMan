@@ -3,7 +3,12 @@ name: Rust desktop build and compatibility tests
 on:
   push:
     branches:
+      - main
       - rust-refactor
+      - rust-v2-completion
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-ci.yml'
   pull_request:
     branches:
       - main
@@ -39,13 +44,15 @@ jobs:
         run: cargo test --all-targets --verbose
       - name: Audit common Rust mistakes
         run: cargo clippy --all-targets -- -D warnings
-      - name: Build optimized Windows EXE
-        run: cargo build --release --bin inman
+      - name: Build optimized Windows EXEs
+        run: cargo build --release --bins
       - name: Upload Rust test executable
         uses: actions/upload-artifact@v4
         with:
           name: InMan-Rust-Development
-          path: rust/target/release/inman.exe
+          path: |
+            rust/target/release/inman.exe
+            rust/target/release/inman-inspect.exe
 
   linux-core:
     runs-on: ubuntu-latest
@@ -63,10 +70,10 @@ jobs:
       - name: Core tests
         run: cargo test --lib
 
-  publish-beta:
+  publish-rc:
     needs: [windows-rust, linux-core]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/rust-refactor' && contains(github.event.head_commit.message, 'Publish Rust v2.0.0-beta.1')
+      github.event_name == 'push' && github.ref == 'refs/heads/rust-v2-completion' && contains(github.event.head_commit.message, 'release: v2.0.0-rc.1')
     runs-on: windows-latest
     permissions:
       contents: write
@@ -75,14 +82,21 @@ jobs:
         with:
           name: InMan-Rust-Development
           path: build
-      - name: Prepare the release executable
+      - name: Prepare release files and SHA256 checksums
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path staging | Out-Null
           Copy-Item build/inman.exe staging/InMan.exe
-      - name: Publish Rust development prerelease
+          Copy-Item build/inman-inspect.exe staging/InMan-Inspect.exe
+          $files = @("InMan.exe", "InMan-Inspect.exe")
+          $lines = foreach ($name in $files) {
+            $hash = (Get-FileHash "staging/$name" -Algorithm SHA256).Hash.ToLower()
+            "$hash  $name"
+          }
+          $lines | Set-Content -Path staging/SHA256SUMS.txt -Encoding ascii
+      - name: Publish InMan v2 release candidate
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v2.0.0-beta.1 staging/InMan.exe --target "${{ github.sha }}" --prerelease --title "InMan 2.0 Beta 1 - Native Rust" --notes "Native Rust rewrite test build. Preserves the SQLite schema and product-key format, with inventory and manager workflow implementations. This is NOT the final v2.0 production release: full Windows UI parity and real-machine performance measurements are still pending. Test only with a BACKUP COPY of inventory.db. The executable is not Authenticode signed; SmartScreen warnings may appear."
+          gh release create v2.0.0-rc.1 staging/InMan.exe staging/InMan-Inspect.exe staging/SHA256SUMS.txt --target "${{ github.sha }}" --prerelease --title "InMan 2.0 RC1 - Native Rust" --notes "Native Rust development release with preserved SQLite schema, Windows product-key licensing, manager workflows, multi-item assignment, bulk transfers, verified SQLite snapshots and Excel compatibility checks. Automated tests and optimized Windows build must pass before publishing. Manual Windows UI parity and real-machine performance validation are still required before the stable v2.0 tag. TEST ON A COPY of inventory.db. Unsigned EXE; Windows SmartScreen may warn."
