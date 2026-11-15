@@ -113,6 +113,8 @@ pub fn export_inventory(db: &Database, path: impl AsRef<Path>) -> Result<()> {
 
     let mut workbook = Workbook::new();
     let sheet = workbook.add_worksheet();
+    // openpyxl's default workbook sheet name is "Sheet".
+    sheet.set_name("Sheet")?;
     let mut widths=write_headings(sheet,&[
         "Division","Employee Name","Employee ID","Item Name",
         "Unique Key | Reference ID","Attributes"
@@ -154,9 +156,13 @@ pub fn export_inventory(db: &Database, path: impl AsRef<Path>) -> Result<()> {
                 }
             }
         }
-        if row>division_start {
+        // A one-cell range is not a valid merge in rust_xlsxwriter.
+        // The first row already contains the division name.
+        if row>division_start+1 {
             sheet.merge_range(division_start,0,row-1,0,division,&cell_style())?;
         }
+        widths[0]=widths[0].max(width_for("Total Employees:"));
+        widths[2]=widths[2].max(width_for("Total Items:"));
         row+=1;
         sheet.write_string_with_format(row,0,"Total Employees:",&total_style())?;
         sheet.write_number_with_format(row,1,members.len() as f64,&total_style())?;
@@ -171,6 +177,7 @@ pub fn export_inventory(db: &Database, path: impl AsRef<Path>) -> Result<()> {
             ("TOTAL EMPLOYEES COUNT:",employees.len()),
             ("TOTAL ITEMS COUNT:",total_items)
         ] {
+            widths[0]=widths[0].max(width_for(title));
             sheet.write_string_with_format(row,0,title,&grand_style())?;
             sheet.write_number_with_format(row,1,count as f64,&grand_style())?;
             row+=1;
