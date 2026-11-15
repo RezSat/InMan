@@ -165,34 +165,62 @@ impl InManApp {
             && let Some(path)=rfd::FileDialog::new()
                 .add_filter("Excel",&["xlsx","xls"]).pick_file() {
             match reports::read_employee_import(&path,&self.divisions) {
-                Ok(rows)=>{self.staged=rows;self.message=format!(
-                    "{} employee(s) loaded for review",self.staged.len()
-                );}
+                Ok(rows)=>{
+                    self.staged=rows;
+                    self.message=format!(
+                        "{} employee(s) loaded. Review and correct any missing divisions.",
+                        self.staged.len()
+                    );
+                }
                 Err(err)=>self.message=err.to_string(),
             }
         }
-        ui.label("Review staged employee records before submitting");
-        ScrollArea::vertical().max_height(355.0).show_rows(ui,40.0,self.staged.len(),|ui,range|{
-            for index in range {
-                let (id,name,division)=&mut self.staged[index];
-                ui.horizontal(|ui|{
-                    ui.add_sized([95.0,34.0],TextEdit::singleline(id));
-                    ui.add_sized([180.0,34.0],TextEdit::singleline(name));
-                    ComboBox::from_id_salt(format!("bulk_div_{index}"))
-                        .selected_text(self.divisions.iter()
-                            .find(|x|x.id==*division).map_or("Division",|x|x.name.as_str()))
-                        .show_ui(ui,|ui|{
-                            for d in &self.divisions {
-                                ui.selectable_value(division,d.id,&d.name);
-                            }
-                        });
-                });
+        ui.label("Review EMP_ID, Name, and Division; correct incomplete rows before saving.");
+        ScrollArea::vertical().max_height(355.0).show_rows(
+            ui,40.0,self.staged.len(),|ui,range|{
+                for index in range {
+                    let (id,name,division)=&mut self.staged[index];
+                    ui.horizontal(|ui|{
+                        ui.add_sized([110.0,34.0],
+                            TextEdit::singleline(id).hint_text("EMP_ID"));
+                        ui.add_sized([205.0,34.0],
+                            TextEdit::singleline(name).hint_text("Name"));
+                        ComboBox::from_id_salt(("bulk_div",index))
+                            .selected_text(self.divisions.iter()
+                                .find(|x|Some(x.id)==*division)
+                                .map_or("Choose Division",|x|x.name.as_str()))
+                            .show_ui(ui,|ui|{
+                                for d in &self.divisions {
+                                    ui.selectable_value(division,Some(d.id),&d.name);
+                                }
+                            });
+                    });
+                }
             }
-        });
-        if control(ui,"Submit") {
-            let result=self.db.as_mut().unwrap().import_employees(&self.staged).map(|_|());
-            self.notify(result);
-            self.staged.clear();
+        );
+        if !self.staged.is_empty() && control(ui,"Submit") {
+            let staged:Result<Vec<(String,String,i64)>,String>=self.staged.iter()
+                .enumerate().map(|(index,(id,name,division))|{
+                    if id.trim().is_empty()||name.trim().is_empty(){
+                        return Err(format!("Row {}: Employee ID and name are required",index+2));
+                    }
+                    let division=division
+                        .ok_or_else(||format!("Row {}: Choose a valid division",index+2))?;
+                    Ok((id.trim().to_owned(),name.trim().to_owned(),division))
+                }).collect();
+            match staged {
+                Ok(rows)=>{
+                    match self.db.as_mut().unwrap().import_employees(&rows) {
+                        Ok(count)=>{
+                            self.staged.clear();
+                            self.message=format!("Imported {count} employee(s) successfully");
+                            self.reload();
+                        }
+                        Err(err)=>self.message=err.to_string(),
+                    }
+                }
+                Err(err)=>self.message=err,
+            }
         }
     }
 
