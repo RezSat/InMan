@@ -4,6 +4,7 @@ use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf, sync::atomic::{Atomic
 
 mod tools;
 mod theme;
+mod preferences;
 
 /// Set once the UI has produced its first frame. Used to distinguish a startup
 /// failure (safe to retry on another graphics backend) from a late event-loop
@@ -111,6 +112,7 @@ pub struct InManApp {
     screen: Screen,
     tool: Tool,
     message: String,
+    ui_scale: f32,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -178,7 +180,7 @@ impl Default for InManApp {
         let mut state=Self {
             db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
-            message:String::new(),
+            message:String::new(),ui_scale:preferences::load(),
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
@@ -213,7 +215,9 @@ impl InManApp {
             logging::warn("graphics", "eframe did not provide a wgpu render state");
         }
         theme::install(&cc.egui_ctx);
-        Self::default()
+        let app=Self::default();
+        cc.egui_ctx.set_zoom_factor(app.ui_scale);
+        app
     }
 
     fn reload(&mut self) {
@@ -379,6 +383,57 @@ impl InManApp {
         ui.add_space(18.0);
         ui.separator();
         ui.label(RichText::new(format!("InMan {}",VERSION)).size(12.0).color(theme::MUTED));
+    }
+
+    fn settings(&mut self,ui:&mut Ui) {
+        theme::heading(ui,"PREFERENCES","Settings",
+            "Adjust readability without changing your inventory data.");
+        let available=ui.available_width();
+        theme::card().show(ui,|ui|{
+            ui.set_min_width((available-40.0).max(240.0));
+            theme::section(ui,"Display size","Changes apply to the entire interface.");
+            ui.add_space(7.0);
+            let mut percentage=(self.ui_scale*100.0).round();
+            let mut changed=false;
+            ui.horizontal_wrapped(|ui|{
+                ui.label(RichText::new("Minimum 100%").color(theme::MUTED));
+                let width=(ui.available_width()-180.0).clamp(130.0,430.0);
+                changed|=ui.add_sized([width,35.0],
+                    egui::Slider::new(&mut percentage,100.0..=150.0)
+                        .step_by(5.0).suffix("%")
+                ).changed();
+                ui.label(RichText::new("Maximum 150%").color(theme::MUTED));
+            });
+            ui.horizontal_wrapped(|ui|{
+                if ui.add_enabled(percentage>100.0,egui::Button::new("A−  Smaller")).clicked(){
+                    percentage=(percentage-5.0).max(100.0);
+                    changed=true;
+                }
+                if ui.add_enabled(percentage<150.0,egui::Button::new("A+  Larger")).clicked(){
+                    percentage=(percentage+5.0).min(150.0);
+                    changed=true;
+                }
+                if ui.button("Restore default (110%)").clicked(){
+                    percentage=110.0;
+                    changed=true;
+                }
+            });
+            if changed {
+                self.ui_scale=(percentage/100.0)
+                    .clamp(preferences::MIN_ZOOM,preferences::MAX_ZOOM);
+                ui.ctx().set_zoom_factor(self.ui_scale);
+                if let Err(error)=preferences::save(self.ui_scale) {
+                    self.message=format!("Could not save display size: {error}");
+                } else {
+                    self.message=format!("Display size set to {}%",percentage.round() as i32);
+                }
+            }
+            ui.add_space(12.0);
+            ui.label(RichText::new("Font: Segoe UI on Windows, with a built-in fallback.")
+                .color(theme::MUTED));
+            ui.label(RichText::new("The display setting is saved on this computer. Database contents are unaffected.")
+                .color(theme::MUTED));
+        });
     }
 
     fn dashboard(&mut self,ui:&mut Ui) {
