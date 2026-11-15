@@ -587,58 +587,73 @@ impl InManApp {
     }
 
     fn inventory(&mut self,ui:&mut Ui) {
-        theme::heading(ui,"ASSET DIRECTORY","Inventory",
-            "Search employees, item types, divisions and assigned assets.");
+        theme::heading(ui,"DIRECTORY","Inventory",
+            "Search employees, catalogue items, divisions and assigned assets.");
         ui.horizontal(|ui|{
-            ui.label(RichText::new(self.selected_mode.label()).color(theme::MUTED).size(12.0));
+            ui.label(RichText::new(self.selected_mode.label())
+                .size(14.0).color(theme::MUTED));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
                 if secondary_control(ui,"Export Results"){self.export_search();}
             });
         });
         ui.add_space(12.0);
+        let width=ui.available_width();
         theme::card().show(ui,|ui|{
-        ui.label(RichText::new("SEARCH & FILTER").size(11.0).strong().color(theme::MUTED));
-        ui.horizontal(|ui|{
+            ui.set_min_width((width-38.0).max(235.0));
+            ui.label(RichText::new("SEARCH & FILTER")
+                .size(12.0).strong().color(theme::MUTED));
+            ui.add_space(4.0);
             let previous=self.selected_mode;
-            egui::ComboBox::from_id_salt("search_type")
-                .selected_text(self.selected_mode.label())
-                .show_ui(ui,|ui|{
-                    for mode in InventoryMode::ALL {
-                        ui.selectable_value(&mut self.selected_mode,mode,mode.label());
-                    }
-                });
-            let response=ui.add_sized([360.0,36.0],
-                egui::TextEdit::singleline(&mut self.query).hint_text("Search..."));
-            let entered=response.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter));
-            if control(ui,"Search") || entered {self.search();}
-            if previous!=self.selected_mode {self.query.clear();self.search();}
-        });
-        if self.selected_mode==InventoryMode::Employees {
-            let old_division=self.division_filter;
+            let mut search_clicked=false;
             ui.horizontal(|ui|{
+                egui::ComboBox::from_id_salt("search_type")
+                    .selected_text(self.selected_mode.label())
+                    .show_ui(ui,|ui|{
+                        for mode in InventoryMode::ALL {
+                            ui.selectable_value(&mut self.selected_mode,mode,mode.label());
+                        }
+                    });
+                let input_width=(ui.available_width()-132.0).max(100.0);
+                let response=ui.add_sized([input_width,38.0],
+                    egui::TextEdit::singleline(&mut self.query).hint_text(
+                        "Search inventory records…"
+                    ));
+                let entered=response.lost_focus() &&
+                    ui.input(|input|input.key_pressed(egui::Key::Enter));
+                if control(ui,"Search") || entered{search_clicked=true;}
+            });
+            if previous!=self.selected_mode {
+                self.query.clear();
+                self.search();
+            } else if search_clicked { self.search(); }
+            if self.selected_mode==InventoryMode::Employees {
+                let before=self.division_filter;
                 egui::ComboBox::from_id_salt("division_filter")
                     .selected_text(self.divisions.iter()
                         .find(|d|Some(d.id)==self.division_filter)
                         .map_or("All Divisions",|d|d.name.as_str()))
                     .show_ui(ui,|ui|{
                         ui.selectable_value(&mut self.division_filter,None,"All Divisions");
-                        for division in &self.divisions{
+                        for division in &self.divisions {
                             ui.selectable_value(&mut self.division_filter,
                                 Some(division.id),&division.name);
                         }
                     });
-            });
-            if old_division!=self.division_filter {self.search();}
-        } else if self.selected_mode==InventoryMode::EmployeeItems {
-            ui.horizontal(|ui|{
-                ui.label("Attribute Name:");
-                ui.text_edit_singleline(&mut self.attr_name);
-                ui.label("Attribute Value:");
-                ui.text_edit_singleline(&mut self.attr_value);
-            });
-        }
+                if before!=self.division_filter { self.search(); }
+            }else if self.selected_mode==InventoryMode::EmployeeItems {
+                ui.horizontal_wrapped(|ui|{
+                    ui.label("Attribute");
+                    ui.add_sized([160.0,36.0],
+                        egui::TextEdit::singleline(&mut self.attr_name)
+                            .hint_text("Name"));
+                    ui.label("Value");
+                    ui.add_sized([160.0,36.0],
+                        egui::TextEdit::singleline(&mut self.attr_value)
+                            .hint_text("Value"));
+                });
+            }
         });
-        ui.add_space(20.0);
+        ui.add_space(22.0);
         let result_count=match self.selected_mode {
             InventoryMode::Employees=>self.inventory_employees.len(),
             InventoryMode::Items=>self.inventory_items.len(),
@@ -646,13 +661,26 @@ impl InManApp {
             _=>self.inventory_assignments.len(),
         };
         theme::section(ui,"Search results",&format!("{result_count} records"));
+        let width=ui.available_width();
         theme::card().show(ui,|ui|{
-            ui.set_min_height(380.0);
-            match self.selected_mode {
-                InventoryMode::Employees=>self.draw_employees(ui),
-                InventoryMode::Items=>self.draw_items(ui),
-                InventoryMode::Divisions=>self.draw_divisions(ui),
-                InventoryMode::EmployeeItems|InventoryMode::UniqueKey=>self.draw_assignments(ui),
+            ui.set_min_width((width-38.0).max(235.0));
+            ui.set_min_height(300.0);
+            if result_count==0 {
+                ui.add_space(38.0);
+                ui.vertical_centered(|ui|{
+                    ui.label(RichText::new("No matching records").size(17.0)
+                        .strong().color(theme::TEXT));
+                    ui.label(RichText::new("Try a different search or filter.")
+                        .color(theme::MUTED));
+                });
+            } else {
+                match self.selected_mode {
+                    InventoryMode::Employees=>self.draw_employees(ui),
+                    InventoryMode::Items=>self.draw_items(ui),
+                    InventoryMode::Divisions=>self.draw_divisions(ui),
+                    InventoryMode::EmployeeItems|InventoryMode::UniqueKey=>
+                        self.draw_assignments(ui),
+                }
             }
         });
     }
