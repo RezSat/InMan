@@ -304,6 +304,32 @@ fn division_inventory_excel_handles_one_asset_without_a_single_cell_merge() -> R
 }
 
 #[test]
+fn backup_is_integrity_checked_and_preserves_optional_archives() -> Result<()> {
+    let db=fixture()?;
+    db.db_connection().execute_batch(
+        "CREATE TABLE archived_employee_items (
+             id INTEGER PRIMARY KEY, emp_id TEXT,
+             archive_reason TEXT NOT NULL, archived_at_utc TEXT NOT NULL
+         );
+         INSERT INTO archived_employee_items
+           VALUES (101,NULL,'missing employee','2026-08-02T10:00:00Z');"
+    )?;
+    let temp=tempdir()?;
+    let backup=temp.path().join("inventory-copy.db");
+    db.backup_to(&backup)?;
+    assert!(backup.exists());
+    let read_only=Database::open_read_only(&backup)?;
+    assert_eq!(read_only.foreign_key_violation_count()?,0);
+    assert_eq!(read_only.dashboard_counts()?,(3,2,2));
+    let old:i64=read_only.db_connection().query_row(
+        "SELECT COUNT(*) FROM archived_employee_items",[],|r|r.get(0)
+    )?;
+    assert_eq!(old,1);
+    assert!(db.backup_to(&backup).is_err(),"Never overwrite an existing backup");
+    Ok(())
+}
+
+#[test]
 fn three_excel_exports_have_the_expected_columns() -> Result<()> {
     let db=fixture()?;
     let dir=tempdir()?;
