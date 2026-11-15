@@ -478,7 +478,7 @@ impl InManApp {
         ui.add_space(23.0);
         theme::section(ui,"Division overview","Departments and assigned assets");
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .max_height(ui.available_height().max(220.0))
+            .max_height(ui.available_height().clamp(220.0,600.0))
             .show(ui,|ui|{
                 for division in &self.divisions {
                     let width=ui.available_width();
@@ -688,7 +688,7 @@ impl InManApp {
     fn draw_employees(&self,ui:&mut Ui) {
         let width=ui.available_width().max(585.0);
         let sizes=theme::column_widths(width,&[0.22,0.38,0.40],585.0);
-        let height=ui.available_height().max(250.0);
+        let height=ui.available_height().clamp(250.0,650.0);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
@@ -711,7 +711,7 @@ impl InManApp {
     fn draw_items(&self,ui:&mut Ui) {
         let width=ui.available_width().max(370.0);
         let sizes=theme::column_widths(width,&[1.0],370.0);
-        let height=ui.available_height().max(250.0);
+        let height=ui.available_height().clamp(250.0,650.0);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[("ITEM TYPE",sizes[0])]);
@@ -728,7 +728,7 @@ impl InManApp {
     fn draw_divisions(&self,ui:&mut Ui) {
         let width=ui.available_width().max(580.0);
         let sizes=theme::column_widths(width,&[0.55,0.22,0.23],580.0);
-        let height=ui.available_height().max(250.0);
+        let height=ui.available_height().clamp(250.0,650.0);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
@@ -753,7 +753,7 @@ impl InManApp {
     fn draw_assignments(&self,ui:&mut Ui) {
         let width=ui.available_width().max(940.0);
         let sizes=theme::column_widths(width,&[0.13,0.20,0.19,0.20,0.28],940.0);
-        let height=ui.available_height().max(250.0);
+        let height=ui.available_height().clamp(250.0,650.0);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
