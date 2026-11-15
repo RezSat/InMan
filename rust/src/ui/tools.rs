@@ -161,15 +161,14 @@ impl InManApp {
     }
 
     fn import_employee_ui(&mut self,ui:&mut Ui) {
-        if control(ui,"Import Employees from Excel") {
-            if let Some(path)=rfd::FileDialog::new()
+        if control(ui,"Import Employees from Excel")
+            && let Some(path)=rfd::FileDialog::new()
                 .add_filter("Excel",&["xlsx","xls"]).pick_file() {
-                match reports::read_employee_import(&path,&self.divisions) {
-                    Ok(rows)=>{self.staged=rows;self.message=format!(
-                        "{} employee(s) loaded for review",self.staged.len()
-                    );}
-                    Err(err)=>self.message=err.to_string(),
-                }
+            match reports::read_employee_import(&path,&self.divisions) {
+                Ok(rows)=>{self.staged=rows;self.message=format!(
+                    "{} employee(s) loaded for review",self.staged.len()
+                );}
+                Err(err)=>self.message=err.to_string(),
             }
         }
         ui.label("Review staged employee records before submitting");
@@ -273,11 +272,10 @@ impl InManApp {
         }
         ui.label("Division Name");
         ui.add_sized([440.0,38.0],TextEdit::singleline(&mut self.form_name));
-        if control(ui,"Update Division") {
-            if let Some(id)=self.selected_division{
-                let result=self.db.as_mut().unwrap().rename_division(id,&self.form_name);
-                self.notify(result);
-            }
+        if control(ui,"Update Division")
+            && let Some(id)=self.selected_division {
+            let result=self.db.as_mut().unwrap().rename_division(id,&self.form_name);
+            self.notify(result);
         }
     }
 
@@ -373,8 +371,7 @@ impl InManApp {
                 )).clicked() {self.selected_assignment=Some(asset.id);}
             }
         });
-        if editable {
-            if self.selected_assignment.is_some() {
+        if editable && self.selected_assignment.is_some() {
                 ui.horizontal(|ui|{
                     ui.label("Attribute Name");
                     ui.text_edit_singleline(&mut self.new_attr_name);
@@ -400,7 +397,6 @@ impl InManApp {
                         self.selected_assignment.unwrap()
                     ));
                 }
-            }
         }
     }
 
@@ -435,8 +431,8 @@ impl InManApp {
     }
 
     fn assignment_log_ui(&mut self,ui:&mut Ui) {
-        if let Some(db)=self.db.as_ref() {
-            if let Ok(logs)=db.logs("",200) {
+        if let Some(db)=self.db.as_ref()
+            && let Ok(logs)=db.logs("",200) {
                 ScrollArea::vertical().show_rows(ui,38.0,logs.len(),|ui,range|{
                     for i in range {
                         let log=&logs[i];
@@ -445,7 +441,6 @@ impl InManApp {
                         ui.separator();
                     }
                 });
-            }
         }
     }
 }
