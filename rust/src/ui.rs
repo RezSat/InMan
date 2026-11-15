@@ -40,7 +40,7 @@ pub(super) enum PendingRemoval {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Screen { Dashboard, Login, Inventory, Manager, Tool }
+enum Screen { Dashboard, Inventory, Manager, Tool, Settings }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Tool {
     AddItem, UpdateItem, RemoveItems, ViewItems,
@@ -111,10 +111,6 @@ pub struct InManApp {
     screen: Screen,
     tool: Tool,
     message: String,
-    username: String,
-    password: String,
-    manager_setup_needed: bool,
-    manager_logged_in: bool,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -182,9 +178,7 @@ impl Default for InManApp {
         let mut state=Self {
             db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
-            message:String::new(), username:String::new(),password:String::new(),
-            manager_setup_needed:false,
-            manager_logged_in:false,
+            message:String::new(),
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
@@ -225,13 +219,6 @@ impl InManApp {
     fn reload(&mut self) {
         self.division_item_cache.clear();
         let Some(db)=self.db.as_ref() else{return};
-        self.manager_setup_needed=match db.manager_count() {
-            Ok(count)=>count==0,
-            Err(error)=>{
-                logging::error("database", format!("manager account check failed: {error:#}"));
-                false
-            }
-        };
         let data=(
             db.dashboard_counts(), db.divisions(""),
             db.employees("",None),db.items(""),
@@ -260,10 +247,7 @@ impl InManApp {
     }
 
     fn open(&mut self, screen:Screen) {
-        self.screen=if !self.manager_logged_in &&
-            matches!(screen,Screen::Manager|Screen::Tool) {
-            Screen::Login
-        }else{screen};
+        self.screen=screen;
         self.message.clear();
         if matches!(screen,Screen::Dashboard | Screen::Manager | Screen::Tool) {self.reload()}
     }
@@ -362,43 +346,39 @@ impl InManApp {
     }
 
     fn sidebar(&mut self, ui:&mut Ui) {
-        ui.add_space(12.0);
+        ui.add_space(15.0);
+        // Restore the original pink "In" and cream "Man" wordmark.
         ui.horizontal(|ui|{
-            theme::subtle_card().show(ui, |ui| {
-                ui.label(RichText::new("IM").strong().size(18.0).color(theme::ACCENT));
-            });
-            ui.vertical(|ui|{
-                ui.label(RichText::new("InMan").strong().size(20.0).color(theme::TEXT));
-                ui.label(RichText::new("INVENTORY MANAGER").size(9.0).color(theme::MUTED));
-            });
+            ui.spacing_mut().item_spacing.x=0.0;
+            ui.label(RichText::new("In").size(30.0).strong().color(theme::ACCENT));
+            ui.label(RichText::new("Man").size(30.0).strong().color(theme::TEXT));
         });
-        ui.add_space(32.0);
-        ui.label(RichText::new("WORKSPACE").size(10.0).strong().color(theme::MUTED));
-        ui.add_space(7.0);
-        if theme::sidebar_item(ui, "  Dashboard", self.screen==Screen::Dashboard) {
+        ui.label(RichText::new("INVENTORY MANAGEMENT").size(10.0).color(theme::MUTED));
+        ui.add_space(28.0);
+        ui.label(RichText::new("WORKSPACE").size(11.0).strong().color(theme::MUTED));
+        ui.add_space(8.0);
+        if theme::sidebar_item(ui,"Dashboard",self.screen==Screen::Dashboard){
             self.open(Screen::Dashboard)
         }
-        if theme::sidebar_item(ui, "  View Inventory", self.screen==Screen::Inventory) {
+        if theme::sidebar_item(ui,"View Inventory",self.screen==Screen::Inventory){
             self.open(Screen::Inventory);
             self.search();
         }
-        ui.add_space(20.0);
-        ui.label(RichText::new("MANAGEMENT").size(10.0).strong().color(theme::MUTED));
-        ui.add_space(7.0);
-        if self.manager_logged_in {
-            if theme::sidebar_item(ui, "  Manager Tools",
-                matches!(self.screen,Screen::Manager|Screen::Tool)) {
-                self.open(Screen::Manager)
-            }
-        } else if theme::sidebar_item(ui, "  Manager Login", self.screen==Screen::Login) {
-            self.open(Screen::Login)
+        ui.add_space(18.0);
+        ui.label(RichText::new("OPERATIONS").size(11.0).strong().color(theme::MUTED));
+        ui.add_space(8.0);
+        if theme::sidebar_item(ui,"Manager Tools",
+            matches!(self.screen,Screen::Manager|Screen::Tool)) {
+            self.open(Screen::Manager)
         }
-        if theme::sidebar_item(ui, "  Package to Share", false) { self.package() }
-        ui.add_space(30.0);
+        if theme::sidebar_item(ui,"Package to Share",false){self.package()}
+        ui.add_space(16.0);
+        if theme::sidebar_item(ui,"Settings",self.screen==Screen::Settings){
+            self.open(Screen::Settings)
+        }
+        ui.add_space(18.0);
         ui.separator();
-        ui.add_space(12.0);
-        ui.label(RichText::new("INMAN DESKTOP").size(10.0).color(theme::MUTED));
-        ui.label(RichText::new(format!("Version {}", VERSION)).size(12.0).color(theme::TEXT));
+        ui.label(RichText::new(format!("InMan {}",VERSION)).size(12.0).color(theme::MUTED));
     }
 
     fn dashboard(&mut self,ui:&mut Ui) {
@@ -434,7 +414,7 @@ impl InManApp {
                 self.search();
             }
             if secondary_control(ui,"Manager tools") {
-                self.open(if self.manager_logged_in {Screen::Manager} else {Screen::Login});
+                self.open(Screen::Manager);
             }
         });
         ui.add_space(28.0);
@@ -473,61 +453,6 @@ impl InManApp {
                 });
                 ui.add_space(8.0);
             }
-        });
-    }
-
-    fn login(&mut self,ui:&mut Ui) {
-        ui.vertical_centered(|ui|{
-            ui.add_space(50.0);
-            theme::heading(ui,"SECURE ACCESS",
-                if self.manager_setup_needed {"Create manager account"} else {"Manager login"},
-                if self.manager_setup_needed {
-                    "Set up the first manager for this inventory database."
-                }else{
-                    "Sign in to manage items, people and assignments."
-                });
-            theme::card().show(ui,|ui|{
-                ui.set_width(392.0);
-                ui.label(RichText::new("USERNAME").size(11.0).strong().color(theme::MUTED));
-                ui.add_sized([350.0,40.0],egui::TextEdit::singleline(&mut self.username)
-                    .hint_text("Enter your username"));
-                ui.add_space(8.0);
-                ui.label(RichText::new("PASSWORD").size(11.0).strong().color(theme::MUTED));
-                let response=ui.add_sized([350.0,40.0],
-                    egui::TextEdit::singleline(&mut self.password)
-                        .hint_text("Enter your password").password(true));
-                ui.add_space(14.0);
-                if self.manager_setup_needed {
-                    ui.label(RichText::new("No manager account is configured yet.")
-                        .size(12.0).color(theme::MUTED));
-                    if control(ui,"Create manager account") {
-                        match self.db.as_mut().unwrap()
-                            .create_first_manager(&self.username,&self.password) {
-                            Ok(())=>{
-                                self.manager_logged_in=true;
-                                self.reload();
-                                self.open(Screen::Manager);
-                            }
-                            Err(err)=>self.message=err.to_string(),
-                        }
-                    }
-                }else{
-                    let submitted=control(ui,"Sign in") ||
-                        (response.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter)));
-                    if submitted {
-                        match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
-                            Some(Ok(true))=>{
-                                self.manager_logged_in=true;
-                                self.password.clear();
-                                self.open(Screen::Manager);
-                            }
-                            Some(Ok(false))=>self.message="Invalid username or password".into(),
-                            Some(Err(err))=>self.message=err.to_string(),
-                            None=>self.message="Database unavailable".into(),
-                        }
-                    }
-                }
-            });
         });
     }
 
@@ -865,10 +790,10 @@ impl eframe::App for InManApp {
             main.add_space(12.0);
             match self.screen {
                 Screen::Dashboard=>self.dashboard(main),
-                Screen::Login=>self.login(main),
                 Screen::Inventory=>self.inventory(main),
                 Screen::Manager=>self.manager(main),
                 Screen::Tool=>self.tool_screen(main),
+                Screen::Settings=>self.settings(main),
             }
             if !self.message.is_empty() {
                 main.add_space(16.0);
