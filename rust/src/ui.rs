@@ -8,6 +8,13 @@ fn color(rgb: [u8;3]) -> Color32 { Color32::from_rgb(rgb[0],rgb[1],rgb[2]) }
 fn pink() -> Color32 { color(PALETTE.pink) }
 fn light() -> Color32 { color(PALETTE.white) }
 
+pub(super) enum PendingRemoval {
+    Items(Vec<i64>),
+    Employees(Vec<String>),
+    Divisions(Vec<i64>),
+    Assignment(i64),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Screen { Dashboard, Login, Inventory, Manager, Tool }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +103,7 @@ pub struct InManApp {
     pub(super) new_attr_value: String,
     pub(super) staged: Vec<(String,String,i64)>,
     pub(super) selection: BTreeSet<String>,
+    pub(super) pending_removal: Option<PendingRemoval>,
 }
 
 impl Default for InManApp {
@@ -114,7 +122,7 @@ impl Default for InManApp {
             selected_assignment:None,destination:String::new(),form_id:String::new(),
             form_name:String::new(),form_key:String::new(),form_notes:String::new(),
             form_attrs:vec![],new_attr_name:String::new(),new_attr_value:String::new(),
-            staged:vec![],selection:BTreeSet::new(),
+            staged:vec![],selection:BTreeSet::new(),pending_removal:None,
         };
         if activated && state.db.is_none() {
             state.message="Cannot open inventory.db. Check the working directory.".into();
@@ -181,6 +189,7 @@ impl InManApp {
         self.destination.clear();
         self.selection.clear();
         self.staged.clear();
+        self.pending_removal=None;
         self.open(Screen::Tool);
     }
 
@@ -556,6 +565,40 @@ impl InManApp {
         };
     }
 
+    fn execute_removal(&mut self, removal: PendingRemoval) {
+        let Some(db)=self.db.as_mut() else{return};
+        let mut errors=Vec::new();
+        match removal {
+            PendingRemoval::Items(ids)=>{
+                for id in ids {
+                    if let Err(err)=db.remove_item(id) {errors.push(format!("{id}: {err}"))}
+                }
+            }
+            PendingRemoval::Employees(ids)=>{
+                for id in ids {
+                    if let Err(err)=db.remove_employee(&id) {errors.push(format!("{id}: {err}"))}
+                }
+            }
+            PendingRemoval::Divisions(ids)=>{
+                for id in ids {
+                    if let Err(err)=db.remove_division(id) {errors.push(format!("{id}: {err}"))}
+                }
+            }
+            PendingRemoval::Assignment(id)=>{
+                if let Err(err)=db.remove_assignment(id) {errors.push(format!("{id}: {err}"))}
+                self.selected_assignment=None;
+            }
+        }
+        if errors.is_empty() {
+            self.message="Selected records removed".into();
+        }else{
+            self.message=errors.join("; ");
+        }
+        self.selection.clear();
+        self.reload();
+        if !self.selected_employee.is_empty() {self.load_selected_assets();}
+    }
+
     fn package(&mut self) {
         let Some(output)=rfd::FileDialog::new()
             .add_filter("ZIP archive",&["zip"]).set_file_name("InMan.zip").save_file() else{return};
@@ -597,5 +640,33 @@ impl eframe::App for InManApp {
                 main.label(RichText::new(&self.message).color(pink()));
             }
         });
+
+        if let Some(removal)=self.pending_removal.as_ref() {
+            let (count,description)=match removal {
+                PendingRemoval::Items(records)=>(records.len(),"item type(s)"),
+                PendingRemoval::Employees(records)=>(records.len(),"employee(s)"),
+                PendingRemoval::Divisions(records)=>(records.len(),"division(s)"),
+                PendingRemoval::Assignment(_)=>(1,"asset assignment"),
+            };
+            let mut choice=None;
+            egui::Window::new("Confirm Removal")
+                .collapsible(false).resizable(false)
+                .show(ui.ctx(),|dialog|{
+                    dialog.label(format!(
+                        "Remove {count} {description}? This action cannot be undone."
+                    ));
+                    dialog.horizontal(|dialog|{
+                        if dialog.button("Cancel").clicked(){choice=Some(false);}
+                        if dialog.add(
+                            egui::Button::new("Remove").fill(pink())
+                        ).clicked(){choice=Some(true);}
+                    });
+                });
+            if let Some(confirmed)=choice {
+                if let Some(removal)=self.pending_removal.take() {
+                    if confirmed {self.execute_removal(removal);}
+                }
+            }
+        }
     }
 }
