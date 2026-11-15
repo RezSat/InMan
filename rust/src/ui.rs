@@ -411,13 +411,18 @@ impl InManApp {
                 ("DIVISIONS",self.counts.2,"Active departments"),
             ] {
                 theme::card().show(ui,|ui|{
-                    ui.set_min_width(190.0);
-                    ui.set_min_height(120.0);
-                    ui.label(RichText::new(label).size(11.0).strong().color(theme::MUTED));
-                    ui.add_space(5.0);
-                    ui.label(RichText::new(number.to_string()).size(34.0)
-                        .strong().color(theme::TEXT));
-                    ui.label(RichText::new(subtitle).size(11.0).color(theme::MUTED));
+                    // A card inherits its parent's horizontal layout unless
+                    // its own vertical content layout is explicitly established.
+                    ui.vertical(|ui|{
+                        ui.set_min_width(190.0);
+                        ui.set_min_height(120.0);
+                        ui.label(RichText::new(label).size(11.0).strong().color(theme::MUTED));
+                        ui.add_space(11.0);
+                        ui.label(RichText::new(number.to_string()).size(34.0)
+                            .strong().color(theme::TEXT));
+                        ui.add_space(3.0);
+                        ui.label(RichText::new(subtitle).size(11.0).color(theme::MUTED));
+                    });
                 });
             }
         });
