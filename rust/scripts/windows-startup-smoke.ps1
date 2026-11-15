@@ -16,7 +16,7 @@ param(
     [string]$DatabaseSource,
 
     [int]$StartupTimeoutSeconds = 90,
-    [int]$StabilitySeconds = 5,
+    [int]$StabilitySeconds = 10,
     [int]$ShutdownTimeoutSeconds = 30
 )
 
@@ -249,6 +249,15 @@ function Invoke-InManStartupCheck {
         $logText = Read-LogAfterOffset -Path $logPath -Offset $logOffset
         if ($logText -match 'panic on thread|InMan failed to start|eframe could not start') {
             throw "[$Label] Startup log contains a fatal error:`n$logText"
+        }
+
+        # Guard the Windows startup fix: Vulkan must not be selected implicitly.
+        if (-not $env:WGPU_BACKEND -and
+            $logText -notmatch 'configured wgpu backend\(s\): Backends\(DX12\)') {
+            throw "[$Label] Windows startup did not configure the DX12 backend:`n$logText"
+        }
+        if ($logText -match 'backend Vulkan|Backends\(VULKAN') {
+            throw "[$Label] InMan selected the Vulkan backend, which crashed the affected Intel driver:`n$logText"
         }
 
         Close-InManWindow -Process $process -WindowHandle $window.Handle `
