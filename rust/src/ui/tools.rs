@@ -11,8 +11,9 @@ impl InManApp {
         ui.add_space(10.0);
         theme::heading(ui,"MANAGEMENT / ACTION",self.tool.name(),
             "Changes are saved directly to the selected inventory database.");
+        let available=ui.available_width();
         theme::card().show(ui,|ui|{
-            ui.set_min_width(620.0);
+            ui.set_min_width((available-40.0).max(220.0));
             ui.add_space(5.0);
             match self.tool {
                 Tool::AddItem=>self.add_item_ui(ui),
@@ -422,7 +423,7 @@ impl InManApp {
             ui.label(format!("{} / 10 items",self.staged_assets.len()));
         });
         ui.label("Notes for this assignment");
-        ui.add_sized([440.0,34.0],TextEdit::singleline(&mut self.form_notes));
+        ui.add_sized([(ui.available_width()-18.0).clamp(180.0,540.0),34.0],TextEdit::singleline(&mut self.form_notes));
 
         if control(ui,"Assign Items to Employee") {
             if self.selected_employee.is_empty() {
@@ -550,7 +551,7 @@ impl InManApp {
                 });
         });
         ui.label("Notes");
-        ui.add_sized([440.0,36.0],TextEdit::singleline(&mut self.form_notes));
+        ui.add_sized([(ui.available_width()-18.0).clamp(180.0,540.0),36.0],TextEdit::singleline(&mut self.form_notes));
 
         if !self.transfer_selection.is_empty() && control(ui,"Transfer Items") {
             if self.destination.is_empty() {
