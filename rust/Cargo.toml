@@ -1,0 +1,36 @@
+[package]
+name = "inman"
+version = "2.0.0-beta.1"
+edition = "2024"
+rust-version = "1.95"
+description = "Native Rust rewrite of the InMan desktop inventory manager"
+build = "build.rs"
+
+[dependencies]
+anyhow = "1.0"
+rusqlite = { version = "0.42", features = ["bundled"] }
+chrono = "0.4"
+sha2 = "0.10"
+getrandom = "0.4"
+hex = "0.4"
+subtle = "2.6"
+eframe = "0.37"
+rust_xlsxwriter = "0.102"
+calamine = "0.38"
+rfd = "0.15"
+zip = { version = "6", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+opt-level = 3
