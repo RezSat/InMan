@@ -1,0 +1,64 @@
+name: Rust desktop build and compatibility tests
+
+on:
+  push:
+    branches:
+      - rust-refactor
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+permissions:
+  contents: read
+
+jobs:
+  windows-rust:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - name: Static formatting
+        run: cargo fmt --all -- --check
+      - name: Rust regression tests
+        run: cargo test --all-targets --verbose
+      - name: Audit common Rust mistakes
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build optimized Windows EXE
+        run: cargo build --release --bin inman
+      - name: Upload Rust test executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: InMan-Rust-Development
+          path: rust/target/release/inman.exe
+
+  linux-core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust -> target
+      - name: Install desktop build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libx11-dev libxkbcommon-dev libasound2-dev libudev-dev libssl-dev pkg-config
+      - name: Core tests
+        run: cargo test --lib
