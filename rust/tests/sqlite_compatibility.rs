@@ -1,5 +1,5 @@
 use anyhow::Result;
-use inman::{db::{Database,InventoryMode},licensing,reports};
+use inman::{db::{AssignmentDraft,Database,InventoryMode},licensing,reports};
 use rusqlite::params;
 use sha2::{Digest,Sha256};
 use tempfile::tempdir;
@@ -207,6 +207,79 @@ fn package_contains_the_executable_and_database() -> Result<()> {
     archive.by_name("inventory.db")?.read_to_end(&mut contents)?;
     assert_eq!(contents,b"test SQLite file");
     Ok(())
+}
+
+#[test]
+fn ten_staged_assets_commit_together_with_attributes_and_counts() -> Result<()> {
+    let mut db=fixture()?;
+    let drafts=(0..10).map(|number|AssignmentDraft {
+        item_id: if number%2==0 {1}else{2},
+        unique_key:format!("BATCH-{number}"),
+        notes:"New equipment".into(),
+        attributes:vec![
+            ("Serial".into(),format!("SER-{number}")),
+            ("".into(),"ignored".into()),
+        ],
+    }).collect::<Vec<_>>();
+    let ids=db.assign_many("E02",&drafts)?;
+    assert_eq!(ids.len(),10);
+    assert_eq!(db.employees("E02",None)?[0].item_count,10);
+    let items=db.assignments("",Some("E02"),None,None)?;
+    assert_eq!(items.len(),10);
+    assert!(items.iter().all(|a|a.attributes.len()==1));
+    assert!(items.iter().any(|a|a.unique_key=="BATCH-9"));
+    let mut invalid=drafts.clone();
+    invalid[9].item_id=999_999;
+    assert!(db.assign_many("E02",&invalid).is_err());
+    assert_eq!(db.assignments("",Some("E02"),None,None)?.len(),10);
+    assert_eq!(db.employees("E02",None)?[0].item_count,10);
+    db.verify_integrity()
+}
+
+#[test]
+fn employee_details_and_id_change_are_one_atomic_operation() -> Result<()> {
+    let mut db=fixture()?;
+    let before=db.employees("E01",None)?[0].clone();
+    assert!(db.update_employee_identity(
+        "E01","E02","New name",Some(2)
+    ).is_err());
+    assert_eq!(db.employees("E01",None)?[0],before);
+    db.update_employee_identity("E01","E91","Updated Alice",Some(2))?;
+    let updated=&db.employees("E91",None)?[0];
+    assert_eq!(updated.name,"Updated Alice");
+    assert_eq!(updated.division,"Finance");
+    assert_eq!(db.assignments("",Some("E91"),None,None)?.len(),2);
+    assert!(db.employees("E01",None)?.is_empty());
+    db.verify_integrity()
+}
+
+#[test]
+fn duplicate_reference_keys_do_not_cause_the_wrong_asset_to_move() -> Result<()> {
+    let mut db=fixture()?;
+    db.db_connection().execute_batch(
+        "CREATE TABLE archived_employee_items(
+             id INTEGER PRIMARY KEY, emp_id VARCHAR,
+             unique_key VARCHAR, archive_reason VARCHAR
+         );
+         INSERT INTO archived_employee_items VALUES(
+             991,NULL,'LEGACY-KEY','Historical orphan archived'
+         );"
+    )?;
+    let duplicate_id=db.assign("E01",1,"LT-001",&[(
+        "Serial".into(),"SECOND-UNIT".into()
+    )],"")?;
+    assert_eq!(db.unique_keys("LT-001")?.len(),2);
+    let moved_id=db.transfer(duplicate_id,"E02","Move only the second unit")?;
+    let old=db.assignments("",Some("E01"),None,None)?;
+    assert!(old.iter().any(|a|a.id==1&&a.unique_key=="LT-001"));
+    let moved=db.assignments("",Some("E02"),None,None)?;
+    assert_eq!(moved[0].id,moved_id);
+    assert_eq!(moved[0].attributes[0].value,"SECOND-UNIT");
+    let archived: i64=db.db_connection().query_row(
+        "SELECT COUNT(*) FROM archived_employee_items WHERE id=991",[],|r|r.get(0)
+    )?;
+    assert_eq!(archived,1);
+    db.verify_integrity()
 }
 
 #[test]
