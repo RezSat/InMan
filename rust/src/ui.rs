@@ -184,7 +184,7 @@ impl InManApp {
     fn notify(&mut self, result:anyhow::Result<()>) {
         match result {
             Ok(value)=>{
-                self.message=format!("{value}");
+                self.message="Changes saved successfully".into();
                 self.reload();
             }
             Err(err)=>self.message=err.to_string(),
