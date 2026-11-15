@@ -39,7 +39,7 @@ pub fn log_file_path() -> Option<&'static Path> {
 
 /// Starts file logging and installs a panic hook that records backtraces.
 ///
-/// Safe to call more than once; only the first call has an effect.
+/// Call once, as early as possible in `main`.
 pub fn init() {
     let path = prepare_log_file();
     if let Some(path) = path
