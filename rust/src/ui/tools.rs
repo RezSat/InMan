@@ -124,21 +124,13 @@ impl InManApp {
                 }
             }
         });
-        if control(ui,&format!("Remove {} Selected",self.selection.len())) {
-            let ids=self.selection.iter().filter_map(|s|s.parse::<i64>().ok()).collect::<Vec<_>>();
-            let mut failures=Vec::new();
-            for id in ids {
-                if let Err(err)=self.db.as_mut().unwrap().remove_item(id) {
-                    failures.push(format!("{id}: {err}"));
-                }
-            }
-            self.selection.clear();
-            self.reload();
-            self.message=if failures.is_empty(){"Selected items removed".into()}
-                        else{failures.join("; ")};
+        if !self.selection.is_empty() &&
+           control(ui,&format!("Remove {} Selected",self.selection.len())) {
+            let ids=self.selection.iter()
+                .filter_map(|s|s.parse::<i64>().ok()).collect();
+            self.pending_removal=Some(PendingRemoval::Items(ids));
         }
     }
-
     fn view_items_ui(&mut self,ui:&mut Ui) {
         ui.label(RichText::new("Item ID                          Name").strong());
         ScrollArea::vertical().max_height(420.0)
@@ -253,20 +245,13 @@ impl InManApp {
                 }
             }
         });
-        if control(ui,&format!("Remove {} Selected",self.selection.len())) {
-            let mut errors=Vec::new();
-            for id in self.selection.iter(){
-                if let Err(err)=self.db.as_mut().unwrap().remove_employee(id) {
-                    errors.push(format!("{id}: {err}"));
-                }
-            }
-            self.selection.clear();
-            self.reload();
-            self.message=if errors.is_empty(){"Selected employees removed".into()}
-                        else{errors.join("; ")};
+        if !self.selection.is_empty() &&
+           control(ui,&format!("Remove {} Selected",self.selection.len())) {
+            self.pending_removal=Some(PendingRemoval::Employees(
+                self.selection.iter().cloned().collect()
+            ));
         }
     }
-
     fn view_employees_ui(&mut self,ui:&mut Ui) {
         if self.choose_employee(ui,"Employee") {self.load_selected_assets();}
         self.asset_details(ui,false);
@@ -309,20 +294,12 @@ impl InManApp {
                 }
             }
         });
-        if control(ui,&format!("Remove {} Selected",self.selection.len())) {
-            let mut errors=Vec::new();
-            for id in self.selection.iter().filter_map(|v|v.parse::<i64>().ok()) {
-                if let Err(err)=self.db.as_mut().unwrap().remove_division(id) {
-                    errors.push(err.to_string());
-                }
-            }
-            self.selection.clear();
-            self.reload();
-            self.message=if errors.is_empty(){"Selected divisions removed".into()}
-                        else{errors.join("; ")};
+        if !self.selection.is_empty() &&
+           control(ui,&format!("Remove {} Selected",self.selection.len())) {
+            let ids=self.selection.iter().filter_map(|s|s.parse::<i64>().ok()).collect();
+            self.pending_removal=Some(PendingRemoval::Divisions(ids));
         }
     }
-
     fn view_divisions_ui(&mut self,ui:&mut Ui) {
         self.choose_division(ui,"Division");
         if let Some(id)=self.selected_division{
@@ -419,12 +396,9 @@ impl InManApp {
                     self.load_selected_assets();
                 }
                 if secondary_control(ui,"Remove Assigned Item") {
-                    let result=self.db.as_mut().unwrap().remove_assignment(
+                    self.pending_removal=Some(PendingRemoval::Assignment(
                         self.selected_assignment.unwrap()
-                    );
-                    self.notify(result);
-                    self.selected_assignment=None;
-                    self.load_selected_assets();
+                    ));
                 }
             }
         }
