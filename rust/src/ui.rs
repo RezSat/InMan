@@ -71,6 +71,7 @@ pub struct InManApp {
     message: String,
     username: String,
     password: String,
+    manager_setup_needed: bool,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -105,6 +106,7 @@ impl Default for InManApp {
             db, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
             message:String::new(), username:String::new(),password:String::new(),
+            manager_setup_needed:false,
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],counts:(0,0,0),
@@ -137,6 +139,7 @@ impl InManApp {
 
     fn reload(&mut self) {
         let Some(db)=self.db.as_ref() else{return};
+        self.manager_setup_needed=db.manager_count().unwrap_or(-1)==0;
         let data=(
             db.dashboard_counts(), db.divisions(""),
             db.employees("",None),db.items(""),
@@ -300,7 +303,11 @@ impl InManApp {
         ui.vertical_centered(|ui|{
             ui.add_space(70.0);
             ui.heading(RichText::new("InMan").size(42.0).color(pink()));
-            ui.heading("Login! to be the Inventory Manager");
+            ui.heading(if self.manager_setup_needed {
+                "Create your first Inventory Manager account"
+            }else{
+                "Login! to be the Inventory Manager"
+            });
             ui.add_space(25.0);
             ui.group(|ui|{
                 ui.set_width(360.0);
@@ -310,7 +317,20 @@ impl InManApp {
                 ui.label("Password");
                 ui.add_sized([300.0,40.0],egui::TextEdit::singleline(&mut self.password)
                     .hint_text("Enter your password").password(true));
-                if control(ui,"Login") {
+
+                if self.manager_setup_needed {
+                    ui.label("This inventory database has no manager account yet.");
+                    if control(ui,"Create Manager Account") {
+                        match self.db.as_mut().unwrap()
+                            .create_first_manager(&self.username,&self.password) {
+                            Ok(())=>{
+                                self.reload();
+                                self.open(Screen::Manager);
+                            }
+                            Err(err)=>self.message=err.to_string(),
+                        }
+                    }
+                }else if control(ui,"Login") {
                     match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
                         Some(Ok(true))=>self.open(Screen::Manager),
                         Some(Ok(false))=>self.message="Invalid username or password".into(),
