@@ -183,11 +183,19 @@ fn spreadsheet_import_reads_original_python_column_names() -> Result<()> {
     for (column,value) in ["E04","New Employee","Operations"].iter().enumerate() {
         sheet.write_string(1,column as u16,*value)?;
     }
+    for (column,value) in ["E05","Needs correction","UNKNOWN"].iter().enumerate() {
+        sheet.write_string(2,column as u16,*value)?;
+    }
     book.save(&path)?;
-    let staged=reports::read_employee_import(&path,&db.divisions("")?)?;
-    assert_eq!(staged,vec![("E04".into(),"New Employee".into(),1)]);
-    assert_eq!(db.import_employees(&staged)?,1);
+    let mut staged=reports::read_employee_import(&path,&db.divisions("")?)?;
+    assert_eq!(staged[0],("E04".into(),"New Employee".into(),Some(1)));
+    assert_eq!(staged[1],("E05".into(),"Needs correction".into(),None));
+    staged[1].2=Some(2);
+    let validated:Vec<(String,String,i64)>=staged.into_iter()
+        .map(|(id,name,division)|(id,name,division.unwrap())).collect();
+    assert_eq!(db.import_employees(&validated)?,2);
     assert_eq!(db.employees("E04",None)?[0].division,"Operations");
+    assert_eq!(db.employees("E05",None)?[0].division,"Finance");
     Ok(())
 }
 
