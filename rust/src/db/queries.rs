@@ -3,6 +3,13 @@ use rusqlite::{params, params_from_iter};
 use std::collections::HashMap;
 
 impl Database {
+    pub fn manager_count(&self) -> Result<i64> {
+        Ok(self.conn.query_row(
+            "SELECT COUNT(*) FROM users", [], |r| r.get(0)
+        )?)
+    }
+
+
     pub fn dashboard_counts(&self) -> Result<(i64, i64, i64)> {
         Ok(self.conn.query_row(
             "SELECT (SELECT COUNT(*) FROM employees),
