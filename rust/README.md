@@ -2,7 +2,7 @@
 
 Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 
-**Current version: 2.0.0-beta.1.** This is a test build, not a production replacement for Python v1.4. The source and release pipeline live in the [`rust-refactor` branch](https://github.com/RezSat/InMan/tree/rust-refactor). The Python release remains on `main`; the baseline is also preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
+**Current version: 2.0.0-rc.1.** This is an unsigned release candidate, not a production replacement for Python v1.4. The initial Rust rewrite was merged into `main`; follow-on parity work is in [`rust-v2-completion`](https://github.com/RezSat/InMan/tree/rust-v2-completion). The last stable binary remains the Python v1.4 release. The old code is preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
 
 ## Current implementation
 
@@ -10,9 +10,9 @@ Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 - Existing Python salted-SHA-256 manager passwords; first-run manager setup for databases without users.
 - Native egui dashboard, sidebar, inventory search, manager tools, forms, and confirmation dialogs.
 - All five inventory search modes: Employees, Items, Divisions, Unique Key, Employee Items.
-- Item types, divisions, employees, physical assignments, attributes, single/bulk removals, transfers, and audit history.
+- Item types, divisions, employees, up to 10 staged physical assignments with independent attributes, single/bulk removals, multi-select transfers, and audit history.
 - Spreadsheet employee import; division-wise inventory, employee, and item-type Excel exports; results export.
-- Portable ZIP packaging; original pink/cream Windows IM executable icon.
+- Consistent, integrity-checked SQLite backups and ZIP packaging; original pink/cream Windows IM executable icon.
 - SQLite queries with bounded joins/attribute batches and transactions that roll back on failure. Large scrollable result lists use row virtualization.
 
 ## Run on Windows
@@ -29,7 +29,7 @@ Do not point this beta at your only copy of a live inventory database. The execu
 Install Rust stable (Rust 1.95 or newer) and the Visual Studio C++ build tools on Windows.
 
 ```powershell
-git clone --branch rust-refactor https://github.com/RezSat/InMan.git
+git clone --branch rust-v2-completion https://github.com/RezSat/InMan.git
 cd InMan\rust
 cargo fmt --all
 cargo test --all-targets
@@ -40,10 +40,10 @@ cargo run --release
 To make a portable Windows executable:
 
 ```powershell
-cargo build --release --bin inman
+cargo build --release --bins
 ```
 
-The binary is in `rust/target/release/inman.exe`. Its icon comes from `assets/CustomTkinter_icon_Windows.ico`.
+The GUI binary is in `rust/target/release/inman.exe`. The read-only inspection utility is `rust/target/release/inman-inspect.exe` and can be run as `inman-inspect.exe "C:\\path\\to\\inventory.db"`. It prints counts, integrity status, and SQL timings without exposing employee names. The GUI icon comes from `assets/CustomTkinter_icon_Windows.ico`.
 
 ## Code layout
 
@@ -58,7 +58,7 @@ The binary is in `rust/target/release/inman.exe`. Its icon comes from `assets/Cu
 | `src/ui/tools.rs` | Manager screens and operations |
 | `tests/sqlite_compatibility.rs` | Synthetic fixtures and integrity/compatibility tests |
 
-CI uses `.github/workflows/rust-ci.yml` to run Windows and Linux tests, Clippy, and an optimized Windows build. A beta is published only after both CI jobs succeed.
+CI uses `.github/workflows/rust-ci.yml` to run Windows and Linux tests, Clippy, and an optimized Windows build. An RC prerelease is published only after both Windows and Linux CI jobs succeed.
 
 ## Compatibility and performance status
 
@@ -67,9 +67,9 @@ This Rust implementation deliberately preserves database table names, key/attrib
 **Not yet signed off for v2.0 final:**
 
 - Native egui controls are not a pixel-perfect clone of CustomTkinter. Visual appearance, hover behavior, popups, keyboard focus and every tool flow still need a side-by-side Windows test.
-- Some workflows have been reorganized internally. In particular, the Rust assignment form handles one physical asset at a time, while the Python tool can stage multiple assets.
+- The Rust assignment form now stages up to ten assets in one transaction, and the transfer form supports multiple selected assignment IDs. Modal dialogs and focus behavior still require visual comparison.
 - The original formatted XLSX reports need workbook-by-workbook visual comparison on representative data, beyond structural tests.
-- End-to-end desktop and real-machine startup/search/render/export benchmarks have not been performed.
+- End-to-end desktop and real-machine startup/search/render/export benchmarks have not been performed. The headless `inman-inspect` utility measures SQLite queries only.
 - Code signing is not configured for the Windows release.
 
 See [`docs/rust-parity.md`](../docs/rust-parity.md) for the full parity matrix. **Do not merge the Rust branch into production `main` or tag `v2.0` final until those remaining checks pass.**
