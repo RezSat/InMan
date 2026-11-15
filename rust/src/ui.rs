@@ -559,7 +559,7 @@ impl eframe::App for InManApp {
             }
             return;
         }
-        egui::Panel::left("inman_sidebar").exact_width(205.0)
+        egui::Panel::left("inman_sidebar").exact_size(205.0)
             .resizable(false).show(ui,|panel|{
                 self.sidebar(panel);
             });
