@@ -46,6 +46,16 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Build optimized Windows EXEs
         run: cargo build --release --bins
+      - name: Windows GUI startup smoke test
+        shell: pwsh
+        run: ./scripts/windows-startup-smoke.ps1 -Executable target/release/inman.exe
+      - name: Upload startup diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: InMan-startup-diagnostics
+          path: rust/target/startup-smoke/**
+          if-no-files-found: ignore
       - name: Upload Rust test executable
         uses: actions/upload-artifact@v4
         with:
