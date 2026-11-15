@@ -110,6 +110,34 @@ pub fn sidebar_item(ui: &mut Ui, text: &str, active: bool) -> bool {
     ).clicked()
 }
 
+/// Fixed column widths keep virtualized rows aligned with their headers.
+pub fn table_header_sized(ui:&mut Ui, columns:&[(&str,f32)]) {
+    Frame::new().fill(SURFACE_RAISED)
+        .corner_radius(egui::CornerRadius::same(6))
+        .inner_margin(Margin::symmetric(10,9))
+        .show(ui,|ui|{
+            ui.horizontal(|ui|{
+                ui.spacing_mut().item_spacing.x=9.0;
+                for (name,width) in columns {
+                    ui.add_sized([*width,18.0],egui::Label::new(
+                        RichText::new(*name).size(10.0).strong().color(MUTED)
+                    ));
+                }
+            });
+        });
+}
+
+pub fn table_row(ui:&mut Ui, columns:&[(&str,f32)]) {
+    ui.horizontal(|ui|{
+        ui.spacing_mut().item_spacing.x=9.0;
+        for (value,width) in columns {
+            ui.add_sized([*width,25.0],egui::Label::new(
+                RichText::new(*value).size(12.0).color(TEXT)
+            ));
+        }
+    });
+}
+
 pub fn table_header(ui: &mut Ui, columns: &[&str]) {
     Frame::new().fill(SURFACE_RAISED)
         .corner_radius(egui::CornerRadius::same(6))
