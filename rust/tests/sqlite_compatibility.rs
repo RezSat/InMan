@@ -152,16 +152,18 @@ fn original_python_salted_manager_password_is_compatible() -> Result<()> {
 fn three_excel_exports_have_the_expected_columns() -> Result<()> {
     let db=fixture()?;
     let dir=tempdir()?;
-    for (file,export,expected) in [
-        ("employees.xlsx",reports::export_employees as fn(&Database,&std::path::Path)->Result<()>,
-         "Employee ID"),
-        ("items.xlsx",reports::export_items as fn(&Database,&std::path::Path)->Result<()>,
-         "Name"),
-        ("inventory.xlsx",reports::export_inventory as fn(&Database,&std::path::Path)->Result<()>,
-         "Division"),
+    for (file,expected) in [
+        ("employees.xlsx","Employee ID"),
+        ("items.xlsx","Name"),
+        ("inventory.xlsx","Division"),
     ] {
         let path=dir.path().join(file);
-        export(&db,&path)?;
+        match file {
+            "employees.xlsx"=>reports::export_employees(&db,&path)?,
+            "items.xlsx"=>reports::export_items(&db,&path)?,
+            "inventory.xlsx"=>reports::export_inventory(&db,&path)?,
+            _=>unreachable!(),
+        }
         let mut book=open_workbook_auto(&path)?;
         let sheet=book.worksheet_range_at(0).unwrap()?;
         assert_eq!(sheet.get((0,0)).unwrap().to_string(),expected);
