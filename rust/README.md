@@ -74,6 +74,21 @@ This Rust implementation deliberately preserves database table names, key/attrib
 
 See [`docs/rust-parity.md`](../docs/rust-parity.md) for the full parity matrix. **Do not merge the Rust branch into production `main` or tag `v2.0` final until those remaining checks pass.**
 
+## Windows release-candidate acceptance test
+
+Run these checks on a **copy** of your existing database, not on the only live file.
+
+1. Run `InMan-Inspect.exe "C:\\path\\to\\inventory.db"`. Confirm that integrity and foreign keys pass and that the reported employee, item, assignment and archive counts match your copy.
+2. Launch `InMan.exe` next to a copy named `inventory.db`; verify activation is recognized from the existing Windows user registry. If the database has no manager user, create the initial manager account.
+3. Open the Dashboard, search every inventory mode, apply division and attribute filters, and export each result. Move between inventory and manager screens without losing the full employee/item selector lists.
+4. Assign two or more assets in one operation with separate serial numbers and attributes; verify they persist and the employee count increases by the number actually assigned.
+5. Transfer multiple physical assignments, including two with the same reference key, and confirm the intended IDs, attributes, history and counts.
+6. Verify both valid and invalid employee ID edits, rejected employee deletion when assets remain, bulk-import correction of an unknown division, and remove-confirmation dialogs.
+7. Export all three reports, compare cells and merges with Python v1.4, make an integrity-checked backup, package to ZIP, close/relaunch, and confirm all data persists.
+8. Measure startup and GUI responsiveness against Python 1.4 on the same Windows device. The inspection CLI measures only database reads.
+
+The original 1.4 executable is retained as the fallback. The unsigned RC may trigger Microsoft Defender SmartScreen. The release is not production-ready until the manual Windows UI and performance checks above have been completed.
+
 ## Performance verification
 
 Benchmark both executables using separate copies of the same SQLite database on the same Windows computer. Record cold launch, dashboard load, all-employee search, Employee Items search, scrolling with thousands of items and Excel exports. Compare correctness and output counts before comparing durations. The database layer is optimized for bounded query counts, but a Rust rewrite alone is not proof of a specific speedup.
