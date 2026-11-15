@@ -1,5 +1,5 @@
 use crate::db::{Assignment, Database, Division, Employee};
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, Result};
 use calamine::{open_workbook_auto, Reader};
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook};
 use std::{collections::BTreeMap, path::Path};
@@ -207,31 +207,34 @@ pub fn export_search(
 
 /// Reads the same EMP_ID / Name / Division columns as the Python bulk import.
 /// No database writes happen until the operator approves the staged rows.
+/// Stage spreadsheet rows for editing; unresolved divisions remain selectable
+/// in the UI instead of rejecting the entire import before the user can fix it.
 pub fn read_employee_import(
     path: impl AsRef<Path>, divisions: &[Division]
-) -> Result<Vec<(String,String,i64)>> {
-    let mut book = open_workbook_auto(path.as_ref())?;
+) -> Result<Vec<(String,String,Option<i64>)>> {
+    let mut book=open_workbook_auto(path.as_ref())?;
     let range=book.worksheet_range_at(0)
         .ok_or_else(||anyhow!("The spreadsheet contains no worksheets"))??;
     let mut rows=range.rows();
     let headings=rows.next().ok_or_else(||anyhow!("Missing header row"))?;
-    let headers: Vec<String>=headings.iter().map(|v|v.to_string()).collect();
-    let col=|name:&str| headers.iter().position(|h|h==name)
+    let headers:Vec<String>=headings.iter().map(|v|v.to_string()).collect();
+    let col=|name:&str|headers.iter().position(|h|h.trim().eq_ignore_ascii_case(name))
         .ok_or_else(||anyhow!("Missing {name} column"));
     let id_col=col("EMP_ID")?;
     let name_col=col("Name")?;
     let div_col=col("Division")?;
     let mut records=Vec::new();
-    for (index,row) in rows.enumerate() {
+    for row in rows {
         let text=|col:usize|row.get(col).map(|v|v.to_string()).unwrap_or_default();
         let id=text(id_col);
         let name=text(name_col);
-        if id.trim().is_empty() && name.trim().is_empty() { continue; }
-        ensure!(!id.trim().is_empty() && !name.trim().is_empty(),
-                "Row {}: employee ID/name missing",index+2);
         let division=text(div_col);
-        let division_id=divisions.iter().find(|d|d.name==division).map(|d|d.id)
-            .ok_or_else(||anyhow!("Row {}: unknown division '{}'",index+2,division))?;
+        if id.trim().is_empty() && name.trim().is_empty() && division.trim().is_empty() {
+            continue;
+        }
+        let division_id=divisions.iter()
+            .find(|d|d.name.eq_ignore_ascii_case(division.trim()))
+            .map(|d|d.id);
         records.push((id,name,division_id));
     }
     Ok(records)
