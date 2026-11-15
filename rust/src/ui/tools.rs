@@ -29,7 +29,7 @@ impl InManApp {
                 Tool::Assign=>self.assign_ui(ui),
                 Tool::Transfer=>self.transfer_ui(ui),
                 Tool::ViewAssignmentLog=>self.assignment_log_ui(ui),
-                Tool::ReportInventory|Tool::ReportEmployees|Tool::ReportItems=>{}
+                Tool::ReportInventory|Tool::ReportEmployees|Tool::ReportItems|Tool::BackupDatabase=>{}
             }
         });
     }
@@ -165,34 +165,62 @@ impl InManApp {
             && let Some(path)=rfd::FileDialog::new()
                 .add_filter("Excel",&["xlsx","xls"]).pick_file() {
             match reports::read_employee_import(&path,&self.divisions) {
-                Ok(rows)=>{self.staged=rows;self.message=format!(
-                    "{} employee(s) loaded for review",self.staged.len()
-                );}
+                Ok(rows)=>{
+                    self.staged=rows;
+                    self.message=format!(
+                        "{} employee(s) loaded. Review and correct any missing divisions.",
+                        self.staged.len()
+                    );
+                }
                 Err(err)=>self.message=err.to_string(),
             }
         }
-        ui.label("Review staged employee records before submitting");
-        ScrollArea::vertical().max_height(355.0).show_rows(ui,40.0,self.staged.len(),|ui,range|{
-            for index in range {
-                let (id,name,division)=&mut self.staged[index];
-                ui.horizontal(|ui|{
-                    ui.add_sized([95.0,34.0],TextEdit::singleline(id));
-                    ui.add_sized([180.0,34.0],TextEdit::singleline(name));
-                    ComboBox::from_id_salt(format!("bulk_div_{index}"))
-                        .selected_text(self.divisions.iter()
-                            .find(|x|x.id==*division).map_or("Division",|x|x.name.as_str()))
-                        .show_ui(ui,|ui|{
-                            for d in &self.divisions {
-                                ui.selectable_value(division,d.id,&d.name);
-                            }
-                        });
-                });
+        ui.label("Review EMP_ID, Name, and Division; correct incomplete rows before saving.");
+        ScrollArea::vertical().max_height(355.0).show_rows(
+            ui,40.0,self.staged.len(),|ui,range|{
+                for index in range {
+                    let (id,name,division)=&mut self.staged[index];
+                    ui.horizontal(|ui|{
+                        ui.add_sized([110.0,34.0],
+                            TextEdit::singleline(id).hint_text("EMP_ID"));
+                        ui.add_sized([205.0,34.0],
+                            TextEdit::singleline(name).hint_text("Name"));
+                        ComboBox::from_id_salt(("bulk_div",index))
+                            .selected_text(self.divisions.iter()
+                                .find(|x|Some(x.id)==*division)
+                                .map_or("Choose Division",|x|x.name.as_str()))
+                            .show_ui(ui,|ui|{
+                                for d in &self.divisions {
+                                    ui.selectable_value(division,Some(d.id),&d.name);
+                                }
+                            });
+                    });
+                }
             }
-        });
-        if control(ui,"Submit") {
-            let result=self.db.as_mut().unwrap().import_employees(&self.staged).map(|_|());
-            self.notify(result);
-            self.staged.clear();
+        );
+        if !self.staged.is_empty() && control(ui,"Submit") {
+            let staged:Result<Vec<(String,String,i64)>,String>=self.staged.iter()
+                .enumerate().map(|(index,(id,name,division))|{
+                    if id.trim().is_empty()||name.trim().is_empty(){
+                        return Err(format!("Row {}: Employee ID and name are required",index+2));
+                    }
+                    let division=division
+                        .ok_or_else(||format!("Row {}: Choose a valid division",index+2))?;
+                    Ok((id.trim().to_owned(),name.trim().to_owned(),division))
+                }).collect();
+            match staged {
+                Ok(rows)=>{
+                    match self.db.as_mut().unwrap().import_employees(&rows) {
+                        Ok(count)=>{
+                            self.staged.clear();
+                            self.message=format!("Imported {count} employee(s) successfully");
+                            self.reload();
+                        }
+                        Err(err)=>self.message=err.to_string(),
+                    }
+                }
+                Err(err)=>self.message=err,
+            }
         }
     }
 
@@ -211,19 +239,20 @@ impl InManApp {
         ui.add_sized([440.0,38.0],TextEdit::singleline(&mut self.form_name));
         self.choose_division(ui,"Division");
         if control(ui,"Update Employee") {
-            let original=self.selected_employee.clone();
-            let new_id=self.form_id.clone();
-            let result=(||->anyhow::Result<()> {
-                self.db.as_mut().unwrap().update_employee(
-                    &original,&self.form_name,self.selected_division
-                )?;
-                if new_id!=original {
-                    self.db.as_mut().unwrap().change_employee_id(&original,&new_id)?;
+            if self.selected_employee.is_empty() {
+                self.message="Select an employee to update".into();
+            }else{
+                let original=self.selected_employee.clone();
+                let new_id=self.form_id.trim().to_owned();
+                let result=self.db.as_mut().unwrap().update_employee_identity(
+                    &original,&new_id,&self.form_name,self.selected_division
+                );
+                if result.is_ok() {
+                    self.selected_employee=new_id;
+                    self.load_selected_assets();
                 }
-                Ok(())
-            })();
-            self.notify(result);
-            self.selected_employee=new_id;
+                self.notify(result);
+            }
         }
         ui.separator();
         ui.label("Assigned items and attributes");
@@ -300,55 +329,132 @@ impl InManApp {
     }
     fn view_divisions_ui(&mut self,ui:&mut Ui) {
         self.choose_division(ui,"Division");
-        if let Some(id)=self.selected_division{
+        if let Some(id)=self.selected_division {
             if let Some(division)=self.divisions.iter().find(|d|d.id==id) {
                 ui.heading(&division.name);
                 ui.label(format!("{} Employees | {} Items",
                     division.employee_count,division.item_count));
             }
-            if let Some(db)=self.db.as_ref(){
-                if let Ok(items)=db.division_item_types(id) {
-                    for (name,count) in items {ui.label(format!("{name}: {count}"));}
+            ui.separator();
+            ui.strong("Item types");
+            if let Some(db)=self.db.as_ref() {
+                let items=self.division_item_cache.entry(id)
+                    .or_insert_with(||db.division_item_types(id).unwrap_or_default());
+                if items.is_empty(){ui.label("No items assigned");}
+                for (name,count) in items.iter() {
+                    ui.label(format!("{name}: {count}"));
                 }
-                if let Ok(employees)=db.employees("",Some(id)) {
-                    for employee in employees {
-                        ui.label(format!("{} — {}",employee.id,employee.name));
-                    }
-                }
+            }
+            ui.separator();
+            ui.strong("Employees");
+            for employee in self.employees.iter()
+                .filter(|employee|employee.division_id==Some(id)) {
+                ui.label(format!("{} — {}",employee.id,employee.name));
             }
         }
     }
 
     fn assign_ui(&mut self,ui:&mut Ui) {
         self.choose_employee(ui,"Employee");
-        self.choose_item(ui,"Item");
-        ui.label("Unique Key / Reference ID");
-        ui.add_sized([430.0,36.0],TextEdit::singleline(&mut self.form_key));
-        ui.label("Notes");
-        ui.add_sized([430.0,36.0],TextEdit::singleline(&mut self.form_notes));
-        ui.separator();
-        ui.label("Custom Attributes");
-        for (index,(name,value)) in self.form_attrs.iter_mut().enumerate() {
-            ui.horizontal(|ui|{
-                ui.label(format!("{}",index+1));
-                ui.add_sized([155.0,30.0],TextEdit::singleline(name));
-                ui.add_sized([155.0,30.0],TextEdit::singleline(value));
-            });
+        if self.selected_employee.is_empty() {
+            ui.label("Choose an employee before assigning assets.");
+        }
+        ui.label("Assign up to ten physical assets in one transaction.");
+        ui.label("Each item has its own key and custom attributes.");
+        ui.add_space(8.0);
+
+        let mut remove_item=None;
+        ScrollArea::vertical().max_height(365.0).show(ui,|ui|{
+            for (index,staged) in self.staged_assets.iter_mut().enumerate() {
+                egui::Frame::group(ui.style()).show(ui,|ui|{
+                    ui.horizontal(|ui|{
+                        ui.heading(format!("Asset {}",index+1));
+                        if ui.small_button("Remove Item").clicked() {
+                            remove_item=Some(index);
+                        }
+                    });
+                    let selected=self.items.iter().find(|item|Some(item.id)==staged.item_id)
+                        .map_or("Select Item Type",|item|item.name.as_str());
+                    egui::ComboBox::from_id_salt(("assignment_item",index))
+                        .selected_text(selected).show_ui(ui,|ui|{
+                            for item in &self.items {
+                                ui.selectable_value(&mut staged.item_id,Some(item.id),&item.name);
+                            }
+                        });
+                    ui.horizontal(|ui|{
+                        ui.label("Unique Key / Reference ID");
+                        ui.add_sized([300.0,32.0],
+                            TextEdit::singleline(&mut staged.unique_key)
+                                .hint_text("Enter Serial Key"));
+                    });
+                    let mut removed_attribute=None;
+                    for (attr_index,(name,value)) in staged.attributes.iter_mut().enumerate() {
+                        ui.horizontal(|ui|{
+                            ui.add_sized([165.0,30.0],
+                                TextEdit::singleline(name).hint_text("Attribute name"));
+                            ui.add_sized([165.0,30.0],
+                                TextEdit::singleline(value).hint_text("Value"));
+                            if ui.small_button("Remove").clicked() {
+                                removed_attribute=Some(attr_index);
+                            }
+                        });
+                    }
+                    if let Some(attr_index)=removed_attribute {
+                        staged.attributes.remove(attr_index);
+                    }
+                    if ui.small_button("+ Add Attribute").clicked() {
+                        staged.attributes.push((String::new(),String::new()));
+                    }
+                });
+                ui.add_space(7.0);
+            }
+        });
+        if let Some(index)=remove_item {
+            self.staged_assets.remove(index);
         }
         ui.horizontal(|ui|{
-            if secondary_control(ui,"Add Attribute") {
-                self.form_attrs.push((String::new(),String::new()));
+            if self.staged_assets.len()<10
+                && secondary_control(ui,"+ Add Item") {
+                self.staged_assets.push(StagedAsset::default());
             }
-            if secondary_control(ui,"Remove Last") {self.form_attrs.pop();}
+            ui.label(format!("{} / 10 items",self.staged_assets.len()));
         });
+        ui.label("Notes for this assignment");
+        ui.add_sized([440.0,34.0],TextEdit::singleline(&mut self.form_notes));
+
         if control(ui,"Assign Items to Employee") {
-            if let Some(item_id)=self.selected_item {
-                let result=self.db.as_mut().unwrap()
-                    .assign(&self.selected_employee,item_id,&self.form_key,
-                            &self.form_attrs,&self.form_notes)
-                    .map(|_|());
-                self.notify(result);
-            }else{self.message="Choose an item type".into();}
+            if self.selected_employee.is_empty() {
+                self.message="Select an employee first".into();
+                return;
+            }
+            let drafts: Result<Vec<AssignmentDraft>,String> = self.staged_assets.iter()
+                .enumerate().map(|(index,staged)|{
+                    let item_id=staged.item_id
+                        .ok_or_else(||format!("Choose an item type for asset {}",index+1))?;
+                    if staged.unique_key.trim().is_empty(){
+                        return Err(format!("Enter a serial/reference key for asset {}",index+1));
+                    }
+                    Ok(AssignmentDraft {
+                        item_id,unique_key:staged.unique_key.clone(),
+                        attributes:staged.attributes.clone(),notes:self.form_notes.clone(),
+                    })
+                }).collect();
+            match drafts {
+                Ok(drafts)=>{
+                    let result=self.db.as_mut().unwrap()
+                        .assign_many(&self.selected_employee,&drafts);
+                    match result {
+                        Ok(created)=>{
+                            self.message=format!("Successfully assigned {} item(s)",created.len());
+                            self.staged_assets=vec![StagedAsset::default()];
+                            self.form_notes.clear();
+                            self.reload();
+                        }
+                        Err(err)=>self.message=err.to_string(),
+                    }
+                }
+                Err(err)=>self.message=err,
+            }
         }
     }
 
@@ -401,9 +507,33 @@ impl InManApp {
     }
 
     fn transfer_ui(&mut self,ui:&mut Ui) {
-        if self.choose_employee(ui,"From Employee") {self.load_selected_assets();}
-        ui.label("Select a physical asset to transfer");
-        self.asset_details(ui,false);
+        if self.choose_employee(ui,"From Employee") {
+            self.transfer_selection.clear();
+            self.load_selected_assets();
+        }
+        ui.label("Select one or more physical assets to transfer");
+        ui.label("Each checkbox identifies an assignment row, even when reference keys repeat.");
+        ScrollArea::vertical().max_height(310.0).show_rows(
+            ui,34.0,self.assignments.len(),|ui,range|{
+                for index in range {
+                    let asset=&self.assignments[index];
+                    let mut selected=self.transfer_selection.contains(&asset.id);
+                    let attributes=asset.attributes.iter()
+                        .map(|a|format!("{}: {}",a.name,a.value))
+                        .collect::<Vec<_>>().join(", ");
+                    if ui.checkbox(&mut selected,format!(
+                        "{} — {} | {} | #{}{}",
+                        asset.item_name,asset.unique_key,asset.employee_name,
+                        asset.id,if attributes.is_empty(){String::new()}
+                        else{format!(" | {attributes}")}
+                    )).changed() {
+                        if selected {self.transfer_selection.insert(asset.id);}
+                        else {self.transfer_selection.remove(&asset.id);}
+                    }
+                }
+            }
+        );
+        ui.label(format!("{} asset(s) selected",self.transfer_selection.len()));
         ui.horizontal(|ui|{
             ui.label("To Employee");
             ComboBox::from_id_salt("to_employee")
@@ -419,14 +549,34 @@ impl InManApp {
         });
         ui.label("Notes");
         ui.add_sized([440.0,36.0],TextEdit::singleline(&mut self.form_notes));
-        if control(ui,"Transfer Items") {
-            if let Some(id)=self.selected_assignment {
-                let result=self.db.as_mut().unwrap()
-                    .transfer(id,&self.destination,&self.form_notes).map(|_|());
-                self.notify(result);
-                self.selected_assignment=None;
-                self.load_selected_assets();
-            } else {self.message="Select an asset to transfer".into();}
+
+        if !self.transfer_selection.is_empty() && control(ui,"Transfer Items") {
+            if self.destination.is_empty() {
+                self.message="Select a destination employee".into();
+                return;
+            }
+            if self.destination==self.selected_employee {
+                self.message="Source and destination employees must differ".into();
+                return;
+            }
+            let mut moved=0_usize;
+            let mut errors=Vec::new();
+            for id in self.transfer_selection.iter().copied() {
+                match self.db.as_mut().unwrap()
+                    .transfer(id,&self.destination,&self.form_notes) {
+                    Ok(_)=>moved+=1,
+                    Err(err)=>errors.push(format!("Assignment #{id}: {err}")),
+                }
+            }
+            self.transfer_selection.clear();
+            self.reload();
+            self.load_selected_assets();
+            self.message=if errors.is_empty() {
+                format!("Successfully transferred {moved} item(s).")
+            }else{
+                format!("Transferred {moved} item(s). {} failed: {}",
+                    errors.len(),errors.join("; "))
+            };
         }
     }
 

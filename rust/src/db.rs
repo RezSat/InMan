@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use rusqlite::Connection;
-use std::{path::Path, time::Duration};
+use rusqlite::{Connection,OpenFlags};
+use std::{path::{Path,PathBuf}, time::Duration};
 
 mod queries;
 mod writes;
@@ -49,6 +49,15 @@ pub struct Assignment {
     pub attributes: Vec<Attribute>,
 }
 
+/// One physical asset in an atomic multi-item employee assignment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssignmentDraft {
+    pub item_id: i64,
+    pub unique_key: String,
+    pub notes: String,
+    pub attributes: Vec<(String, String)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Transfer {
     pub id: i64,
@@ -93,6 +102,17 @@ impl InventoryMode {
     }
 }
 
+/// Prefer the legacy working-directory file. If launched by a Windows shortcut
+/// from another folder, fall back to the database beside the executable.
+/// Never create a blank database while a paired database is present.
+pub fn resolve_inventory_path(working_dir: &Path, executable: &Path) -> PathBuf {
+    let legacy=working_dir.join("inventory.db");
+    if legacy.is_file(){return legacy;}
+    let beside=executable.parent().unwrap_or(working_dir).join("inventory.db");
+    if beside.is_file(){return beside;}
+    legacy
+}
+
 pub struct Database {
     conn: Connection,
 }
@@ -106,6 +126,17 @@ impl Database {
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY;")?;
         let db = Self { conn };
         db.initialize_if_empty()?;
+        Ok(db)
+    }
+
+    /// Inspect existing data without creating files or modifying the schema.
+    pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self> {
+        let conn=Connection::open_with_flags(
+            path.as_ref(),OpenFlags::SQLITE_OPEN_READ_ONLY
+        )?;
+        conn.busy_timeout(Duration::from_secs(5))?;
+        let db=Self {conn};
+        db.verify_integrity()?;
         Ok(db)
     }
 
@@ -180,6 +211,25 @@ impl Database {
         Ok(self.conn.query_row("PRAGMA schema_version", [], |r| r.get(0))?)
     }
 
+    pub fn foreign_key_violation_count(&self) -> Result<i64> {
+        Ok(self.conn.query_row(
+            "SELECT COUNT(*) FROM pragma_foreign_key_check",[],|r|r.get(0)
+        )?)
+    }
+
+    /// Create a consistent SQLite snapshot, including optional archived tables.
+    /// VACUUM INTO does not overwrite an existing non-empty file.
+    pub fn backup_to(&self, destination: impl AsRef<Path>) -> Result<()> {
+        let output=destination.as_ref();
+        anyhow::ensure!(!output.exists(),"Backup destination already exists");
+        let target=output.to_str().context("Backup path is not valid UTF-8")?;
+        self.conn.execute("VACUUM INTO ?1",[target])?;
+        let backup=Self::open_read_only(output)?;
+        anyhow::ensure!(backup.foreign_key_violation_count()? == 0,
+                        "Backup contains invalid foreign-key references");
+        Ok(())
+    }
+
     pub fn db_connection(&self) -> &Connection { &self.conn }
 }
 
@@ -195,6 +245,25 @@ mod tests {
         db.initialize_if_empty()?;
         assert_eq!(before, db.schema_version()?);
         Ok(())
+    }
+
+    #[test]
+    fn a_paired_database_is_used_when_the_working_directory_has_none() {
+        let folder=tempfile::tempdir().unwrap();
+        let run=folder.path().join("cwd");
+        let exe_dir=folder.path().join("app");
+        std::fs::create_dir_all(&run).unwrap();
+        std::fs::create_dir_all(&exe_dir).unwrap();
+        let paired=exe_dir.join("inventory.db");
+        std::fs::write(&paired,b"test").unwrap();
+        assert_eq!(
+            resolve_inventory_path(&run,&exe_dir.join("InMan.exe")),paired
+        );
+        let current=run.join("inventory.db");
+        std::fs::write(&current,b"test").unwrap();
+        assert_eq!(
+            resolve_inventory_path(&run,&exe_dir.join("InMan.exe")),current
+        );
     }
 
     #[test]

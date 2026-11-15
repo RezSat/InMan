@@ -1,12 +1,20 @@
-use crate::{db::{Assignment, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
+use crate::{db::{self,Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
 use eframe::egui::{self, Color32, RichText, Ui};
-use std::{collections::BTreeSet, path::Path};
+use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf};
 
 mod tools;
 
 fn color(rgb: [u8;3]) -> Color32 { Color32::from_rgb(rgb[0],rgb[1],rgb[2]) }
 fn pink() -> Color32 { color(PALETTE.pink) }
 fn light() -> Color32 { color(PALETTE.white) }
+
+/// A single item row, kept separate from the persisted inventory until Save.
+#[derive(Default)]
+pub(super) struct StagedAsset {
+    item_id: Option<i64>,
+    unique_key: String,
+    attributes: Vec<(String,String)>,
+}
 
 pub(super) enum PendingRemoval {
     Items(Vec<i64>),
@@ -22,7 +30,7 @@ pub(super) enum Tool {
     AddItem, UpdateItem, RemoveItems, ViewItems,
     AddEmployee, BulkEmployees, UpdateEmployee, RemoveEmployees, ViewEmployees,
     AddDivision, UpdateDivision, RemoveDivisions, ViewDivisions,
-    Assign, Transfer, ReportInventory, ReportEmployees, ReportItems,
+    Assign, Transfer, ReportInventory, ReportEmployees, ReportItems, BackupDatabase,
     #[expect(dead_code, reason = "Legacy asset log viewer remains internal, as in v1.4")]
     ViewAssignmentLog,
 }
@@ -48,6 +56,7 @@ impl Tool {
             Self::ReportInventory=>"Inventory Report to Excel",
             Self::ReportEmployees=>"Employees to Excel",
             Self::ReportItems=>"Items to Excel",
+            Self::BackupDatabase=>"Backup Database",
             Self::ViewAssignmentLog=>"View Asset Assignments",
         }
     }
@@ -71,6 +80,7 @@ fn secondary_control(ui: &mut Ui, text: &str) -> bool {
 
 pub struct InManApp {
     db: Option<Database>,
+    database_path: PathBuf,
     activated: bool,
     key_input: String,
     show_key: bool,
@@ -80,6 +90,7 @@ pub struct InManApp {
     username: String,
     password: String,
     manager_setup_needed: bool,
+    manager_logged_in: bool,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -89,6 +100,12 @@ pub struct InManApp {
     pub(super) employees: Vec<Employee>,
     pub(super) items: Vec<Item>,
     pub(super) assignments: Vec<Assignment>,
+    // Read-only search result collections; manager selectors remain complete.
+    inventory_employees: Vec<Employee>,
+    inventory_items: Vec<Item>,
+    inventory_divisions: Vec<Division>,
+    inventory_assignments: Vec<Assignment>,
+    division_item_cache: BTreeMap<i64,Vec<(String,i64)>>,
     pub(super) counts: (i64,i64,i64),
     pub(super) selected_employee: String,
     pub(super) selected_item: Option<i64>,
@@ -97,36 +114,48 @@ pub struct InManApp {
     pub(super) destination: String,
     pub(super) form_id: String,
     pub(super) form_name: String,
-    pub(super) form_key: String,
     pub(super) form_notes: String,
-    pub(super) form_attrs: Vec<(String,String)>,
+    pub(super) staged_assets: Vec<StagedAsset>,
     pub(super) new_attr_name: String,
     pub(super) new_attr_value: String,
-    pub(super) staged: Vec<(String,String,i64)>,
+    pub(super) staged: Vec<(String,String,Option<i64>)>,
     pub(super) selection: BTreeSet<String>,
+    pub(super) transfer_selection: BTreeSet<i64>,
     pub(super) pending_removal: Option<PendingRemoval>,
 }
 
 impl Default for InManApp {
     fn default() -> Self {
         let activated=licensing::is_activated();
-        let db=if activated {Database::open("inventory.db").ok()} else {None};
+        let working_dir=std::env::current_dir().unwrap_or_else(|_|PathBuf::from("."));
+        let executable=std::env::current_exe()
+            .unwrap_or_else(|_|working_dir.join("InMan.exe"));
+        let database_path=db::resolve_inventory_path(&working_dir,&executable);
+        let db=if activated {Database::open(&database_path).ok()} else {None};
         let mut state=Self {
-            db, activated, key_input:String::new(), show_key:false,
+            db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
             message:String::new(), username:String::new(),password:String::new(),
             manager_setup_needed:false,
+            manager_logged_in:false,
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
-            divisions:vec![],employees:vec![],items:vec![],assignments:vec![],counts:(0,0,0),
+            divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
+            inventory_employees:vec![],inventory_items:vec![],
+            inventory_divisions:vec![],inventory_assignments:vec![],
+            division_item_cache:BTreeMap::new(),counts:(0,0,0),
             selected_employee:String::new(),selected_item:None,selected_division:None,
             selected_assignment:None,destination:String::new(),form_id:String::new(),
-            form_name:String::new(),form_key:String::new(),form_notes:String::new(),
-            form_attrs:vec![],new_attr_name:String::new(),new_attr_value:String::new(),
-            staged:vec![],selection:BTreeSet::new(),pending_removal:None,
+            form_name:String::new(),form_notes:String::new(),
+            staged_assets:vec![StagedAsset::default()],new_attr_name:String::new(),new_attr_value:String::new(),
+            staged:vec![],selection:BTreeSet::new(),
+            transfer_selection:BTreeSet::new(),pending_removal:None,
         };
         if activated && state.db.is_none() {
-            state.message="Cannot open inventory.db. Check the working directory.".into();
+            state.message=format!(
+                "Cannot open {}. Check the database location.",
+                state.database_path.display()
+            );
         }
         state.reload();
         state
@@ -147,6 +176,7 @@ impl InManApp {
     }
 
     fn reload(&mut self) {
+        self.division_item_cache.clear();
         let Some(db)=self.db.as_ref() else{return};
         self.manager_setup_needed=db.manager_count().unwrap_or(-1)==0;
         let data=(
@@ -165,7 +195,10 @@ impl InManApp {
     }
 
     fn open(&mut self, screen:Screen) {
-        self.screen=screen;
+        self.screen=if !self.manager_logged_in &&
+            matches!(screen,Screen::Manager|Screen::Tool) {
+            Screen::Login
+        }else{screen};
         self.message.clear();
         if matches!(screen,Screen::Dashboard | Screen::Manager | Screen::Tool) {self.reload()}
     }
@@ -175,6 +208,10 @@ impl InManApp {
             self.export_report(tool);
             return
         }
+        if tool==Tool::BackupDatabase {
+            self.backup_database();
+            return;
+        }
         self.tool=tool;
         self.selected_employee.clear();
         self.selected_item=None;
@@ -182,15 +219,18 @@ impl InManApp {
         self.selected_division=None;
         self.form_name.clear();
         self.form_id.clear();
-        self.form_key.clear();
         self.form_notes.clear();
-        self.form_attrs.clear();
+        self.staged_assets=vec![StagedAsset::default()];
         self.new_attr_name.clear();
         self.new_attr_value.clear();
         self.destination.clear();
         self.selection.clear();
+        self.transfer_selection.clear();
         self.staged.clear();
         self.pending_removal=None;
+        if tool==Tool::Transfer {
+            self.form_notes="Transferred between employees".into();
+        }
         self.open(Screen::Tool);
     }
 
@@ -228,7 +268,7 @@ impl InManApp {
                 if control(ui,"Unlock InMan") {
                     if licensing::valid_product_key(&self.key_input) {
                         match licensing::activate(&self.key_input)
-                            .and_then(|_|Database::open("inventory.db")) {
+                            .and_then(|_|Database::open(&self.database_path)) {
                             Ok(db)=>{
                                 self.db=Some(db);
                                 self.activated=true;
@@ -252,7 +292,9 @@ impl InManApp {
         ui.add_space(22.0);
         if control(ui,"Dashboard") {self.open(Screen::Dashboard)}
         ui.add_space(10.0);
-        if control(ui,"Login") {self.open(Screen::Login)}
+        if self.manager_logged_in {
+            if control(ui,"Manager Tools"){self.open(Screen::Manager)}
+        }else if control(ui,"Login"){self.open(Screen::Login)}
         ui.add_space(10.0);
         if control(ui,"View Inventory") {
             self.open(Screen::Inventory);
@@ -293,13 +335,17 @@ impl InManApp {
                             division.employee_count,division.item_count));
                     });
                     if let Some(db)=self.db.as_ref() {
-                        // Only expand the type breakdown for the opened card.
+                        // Do not run SQLite queries on every paint frame.
+                        // Load a division's item breakdown only on first expansion.
                         egui::CollapsingHeader::new("Item types").id_salt(division.id)
                             .show(ui,|ui|{
-                                if let Ok(items)=db.division_item_types(division.id) {
-                                    for (name,count) in items {
-                                        ui.label(format!("{name} — {count}"));
-                                    }
+                                let items=self.division_item_cache.entry(division.id)
+                                    .or_insert_with(||{
+                                        db.division_item_types(division.id).unwrap_or_default()
+                                    });
+                                if items.is_empty() {ui.label("No items assigned");}
+                                for (name,count) in items.iter() {
+                                    ui.label(format!("{name} — {count}"));
                                 }
                             });
                     }
@@ -334,6 +380,7 @@ impl InManApp {
                         match self.db.as_mut().unwrap()
                             .create_first_manager(&self.username,&self.password) {
                             Ok(())=>{
+                                self.manager_logged_in=true;
                                 self.reload();
                                 self.open(Screen::Manager);
                             }
@@ -342,7 +389,10 @@ impl InManApp {
                     }
                 }else if control(ui,"Login") {
                     match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
-                        Some(Ok(true))=>self.open(Screen::Manager),
+                        Some(Ok(true))=>{
+                            self.manager_logged_in=true;
+                            self.open(Screen::Manager)
+                        },
                         Some(Ok(false))=>self.message="Invalid username or password".into(),
                         Some(Err(err))=>self.message=err.to_string(),
                         None=>self.message="Database unavailable".into(),
@@ -360,7 +410,10 @@ impl InManApp {
                 ("Employee Management",&[Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,Tool::RemoveEmployees,Tool::ViewEmployees]),
                 ("Division Management",&[Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions]),
                 ("Asset Assignment",&[Tool::Assign,Tool::Transfer]),
-                ("Reports & Analytics",&[Tool::ReportInventory,Tool::ReportEmployees,Tool::ReportItems]),
+                ("Reports & Analytics",&[
+                    Tool::ReportInventory,Tool::ReportEmployees,
+                    Tool::ReportItems,Tool::BackupDatabase
+                ]),
             ];
             for (section,tools) in sections {
                 ui.add_space(10.0);
@@ -386,16 +439,16 @@ impl InManApp {
         let Some(db)=self.db.as_ref() else{return};
         let outcome=match self.selected_mode {
             InventoryMode::Employees=>db.employees(&self.query,self.division_filter)
-                .map(|rows|{self.employees=rows}),
+                .map(|rows|{self.inventory_employees=rows}),
             InventoryMode::Items=>db.items(&self.query)
-                .map(|rows|{self.items=rows}),
+                .map(|rows|{self.inventory_items=rows}),
             InventoryMode::Divisions=>db.divisions(&self.query)
-                .map(|rows|{self.divisions=rows}),
+                .map(|rows|{self.inventory_divisions=rows}),
             InventoryMode::EmployeeItems=>db.assignments(&self.query,None,
                 Some(&self.attr_name),Some(&self.attr_value))
-                .map(|rows|{self.assignments=rows}),
+                .map(|rows|{self.inventory_assignments=rows}),
             InventoryMode::UniqueKey=>db.unique_keys(&self.query)
-                .map(|rows|{self.assignments=rows}),
+                .map(|rows|{self.inventory_assignments=rows}),
         };
         if let Err(err)=outcome {self.message=err.to_string();}
     }
@@ -422,6 +475,7 @@ impl InManApp {
             if previous!=self.selected_mode {self.query.clear();self.search();}
         });
         if self.selected_mode==InventoryMode::Employees {
+            let old_division=self.division_filter;
             ui.horizontal(|ui|{
                 egui::ComboBox::from_id_salt("division_filter")
                     .selected_text(self.divisions.iter()
@@ -435,6 +489,7 @@ impl InManApp {
                         }
                     });
             });
+            if old_division!=self.division_filter {self.search();}
         } else if self.selected_mode==InventoryMode::EmployeeItems {
             ui.horizontal(|ui|{
                 ui.label("Attribute Name:");
@@ -458,9 +513,9 @@ impl InManApp {
     fn draw_employees(&self,ui:&mut Ui) {
         ui.label(RichText::new("Employee ID         Name                         Division").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,34.0,self.employees.len(),|ui,range|{
+            .show_rows(ui,34.0,self.inventory_employees.len(),|ui,range|{
                 for index in range {
-                    let record=&self.employees[index];
+                    let record=&self.inventory_employees[index];
                     ui.horizontal(|ui|{
                         ui.label(&record.id);
                         ui.separator();
@@ -476,17 +531,17 @@ impl InManApp {
     fn draw_items(&self,ui:&mut Ui) {
         ui.label(RichText::new("Name").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,33.0,self.items.len(),|ui,range|{
-                for i in range {ui.label(&self.items[i].name);ui.separator();}
+            .show_rows(ui,33.0,self.inventory_items.len(),|ui,range|{
+                for i in range {ui.label(&self.inventory_items[i].name);ui.separator();}
             });
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
         ui.label(RichText::new("Division                        Employees       Items").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,35.0,self.divisions.len(),|ui,range|{
+            .show_rows(ui,35.0,self.inventory_divisions.len(),|ui,range|{
                 for i in range {
-                    let d=&self.divisions[i];
+                    let d=&self.inventory_divisions[i];
                     ui.horizontal(|ui|{
                         ui.label(&d.name);
                         ui.label(format!("{} Employees",d.employee_count));
@@ -500,9 +555,9 @@ impl InManApp {
     fn draw_assignments(&self,ui:&mut Ui) {
         ui.label(RichText::new("Employee ID          Employee          Item          Unique Key          Attributes").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,40.0,self.assignments.len(),|ui,range|{
+            .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
                 for i in range {
-                    let a=&self.assignments[i];
+                    let a=&self.inventory_assignments[i];
                     ui.horizontal(|ui|{
                         ui.label(&a.employee_id);
                         ui.separator();
@@ -541,21 +596,21 @@ impl InManApp {
         let (headers,rows): (Vec<&str>,Vec<Vec<String>>)=match self.selected_mode {
             InventoryMode::Employees=>(
                 vec!["Employee ID","Name","Division"],
-                self.employees.iter().map(|e|vec![e.id.clone(),e.name.clone(),e.division.clone()]).collect()
+                self.inventory_employees.iter().map(|e|vec![e.id.clone(),e.name.clone(),e.division.clone()]).collect()
             ),
             InventoryMode::Items=>(vec!["Name"],
-                self.items.iter().map(|i|vec![i.name.clone()]).collect()),
+                self.inventory_items.iter().map(|i|vec![i.name.clone()]).collect()),
             InventoryMode::Divisions=>(vec!["Division","Employees","Items"],
-                self.divisions.iter().map(|d|vec![
+                self.inventory_divisions.iter().map(|d|vec![
                     d.name.clone(),d.employee_count.to_string(),d.item_count.to_string()
                 ]).collect()),
             InventoryMode::UniqueKey=>(vec!["Employee ID","Employee Name","Item Name","Unique Key"],
-                self.assignments.iter().map(|a|vec![
+                self.inventory_assignments.iter().map(|a|vec![
                     a.employee_id.clone(),a.employee_name.clone(),
                     a.item_name.clone(),a.unique_key.clone()
                 ]).collect()),
             InventoryMode::EmployeeItems=>(vec!["Employee ID","Employee Name","Item Name","Unique Key","Attributes"],
-                self.assignments.iter().map(|a|vec![
+                self.inventory_assignments.iter().map(|a|vec![
                     a.employee_id.clone(),a.employee_name.clone(),a.item_name.clone(),a.unique_key.clone(),
                     a.attributes.iter().map(|attr|format!("{}: {}",attr.name,attr.value))
                         .collect::<Vec<_>>().join(", ")
@@ -600,18 +655,38 @@ impl InManApp {
         if !self.selected_employee.is_empty() {self.load_selected_assets();}
     }
 
+    fn backup_database(&mut self) {
+        let Some(path)=rfd::FileDialog::new()
+            .add_filter("SQLite database",&["db"])
+            .set_file_name("inventory-backup.db").save_file() else{return};
+        let Some(db)=self.db.as_ref() else{return};
+        self.message=match db.backup_to(&path) {
+            Ok(())=>format!("Verified database backup created: {}",path.display()),
+            Err(err)=>err.to_string(),
+        };
+    }
+
     fn package(&mut self) {
         let Some(output)=rfd::FileDialog::new()
             .add_filter("ZIP archive",&["zip"]).set_file_name("InMan.zip").save_file() else{return};
-        let executable=std::env::current_exe();
-        self.message=match executable.and_then(|exe|{
-            reports::package_app(&output,&exe,Path::new("inventory.db"))
-                .map_err(std::io::Error::other)
-        }){
+        let result=(||->anyhow::Result<()> {
+            let executable=std::env::current_exe()?;
+            let temp=tempfile::tempdir()?;
+            let snapshot=temp.path().join("inventory.db");
+            let db=self.db.as_ref().ok_or_else(||anyhow::anyhow!(
+                "Database is not loaded"
+            ))?;
+            // Package a consistent snapshot instead of blindly copying a live SQLite file.
+            db.backup_to(&snapshot)?;
+            reports::package_app(&output,&executable,&snapshot)?;
+            Ok(())
+        })();
+        self.message=match result {
             Ok(())=>format!("Application packaged: {}",output.display()),
-            Err(err)=>err.to_string()
+            Err(err)=>err.to_string(),
         };
     }
+
 }
 
 impl eframe::App for InManApp {
