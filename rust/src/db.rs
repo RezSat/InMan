@@ -49,6 +49,15 @@ pub struct Assignment {
     pub attributes: Vec<Attribute>,
 }
 
+/// One physical asset in an atomic multi-item employee assignment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssignmentDraft {
+    pub item_id: i64,
+    pub unique_key: String,
+    pub notes: String,
+    pub attributes: Vec<(String, String)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Transfer {
     pub id: i64,
