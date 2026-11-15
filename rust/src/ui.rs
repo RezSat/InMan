@@ -1,6 +1,6 @@
-use crate::{db::{Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
+use crate::{db::{self,Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
 use eframe::egui::{self, Color32, RichText, Ui};
-use std::{collections::BTreeSet, path::Path};
+use std::{collections::BTreeSet, path::PathBuf};
 
 mod tools;
 
@@ -30,7 +30,7 @@ pub(super) enum Tool {
     AddItem, UpdateItem, RemoveItems, ViewItems,
     AddEmployee, BulkEmployees, UpdateEmployee, RemoveEmployees, ViewEmployees,
     AddDivision, UpdateDivision, RemoveDivisions, ViewDivisions,
-    Assign, Transfer, ReportInventory, ReportEmployees, ReportItems,
+    Assign, Transfer, ReportInventory, ReportEmployees, ReportItems, BackupDatabase,
     #[expect(dead_code, reason = "Legacy asset log viewer remains internal, as in v1.4")]
     ViewAssignmentLog,
 }
@@ -56,6 +56,7 @@ impl Tool {
             Self::ReportInventory=>"Inventory Report to Excel",
             Self::ReportEmployees=>"Employees to Excel",
             Self::ReportItems=>"Items to Excel",
+            Self::BackupDatabase=>"Backup Database",
             Self::ViewAssignmentLog=>"View Asset Assignments",
         }
     }
@@ -79,6 +80,7 @@ fn secondary_control(ui: &mut Ui, text: &str) -> bool {
 
 pub struct InManApp {
     db: Option<Database>,
+    database_path: PathBuf,
     activated: bool,
     key_input: String,
     show_key: bool,
@@ -122,9 +124,13 @@ pub struct InManApp {
 impl Default for InManApp {
     fn default() -> Self {
         let activated=licensing::is_activated();
-        let db=if activated {Database::open("inventory.db").ok()} else {None};
+        let working_dir=std::env::current_dir().unwrap_or_else(|_|PathBuf::from("."));
+        let executable=std::env::current_exe()
+            .unwrap_or_else(|_|working_dir.join("InMan.exe"));
+        let database_path=db::resolve_inventory_path(&working_dir,&executable);
+        let db=if activated {Database::open(&database_path).ok()} else {None};
         let mut state=Self {
-            db, activated, key_input:String::new(), show_key:false,
+            db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
             message:String::new(), username:String::new(),password:String::new(),
             manager_setup_needed:false,
@@ -141,7 +147,10 @@ impl Default for InManApp {
             staged:vec![],selection:BTreeSet::new(),pending_removal:None,
         };
         if activated && state.db.is_none() {
-            state.message="Cannot open inventory.db. Check the working directory.".into();
+            state.message=format!(
+                "Cannot open {}. Check the database location.",
+                state.database_path.display()
+            );
         }
         state.reload();
         state
@@ -189,6 +198,10 @@ impl InManApp {
         if matches!(tool,Tool::ReportInventory|Tool::ReportEmployees|Tool::ReportItems) {
             self.export_report(tool);
             return
+        }
+        if tool==Tool::BackupDatabase {
+            self.backup_database();
+            return;
         }
         self.tool=tool;
         self.selected_employee.clear();
@@ -242,7 +255,7 @@ impl InManApp {
                 if control(ui,"Unlock InMan") {
                     if licensing::valid_product_key(&self.key_input) {
                         match licensing::activate(&self.key_input)
-                            .and_then(|_|Database::open("inventory.db")) {
+                            .and_then(|_|Database::open(&self.database_path)) {
                             Ok(db)=>{
                                 self.db=Some(db);
                                 self.activated=true;
@@ -374,7 +387,10 @@ impl InManApp {
                 ("Employee Management",&[Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,Tool::RemoveEmployees,Tool::ViewEmployees]),
                 ("Division Management",&[Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions]),
                 ("Asset Assignment",&[Tool::Assign,Tool::Transfer]),
-                ("Reports & Analytics",&[Tool::ReportInventory,Tool::ReportEmployees,Tool::ReportItems]),
+                ("Reports & Analytics",&[
+                    Tool::ReportInventory,Tool::ReportEmployees,
+                    Tool::ReportItems,Tool::BackupDatabase
+                ]),
             ];
             for (section,tools) in sections {
                 ui.add_space(10.0);
@@ -616,18 +632,38 @@ impl InManApp {
         if !self.selected_employee.is_empty() {self.load_selected_assets();}
     }
 
+    fn backup_database(&mut self) {
+        let Some(path)=rfd::FileDialog::new()
+            .add_filter("SQLite database",&["db"])
+            .set_file_name("inventory-backup.db").save_file() else{return};
+        let Some(db)=self.db.as_ref() else{return};
+        self.message=match db.backup_to(&path) {
+            Ok(())=>format!("Verified database backup created: {}",path.display()),
+            Err(err)=>err.to_string(),
+        };
+    }
+
     fn package(&mut self) {
         let Some(output)=rfd::FileDialog::new()
             .add_filter("ZIP archive",&["zip"]).set_file_name("InMan.zip").save_file() else{return};
-        let executable=std::env::current_exe();
-        self.message=match executable.and_then(|exe|{
-            reports::package_app(&output,&exe,Path::new("inventory.db"))
-                .map_err(std::io::Error::other)
-        }){
+        let result=(||->anyhow::Result<()> {
+            let executable=std::env::current_exe()?;
+            let temp=tempfile::tempdir()?;
+            let snapshot=temp.path().join("inventory.db");
+            let db=self.db.as_ref().ok_or_else(||anyhow::anyhow!(
+                "Database is not loaded"
+            ))?;
+            // Package a consistent snapshot instead of blindly copying a live SQLite file.
+            db.backup_to(&snapshot)?;
+            reports::package_app(&output,&executable,&snapshot)?;
+            Ok(())
+        })();
+        self.message=match result {
             Ok(())=>format!("Application packaged: {}",output.display()),
-            Err(err)=>err.to_string()
+            Err(err)=>err.to_string(),
         };
     }
+
 }
 
 impl eframe::App for InManApp {
