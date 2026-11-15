@@ -35,6 +35,8 @@ pub fn install(ctx: &egui::Context) {
     visuals.widgets.active.fg_stroke = Stroke::new(1.0, TEXT);
     visuals.window_shadow = egui::Shadow::NONE;
     ctx.set_visuals(visuals);
+    // Settings owns the bounded zoom range; do not let shortcuts escape its limits.
+    ctx.options_mut(|options| options.zoom_with_keyboard = false);
 
     // Use the local Windows UI font. We do not ship proprietary font files.
     #[cfg(windows)]
