@@ -24,6 +24,23 @@ Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 
 Do not point this beta at your only copy of a live inventory database. The executable is **not digitally signed**, so Microsoft Defender SmartScreen can flag it as an unfamiliar download.
 
+## Startup diagnostics
+
+Release builds have no console window, so every launch appends to
+`%LOCALAPPDATA%\InMan\logs\inman.log` (rotated to `inman.previous.log` at 2 MB).
+The log records the executable path, working directory, licensing result,
+graphics adapter and backend, database path and open result, each startup stage,
+the first rendered UI frame, panics with backtraces, and a clean or failed
+shutdown. It never records product keys, passwords, employee records, or other
+inventory data. If InMan cannot open its window, it writes the reason to this
+log and shows a native error dialog pointing at it.
+
+On Windows the GUI uses the wgpu **DX12** backend. eframe 0.37 otherwise selects
+Vulkan first, and Intel's Vulkan driver (`igvk64.dll`) can crash while presenting
+the first frames on older drivers. If DX12 cannot be initialized, InMan retries
+once with the GL backend. For support diagnostics only, `WGPU_BACKEND` can force
+a backend, for example `$env:WGPU_BACKEND = "gl"; .\InMan.exe`.
+
 ## Build from source
 
 Install Rust stable (Rust 1.95 or newer) and the Visual Studio C++ build tools on Windows.
@@ -53,12 +70,17 @@ The GUI binary is in `rust/target/release/inman.exe`. The read-only inspection u
 | `src/db/queries.rs` | Search, dashboard, inventory, audit and manager account queries |
 | `src/db/writes.rs` | Transactional employee, item, division and assignment writes |
 | `src/licensing.rs` | Product-key compatibility and manager password hashing |
+| `src/logging.rs` | Persistent startup log, `log` bridge, and panic backtraces |
 | `src/reports.rs` | Excel import/export and ZIP packaging |
 | `src/ui.rs` | Native desktop shell, sidebar, search and navigation |
 | `src/ui/tools.rs` | Manager screens and operations |
+| `scripts/windows-startup-smoke.ps1` | Launches the real EXE and verifies a visible, responsive window and clean shutdown |
 | `tests/sqlite_compatibility.rs` | Synthetic fixtures and integrity/compatibility tests |
 
-CI uses `.github/workflows/rust-ci.yml` to run Windows and Linux tests, Clippy, and an optimized Windows build. An RC prerelease is published only after both Windows and Linux CI jobs succeed.
+CI uses `.github/workflows/rust-ci.yml` to run Windows and Linux tests, Clippy,
+an optimized Windows build, and a real GUI startup smoke test that requires a
+visible, responding `InMan` window, a rendered first frame, and a clean exit.
+An RC prerelease is published only after both Windows and Linux CI jobs succeed.
 
 ## Compatibility and performance status
 
