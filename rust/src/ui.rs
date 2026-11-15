@@ -918,7 +918,7 @@ impl eframe::App for InManApp {
                     status_message(panel,&self.message);
                     panel.add_space(12.0);
                 }
-                egui::ScrollArea::both().auto_shrink([false,false])
+                egui::ScrollArea::vertical().auto_shrink([false,false])
                     .show(panel,|main|{
                         match self.screen {
                             Screen::Dashboard=>self.dashboard(main),
