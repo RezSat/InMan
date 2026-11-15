@@ -1,5 +1,9 @@
 # InMan
 
+> **Native Rust v2.0 release candidate:** The Rust Windows desktop rewrite lives in [`rust/`](rust/README.md) and is being completed in [PR #5](https://github.com/RezSat/InMan/pull/5). It retains SQLite, activation, manager tools, inventory management, exports and original colors. The Rust release candidate is for testing with a **copy** of your database; manual Windows UI parity and measured end-to-end performance remain required before a stable `v2.0` tag.
+>
+> **Stable release:** [Python v1.4](https://github.com/RezSat/InMan/releases/tag/v1.4) is still the production binary. The Python documentation below continues to describe that version.
+
 Windows desktop inventory manager for tracking office assets, employee assignments, divisions and asset transfers.
 
 Built with Python, CustomTkinter, SQLAlchemy, SQLite and openpyxl. The interface intentionally stays familiar across the 1.4 internal refactor: same navigation, palette, buttons, dialogs and report formats.
