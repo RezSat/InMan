@@ -1,4 +1,4 @@
-use crate::{db::{Assignment, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
+use crate::{db::{Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
 use eframe::egui::{self, Color32, RichText, Ui};
 use std::{collections::BTreeSet, path::Path};
 
@@ -7,6 +7,14 @@ mod tools;
 fn color(rgb: [u8;3]) -> Color32 { Color32::from_rgb(rgb[0],rgb[1],rgb[2]) }
 fn pink() -> Color32 { color(PALETTE.pink) }
 fn light() -> Color32 { color(PALETTE.white) }
+
+/// A single item row, kept separate from the persisted inventory until Save.
+#[derive(Default)]
+pub(super) struct StagedAsset {
+    item_id: Option<i64>,
+    unique_key: String,
+    attributes: Vec<(String,String)>,
+}
 
 pub(super) enum PendingRemoval {
     Items(Vec<i64>),
@@ -97,9 +105,8 @@ pub struct InManApp {
     pub(super) destination: String,
     pub(super) form_id: String,
     pub(super) form_name: String,
-    pub(super) form_key: String,
     pub(super) form_notes: String,
-    pub(super) form_attrs: Vec<(String,String)>,
+    pub(super) staged_assets: Vec<StagedAsset>,
     pub(super) new_attr_name: String,
     pub(super) new_attr_value: String,
     pub(super) staged: Vec<(String,String,i64)>,
@@ -121,8 +128,8 @@ impl Default for InManApp {
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],counts:(0,0,0),
             selected_employee:String::new(),selected_item:None,selected_division:None,
             selected_assignment:None,destination:String::new(),form_id:String::new(),
-            form_name:String::new(),form_key:String::new(),form_notes:String::new(),
-            form_attrs:vec![],new_attr_name:String::new(),new_attr_value:String::new(),
+            form_name:String::new(),form_notes:String::new(),
+            staged_assets:vec![StagedAsset::default()],new_attr_name:String::new(),new_attr_value:String::new(),
             staged:vec![],selection:BTreeSet::new(),pending_removal:None,
         };
         if activated && state.db.is_none() {
@@ -182,9 +189,8 @@ impl InManApp {
         self.selected_division=None;
         self.form_name.clear();
         self.form_id.clear();
-        self.form_key.clear();
         self.form_notes.clear();
-        self.form_attrs.clear();
+        self.staged_assets=vec![StagedAsset::default()];
         self.new_attr_name.clear();
         self.new_attr_value.clear();
         self.destination.clear();
