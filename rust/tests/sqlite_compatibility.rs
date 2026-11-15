@@ -283,6 +283,27 @@ fn duplicate_reference_keys_do_not_cause_the_wrong_asset_to_move() -> Result<()>
 }
 
 #[test]
+fn division_inventory_excel_handles_one_asset_without_a_single_cell_merge() -> Result<()> {
+    let mut db=fixture()?;
+    db.db_connection().execute_batch(
+        "DELETE FROM employee_item_attributes;
+         DELETE FROM employee_items;
+         UPDATE employees SET item_count=0;"
+    )?;
+    db.assign("E01",1,"ONLY-ASSET",&[], "")?;
+    let temp=tempdir()?;
+    let file=temp.path().join("inventory.xlsx");
+    reports::export_inventory(&db,&file)?;
+    let mut book=open_workbook_auto(&file)?;
+    assert_eq!(book.sheet_names()[0],"Sheet");
+    let sheet=book.worksheet_range_at(0).unwrap()?;
+    assert_eq!(sheet.get((0,0)).unwrap().to_string(),"Division");
+    assert_eq!(sheet.get((1,3)).unwrap().to_string(),"Laptop");
+    assert_eq!(sheet.get((1,4)).unwrap().to_string(),"ONLY-ASSET");
+    Ok(())
+}
+
+#[test]
 fn three_excel_exports_have_the_expected_columns() -> Result<()> {
     let db=fixture()?;
     let dir=tempdir()?;
