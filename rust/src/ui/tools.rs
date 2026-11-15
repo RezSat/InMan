@@ -473,9 +473,33 @@ impl InManApp {
     }
 
     fn transfer_ui(&mut self,ui:&mut Ui) {
-        if self.choose_employee(ui,"From Employee") {self.load_selected_assets();}
-        ui.label("Select a physical asset to transfer");
-        self.asset_details(ui,false);
+        if self.choose_employee(ui,"From Employee") {
+            self.transfer_selection.clear();
+            self.load_selected_assets();
+        }
+        ui.label("Select one or more physical assets to transfer");
+        ui.label("Each checkbox identifies an assignment row, even when reference keys repeat.");
+        ScrollArea::vertical().max_height(310.0).show_rows(
+            ui,34.0,self.assignments.len(),|ui,range|{
+                for index in range {
+                    let asset=&self.assignments[index];
+                    let mut selected=self.transfer_selection.contains(&asset.id);
+                    let attributes=asset.attributes.iter()
+                        .map(|a|format!("{}: {}",a.name,a.value))
+                        .collect::<Vec<_>>().join(", ");
+                    if ui.checkbox(&mut selected,format!(
+                        "{} — {} | {} | #{}{}",
+                        asset.item_name,asset.unique_key,asset.employee_name,
+                        asset.id,if attributes.is_empty(){String::new()}
+                        else{format!(" | {attributes}")}
+                    )).changed() {
+                        if selected {self.transfer_selection.insert(asset.id);}
+                        else {self.transfer_selection.remove(&asset.id);}
+                    }
+                }
+            }
+        );
+        ui.label(format!("{} asset(s) selected",self.transfer_selection.len()));
         ui.horizontal(|ui|{
             ui.label("To Employee");
             ComboBox::from_id_salt("to_employee")
@@ -491,14 +515,34 @@ impl InManApp {
         });
         ui.label("Notes");
         ui.add_sized([440.0,36.0],TextEdit::singleline(&mut self.form_notes));
-        if control(ui,"Transfer Items") {
-            if let Some(id)=self.selected_assignment {
-                let result=self.db.as_mut().unwrap()
-                    .transfer(id,&self.destination,&self.form_notes).map(|_|());
-                self.notify(result);
-                self.selected_assignment=None;
-                self.load_selected_assets();
-            } else {self.message="Select an asset to transfer".into();}
+
+        if !self.transfer_selection.is_empty() && control(ui,"Transfer Items") {
+            if self.destination.is_empty() {
+                self.message="Select a destination employee".into();
+                return;
+            }
+            if self.destination==self.selected_employee {
+                self.message="Source and destination employees must differ".into();
+                return;
+            }
+            let mut moved=0_usize;
+            let mut errors=Vec::new();
+            for id in self.transfer_selection.iter().copied() {
+                match self.db.as_mut().unwrap()
+                    .transfer(id,&self.destination,&self.form_notes) {
+                    Ok(_)=>moved+=1,
+                    Err(err)=>errors.push(format!("Assignment #{id}: {err}")),
+                }
+            }
+            self.transfer_selection.clear();
+            self.reload();
+            self.load_selected_assets();
+            self.message=if errors.is_empty() {
+                format!("Successfully transferred {moved} item(s).")
+            }else{
+                format!("Transferred {moved} item(s). {} failed: {}",
+                    errors.len(),errors.join("; "))
+            };
         }
     }
 
