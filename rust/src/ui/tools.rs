@@ -4,14 +4,16 @@ use eframe::egui::{ComboBox, ScrollArea, TextEdit};
 impl InManApp {
     pub(super) fn tool_screen(&mut self,ui:&mut Ui) {
         ui.horizontal(|ui|{
-            if secondary_control(ui,"← Back to Manager Tools") {
+            if secondary_control(ui,"Back to manager") {
                 self.open(Screen::Manager);
             }
-            ui.heading(RichText::new(self.tool.name()).size(24.0).color(light()));
         });
-        ui.add_space(15.0);
-        egui::Frame::group(ui.style()).fill(color(PALETTE.secondary_bg)).show(ui,|ui|{
-            ui.set_min_width(610.0);
+        ui.add_space(10.0);
+        theme::heading(ui,"MANAGEMENT / ACTION",self.tool.name(),
+            "Changes are saved directly to the selected inventory database.");
+        theme::card().show(ui,|ui|{
+            ui.set_min_width(620.0);
+            ui.add_space(5.0);
             match self.tool {
                 Tool::AddItem=>self.add_item_ui(ui),
                 Tool::UpdateItem=>self.update_item_ui(ui),
@@ -366,7 +368,7 @@ impl InManApp {
         let mut remove_item=None;
         ScrollArea::vertical().max_height(365.0).show(ui,|ui|{
             for (index,staged) in self.staged_assets.iter_mut().enumerate() {
-                egui::Frame::group(ui.style()).show(ui,|ui|{
+                theme::subtle_card().show(ui,|ui|{
                     ui.horizontal(|ui|{
                         ui.heading(format!("Asset {}",index+1));
                         if ui.small_button("Remove Item").clicked() {
