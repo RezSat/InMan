@@ -147,7 +147,7 @@ pub fn table_header_sized(ui:&mut Ui, columns:&[(&str,f32)]) {
                 for (name,width) in columns {
                     ui.add_sized([*width,22.0],egui::Label::new(
                         RichText::new(*name).size(12.0).strong().color(MUTED)
-                    ).truncate());
+                    ).halign(egui::Align::LEFT).truncate());
                 }
             });
         });
@@ -160,7 +160,7 @@ pub fn table_row(ui:&mut Ui, columns:&[(&str,f32)]) {
             for (value,width) in columns {
                 ui.add_sized([*width,24.0],egui::Label::new(
                     RichText::new(*value).size(14.0).color(TEXT)
-                ).truncate()).on_hover_text(*value);
+                ).halign(egui::Align::LEFT).truncate()).on_hover_text(*value);
             }
         });
     });
