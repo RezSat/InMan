@@ -41,7 +41,7 @@ pub(super) enum PendingRemoval {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Screen { Dashboard, Inventory, Manager, Tool, Settings }
+enum Screen { Dashboard, DivisionOverview, Inventory, InventoryResults, Manager, Tool, Settings }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Tool {
     AddItem, UpdateItem, RemoveItems, ViewItems,
@@ -94,6 +94,12 @@ fn status_message(ui:&mut Ui,message:&str) {
         });
     });
 }
+
+// Budget space for the focused view toolbar, title, count and card margins.
+fn expanded_results_height(window_height: f32) -> f32 {
+    (window_height - 250.0).clamp(300.0,950.0)
+}
+
 
 fn control(ui: &mut Ui, text: &str) -> bool {
     theme::primary(ui, text)
@@ -253,7 +259,7 @@ impl InManApp {
     fn open(&mut self, screen:Screen) {
         self.screen=screen;
         self.message.clear();
-        if matches!(screen,Screen::Dashboard | Screen::Manager | Screen::Tool) {self.reload()}
+        if matches!(screen,Screen::Dashboard | Screen::DivisionOverview | Screen::Manager | Screen::Tool) {self.reload()}
     }
 
     fn open_tool(&mut self, tool: Tool) {
@@ -361,10 +367,10 @@ impl InManApp {
         ui.add_space(28.0);
         ui.label(RichText::new("WORKSPACE").size(11.0).strong().color(theme::MUTED));
         ui.add_space(8.0);
-        if theme::sidebar_item(ui,"Dashboard",self.screen==Screen::Dashboard){
+        if theme::sidebar_item(ui,"Dashboard",matches!(self.screen,Screen::Dashboard|Screen::DivisionOverview)){
             self.open(Screen::Dashboard)
         }
-        if theme::sidebar_item(ui,"View Inventory",self.screen==Screen::Inventory){
+        if theme::sidebar_item(ui,"View Inventory",matches!(self.screen,Screen::Inventory|Screen::InventoryResults)){
             self.open(Screen::Inventory);
             self.search();
         }
@@ -476,48 +482,70 @@ impl InManApp {
             if secondary_control(ui,"Manager Tools"){self.open(Screen::Manager);}
         });
         ui.add_space(23.0);
-        theme::section(ui,"Division overview","Departments and assigned assets");
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .max_height(ui.available_height().clamp(220.0,600.0))
-            .show(ui,|ui|{
-                for division in &self.divisions {
-                    let width=ui.available_width();
-                    theme::card().show(ui,|ui|{
-                        ui.set_min_width((width-37.0).max(200.0));
-                        ui.horizontal_wrapped(|ui|{
-                            ui.vertical(|ui|{
-                                ui.label(RichText::new(&division.name)
-                                    .size(15.0).strong().color(theme::TEXT));
-                                ui.label(RichText::new(format!(
-                                    "{} employees",division.employee_count))
-                                    .size(13.0).color(theme::MUTED));
-                            });
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
-                                ui.label(RichText::new(format!(
-                                    "{} ASSETS",division.item_count))
-                                    .size(12.0).strong().color(theme::ACCENT));
-                            });
-                        });
-                        if let Some(db)=self.db.as_ref(){
-                            egui::CollapsingHeader::new("Assigned item types")
-                                .id_salt(division.id).show(ui,|ui|{
-                                let items=self.division_item_cache.entry(division.id)
-                                    .or_insert_with(||db.division_item_types(division.id)
-                                        .unwrap_or_default());
-                                if items.is_empty(){ui.label("No items assigned");}
-                                for (name,count) in items.iter(){
-                                    ui.horizontal(|ui|{
-                                        ui.label(name);
-                                        ui.label(RichText::new(format!("× {count}"))
-                                            .color(theme::MUTED));
-                                    });
-                                }
+        ui.horizontal(|ui|{
+            ui.label(RichText::new("Division overview").size(19.0).strong().color(theme::TEXT));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                if secondary_control(ui,"Expand overview") {
+                    self.open(Screen::DivisionOverview);
+                }
+            });
+        });
+        ui.label(RichText::new("Departments and assigned assets")
+            .size(13.0).color(theme::MUTED));
+        ui.add_space(10.0);
+        self.division_cards(ui);
+    }
+
+    fn division_overview(&mut self,ui:&mut Ui) {
+        if secondary_control(ui,"Back to dashboard") {
+            self.open(Screen::Dashboard);
+        }
+        ui.add_space(14.0);
+        theme::heading(ui,"DEPARTMENT DIRECTORY","Division overview",
+            "Browse every division and expand its assigned item types.");
+        self.division_cards(ui);
+    }
+
+    // These cards use the outer workspace scrollbar. Expanded item-type lists
+    // must not be clipped by a second, fixed-height scroll container.
+    fn division_cards(&mut self,ui:&mut Ui) {
+        for division in &self.divisions {
+            let width=ui.available_width();
+            theme::card().show(ui,|ui|{
+                ui.set_min_width((width-37.0).max(200.0));
+                ui.horizontal_wrapped(|ui|{
+                    ui.vertical(|ui|{
+                        ui.label(RichText::new(&division.name)
+                            .size(15.0).strong().color(theme::TEXT));
+                        ui.label(RichText::new(format!(
+                            "{} employees",division.employee_count))
+                            .size(13.0).color(theme::MUTED));
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                        ui.label(RichText::new(format!(
+                            "{} ASSETS",division.item_count))
+                            .size(12.0).strong().color(theme::ACCENT));
+                    });
+                });
+                if let Some(db)=self.db.as_ref(){
+                    egui::CollapsingHeader::new("Assigned item types")
+                        .id_salt(division.id).show(ui,|ui|{
+                        let items=self.division_item_cache.entry(division.id)
+                            .or_insert_with(||db.division_item_types(division.id)
+                                .unwrap_or_default());
+                        if items.is_empty(){ui.label("No items assigned");}
+                        for (name,count) in items.iter(){
+                            ui.horizontal(|ui|{
+                                ui.label(name);
+                                ui.label(RichText::new(format!("× {count}"))
+                                    .color(theme::MUTED));
                             });
                         }
                     });
-                    ui.add_space(8.0);
                 }
             });
+            ui.add_space(10.0);
+        }
     }
 
     fn manager(&mut self,ui:&mut Ui) {
@@ -660,7 +688,18 @@ impl InManApp {
             InventoryMode::Divisions=>self.inventory_divisions.len(),
             _=>self.inventory_assignments.len(),
         };
-        theme::section(ui,"Search results",&format!("{result_count} records"));
+        ui.horizontal(|ui|{
+            ui.label(RichText::new("Search results").size(19.0)
+                .strong().color(theme::TEXT));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                if secondary_control(ui,"Expand results"){
+                    self.open(Screen::InventoryResults);
+                }
+            });
+        });
+        ui.label(RichText::new(format!("{result_count} records"))
+            .size(13.0).color(theme::MUTED));
+        ui.add_space(10.0);
         let width=ui.available_width();
         theme::card().show(ui,|ui|{
             ui.set_min_width((width-38.0).max(235.0));
@@ -685,10 +724,67 @@ impl InManApp {
         });
     }
 
+    fn inventory_focus(&mut self,ui:&mut Ui) {
+        ui.horizontal(|ui|{
+            if secondary_control(ui,"Back to search & filters") {
+                self.open(Screen::Inventory);
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                if secondary_control(ui,"Export Results") { self.export_search(); }
+            });
+        });
+        ui.add_space(12.0);
+        theme::heading(ui,"INVENTORY / RESULTS","Inventory results",
+            "Scroll through the complete search result list.");
+        let count=match self.selected_mode {
+            InventoryMode::Employees=>self.inventory_employees.len(),
+            InventoryMode::Items=>self.inventory_items.len(),
+            InventoryMode::Divisions=>self.inventory_divisions.len(),
+            _=>self.inventory_assignments.len(),
+        };
+        ui.horizontal(|ui|{
+            ui.label(RichText::new(self.selected_mode.label()).size(15.0)
+                .strong().color(theme::TEXT));
+            ui.label(RichText::new(format!("{count} records"))
+                .size(13.0).color(theme::MUTED));
+        });
+        ui.add_space(10.0);
+        let width=ui.available_width();
+        theme::card().show(ui,|ui|{
+            ui.set_min_width((width-38.0).max(235.0));
+            if count==0 {
+                ui.add_space(25.0);
+                ui.vertical_centered(|ui|{
+                    ui.label(RichText::new("No matching records")
+                        .size(17.0).strong());
+                    ui.label("Return to search to update your filters.");
+                });
+            }else{
+                match self.selected_mode {
+                    InventoryMode::Employees=>self.draw_employees(ui),
+                    InventoryMode::Items=>self.draw_items(ui),
+                    InventoryMode::Divisions=>self.draw_divisions(ui),
+                    InventoryMode::EmployeeItems|InventoryMode::UniqueKey=>
+                        self.draw_assignments(ui),
+                }
+            }
+        });
+    }
+
+    /// The focused result view gets most of the window height; the compact
+    /// preview retains its original height for predictable scrolling.
+    fn results_height(&self,ui:&Ui) -> f32 {
+        if self.screen==Screen::InventoryResults {
+            expanded_results_height(ui.ctx().content_rect().height())
+        }else{
+            ui.available_height().clamp(250.0,650.0)
+        }
+    }
+
     fn draw_employees(&self,ui:&mut Ui) {
         let width=ui.available_width().max(585.0);
         let sizes=theme::column_widths(width,&[0.22,0.38,0.40],585.0);
-        let height=ui.available_height().clamp(250.0,650.0);
+        let height=self.results_height(ui);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
@@ -711,7 +807,7 @@ impl InManApp {
     fn draw_items(&self,ui:&mut Ui) {
         let width=ui.available_width().max(370.0);
         let sizes=theme::column_widths(width,&[1.0],370.0);
-        let height=ui.available_height().clamp(250.0,650.0);
+        let height=self.results_height(ui);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[("ITEM TYPE",sizes[0])]);
@@ -728,7 +824,7 @@ impl InManApp {
     fn draw_divisions(&self,ui:&mut Ui) {
         let width=ui.available_width().max(580.0);
         let sizes=theme::column_widths(width,&[0.55,0.22,0.23],580.0);
-        let height=ui.available_height().clamp(250.0,650.0);
+        let height=self.results_height(ui);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
@@ -753,7 +849,7 @@ impl InManApp {
     fn draw_assignments(&self,ui:&mut Ui) {
         let width=ui.available_width().max(940.0);
         let sizes=theme::column_widths(width,&[0.13,0.20,0.19,0.20,0.28],940.0);
-        let height=ui.available_height().clamp(250.0,650.0);
+        let height=self.results_height(ui);
         egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
             ui.set_min_width(width);
             theme::table_header_sized(ui,&[
@@ -918,16 +1014,24 @@ impl eframe::App for InManApp {
                     status_message(panel,&self.message);
                     panel.add_space(12.0);
                 }
-                egui::ScrollArea::vertical().auto_shrink([false,false])
-                    .show(panel,|main|{
-                        match self.screen {
-                            Screen::Dashboard=>self.dashboard(main),
-                            Screen::Inventory=>self.inventory(main),
-                            Screen::Manager=>self.manager(main),
-                            Screen::Tool=>self.tool_screen(main),
-                            Screen::Settings=>self.settings(main),
-                        }
-                    });
+                // The focused table owns its vertical scrolling, avoiding a
+                // nested clipped scroll region on smaller displays.
+                if self.screen==Screen::InventoryResults {
+                    self.inventory_focus(panel);
+                }else{
+                    egui::ScrollArea::vertical().auto_shrink([false,false])
+                        .show(panel,|main|{
+                            match self.screen {
+                                Screen::Dashboard=>self.dashboard(main),
+                                Screen::DivisionOverview=>self.division_overview(main),
+                                Screen::Inventory=>self.inventory(main),
+                                Screen::InventoryResults=>unreachable!("handled above"),
+                                Screen::Manager=>self.manager(main),
+                                Screen::Tool=>self.tool_screen(main),
+                                Screen::Settings=>self.settings(main),
+                            }
+                        });
+                }
             });
 
         if let Some(removal)=self.pending_removal.as_ref() {
@@ -965,5 +1069,17 @@ impl eframe::App for InManApp {
 impl Drop for InManApp {
     fn drop(&mut self) {
         logging::startup("shutdown", "application state dropped");
+    }
+}
+
+#[cfg(test)]
+mod expanded_view_tests {
+    use super::*;
+
+    #[test]
+    fn results_use_most_of_the_window_without_unbounded_height() {
+        assert_eq!(expanded_results_height(560.0),310.0);
+        assert_eq!(expanded_results_height(740.0),490.0);
+        assert_eq!(expanded_results_height(2160.0),950.0);
     }
 }

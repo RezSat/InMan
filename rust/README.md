@@ -1,15 +1,16 @@
-# InMan 2.0 — Rust development build
+# InMan 2.0 — Native Rust desktop
 
 Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 
-**Current version: 2.0.0-rc.4.** This is an unsigned release candidate. Product-key activation remains required; the additional manager username/password screen has been removed by design, so **Manager Tools** opens directly. The final stable Python v1.4 binary remains available for rollback, and its source is preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
+**Current version: 2.0.0 (stable).** Product-key activation remains required; **Manager Tools** opens directly. Python v1.4 and Rust v2 prereleases remain available for rollback. The old Python source is preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
 
 ## Display and layout
 
 - The sidebar uses the original split pink/cream **InMan** wordmark. The Windows executable retains the original pink/cream `IM` resource icon.
 - Windows loads Segoe UI from the local system font directory where available. No Windows font files are redistributed.
 - **Settings → Display size** adjusts text and interface scaling from 100% to 150%, in 5% increments. The selection is stored at `%LOCALAPPDATA%\\InMan\\ui-scale.txt`; it does not modify the inventory database.
-- Inventory tables use the available window width and horizontal scrolling when necessary. Manager tools and dashboard cards reflow into fewer columns in smaller windows.
+- Inventory tables use the available window width and horizontal scrolling when necessary. Use **Expand results** to open a tall, focused result table; **Back to search & filters** preserves the current search.
+- Division overview details use the main workspace scroll instead of a short nested scrollbar; **Expand overview** opens the focused division view. Manager tools and dashboard cards reflow into fewer columns in smaller windows.
 
 ## Current implementation
 
@@ -29,7 +30,7 @@ Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 3. Start `InMan.exe` from that folder. It uses the process working directory to resolve `inventory.db`, just like the existing Python version.
 4. Existing product-key registry activation should be recognized. Choose **Manager Tools** from the sidebar; it now opens directly without a manager-account setup screen.
 
-Do not point this beta at your only copy of a live inventory database. The executable is **not digitally signed**, so Microsoft Defender SmartScreen can flag it as an unfamiliar download.
+Always back up `inventory.db` before upgrading, and test a copy of your existing database before moving to production. The executable is **not digitally signed**, so Microsoft Defender SmartScreen can flag it as an unfamiliar download.
 
 ## Startup diagnostics
 
@@ -116,7 +117,7 @@ Run these checks on a **copy** of your existing database, not on the only live f
 7. Export all three reports, compare cells and merges with Python v1.4, make an integrity-checked backup, package to ZIP, close/relaunch, and confirm all data persists.
 8. Measure startup and GUI responsiveness against Python 1.4 on the same Windows device. The inspection CLI measures only database reads.
 
-The original 1.4 executable is retained as the fallback. The unsigned RC may trigger Microsoft Defender SmartScreen. The release is not production-ready until the manual Windows UI and performance checks above have been completed.
+The original Python 1.4 executable remains available as a fallback. This unsigned release may trigger Microsoft Defender SmartScreen. Automated tests and startup validation are release gates; confirm all of your organization's specific management and export workflows on a database copy before production rollout.
 
 ## Performance verification
 
