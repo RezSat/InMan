@@ -904,8 +904,11 @@ impl eframe::App for InManApp {
         }
         egui::Panel::left("inman_sidebar").exact_size(230.0)
             .resizable(false).show(ui,|panel|{
-                panel.add_space(6.0);
-                self.sidebar(panel);
+                egui::ScrollArea::vertical().auto_shrink([false,false])
+                    .show(panel,|sidebar|{
+                        sidebar.add_space(6.0);
+                        self.sidebar(sidebar);
+                    });
             });
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(theme::BACKGROUND)
