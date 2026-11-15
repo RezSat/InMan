@@ -1008,16 +1008,24 @@ impl eframe::App for InManApp {
                     status_message(panel,&self.message);
                     panel.add_space(12.0);
                 }
-                egui::ScrollArea::vertical().auto_shrink([false,false])
-                    .show(panel,|main|{
-                        match self.screen {
-                            Screen::Dashboard=>self.dashboard(main),
-                            Screen::Inventory=>self.inventory(main),
-                            Screen::Manager=>self.manager(main),
-                            Screen::Tool=>self.tool_screen(main),
-                            Screen::Settings=>self.settings(main),
-                        }
-                    });
+                // The focused table owns its vertical scrolling, avoiding a
+                // nested clipped scroll region on smaller displays.
+                if self.screen==Screen::InventoryResults {
+                    self.inventory_focus(panel);
+                }else{
+                    egui::ScrollArea::vertical().auto_shrink([false,false])
+                        .show(panel,|main|{
+                            match self.screen {
+                                Screen::Dashboard=>self.dashboard(main),
+                                Screen::DivisionOverview=>self.division_overview(main),
+                                Screen::Inventory=>self.inventory(main),
+                                Screen::InventoryResults=>unreachable!("handled above"),
+                                Screen::Manager=>self.manager(main),
+                                Screen::Tool=>self.tool_screen(main),
+                                Screen::Settings=>self.settings(main),
+                            }
+                        });
+                }
             });
 
         if let Some(removal)=self.pending_removal.as_ref() {
