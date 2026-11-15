@@ -118,6 +118,7 @@ pub struct InManApp {
     pub(super) new_attr_value: String,
     pub(super) staged: Vec<(String,String,i64)>,
     pub(super) selection: BTreeSet<String>,
+    pub(super) transfer_selection: BTreeSet<i64>,
     pub(super) pending_removal: Option<PendingRemoval>,
 }
 
@@ -144,7 +145,8 @@ impl Default for InManApp {
             selected_assignment:None,destination:String::new(),form_id:String::new(),
             form_name:String::new(),form_notes:String::new(),
             staged_assets:vec![StagedAsset::default()],new_attr_name:String::new(),new_attr_value:String::new(),
-            staged:vec![],selection:BTreeSet::new(),pending_removal:None,
+            staged:vec![],selection:BTreeSet::new(),
+            transfer_selection:BTreeSet::new(),pending_removal:None,
         };
         if activated && state.db.is_none() {
             state.message=format!(
@@ -216,8 +218,12 @@ impl InManApp {
         self.new_attr_value.clear();
         self.destination.clear();
         self.selection.clear();
+        self.transfer_selection.clear();
         self.staged.clear();
         self.pending_removal=None;
+        if tool==Tool::Transfer {
+            self.form_notes="Transferred between employees".into();
+        }
         self.open(Screen::Tool);
     }
 
