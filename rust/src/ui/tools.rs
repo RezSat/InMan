@@ -301,21 +301,27 @@ impl InManApp {
     }
     fn view_divisions_ui(&mut self,ui:&mut Ui) {
         self.choose_division(ui,"Division");
-        if let Some(id)=self.selected_division{
+        if let Some(id)=self.selected_division {
             if let Some(division)=self.divisions.iter().find(|d|d.id==id) {
                 ui.heading(&division.name);
                 ui.label(format!("{} Employees | {} Items",
                     division.employee_count,division.item_count));
             }
-            if let Some(db)=self.db.as_ref(){
-                if let Ok(items)=db.division_item_types(id) {
-                    for (name,count) in items {ui.label(format!("{name}: {count}"));}
+            ui.separator();
+            ui.strong("Item types");
+            if let Some(db)=self.db.as_ref() {
+                let items=self.division_item_cache.entry(id)
+                    .or_insert_with(||db.division_item_types(id).unwrap_or_default());
+                if items.is_empty(){ui.label("No items assigned");}
+                for (name,count) in items.iter() {
+                    ui.label(format!("{name}: {count}"));
                 }
-                if let Ok(employees)=db.employees("",Some(id)) {
-                    for employee in employees {
-                        ui.label(format!("{} — {}",employee.id,employee.name));
-                    }
-                }
+            }
+            ui.separator();
+            ui.strong("Employees");
+            for employee in self.employees.iter()
+                .filter(|employee|employee.division_id==Some(id)) {
+                ui.label(format!("{} — {}",employee.id,employee.name));
             }
         }
     }
