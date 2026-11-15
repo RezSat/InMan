@@ -1,5 +1,6 @@
 pub mod db;
 pub mod licensing;
+pub mod logging;
 pub mod reports;
 pub mod ui;
 
