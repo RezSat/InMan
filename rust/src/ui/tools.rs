@@ -29,7 +29,7 @@ impl InManApp {
                 Tool::Assign=>self.assign_ui(ui),
                 Tool::Transfer=>self.transfer_ui(ui),
                 Tool::ViewAssignmentLog=>self.assignment_log_ui(ui),
-                Tool::ReportInventory|Tool::ReportEmployees|Tool::ReportItems=>{}
+                Tool::ReportInventory|Tool::ReportEmployees|Tool::ReportItems|Tool::BackupDatabase=>{}
             }
         });
     }
