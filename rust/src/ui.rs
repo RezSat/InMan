@@ -97,6 +97,11 @@ pub struct InManApp {
     pub(super) employees: Vec<Employee>,
     pub(super) items: Vec<Item>,
     pub(super) assignments: Vec<Assignment>,
+    // Read-only search result collections; manager selectors remain complete.
+    inventory_employees: Vec<Employee>,
+    inventory_items: Vec<Item>,
+    inventory_divisions: Vec<Division>,
+    inventory_assignments: Vec<Assignment>,
     pub(super) counts: (i64,i64,i64),
     pub(super) selected_employee: String,
     pub(super) selected_item: Option<i64>,
@@ -125,7 +130,10 @@ impl Default for InManApp {
             manager_setup_needed:false,
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
-            divisions:vec![],employees:vec![],items:vec![],assignments:vec![],counts:(0,0,0),
+            divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
+            inventory_employees:vec![],inventory_items:vec![],
+            inventory_divisions:vec![],inventory_assignments:vec![],
+            counts:(0,0,0),
             selected_employee:String::new(),selected_item:None,selected_division:None,
             selected_assignment:None,destination:String::new(),form_id:String::new(),
             form_name:String::new(),form_notes:String::new(),
@@ -392,16 +400,16 @@ impl InManApp {
         let Some(db)=self.db.as_ref() else{return};
         let outcome=match self.selected_mode {
             InventoryMode::Employees=>db.employees(&self.query,self.division_filter)
-                .map(|rows|{self.employees=rows}),
+                .map(|rows|{self.inventory_employees=rows}),
             InventoryMode::Items=>db.items(&self.query)
-                .map(|rows|{self.items=rows}),
+                .map(|rows|{self.inventory_items=rows}),
             InventoryMode::Divisions=>db.divisions(&self.query)
-                .map(|rows|{self.divisions=rows}),
+                .map(|rows|{self.inventory_divisions=rows}),
             InventoryMode::EmployeeItems=>db.assignments(&self.query,None,
                 Some(&self.attr_name),Some(&self.attr_value))
-                .map(|rows|{self.assignments=rows}),
+                .map(|rows|{self.inventory_assignments=rows}),
             InventoryMode::UniqueKey=>db.unique_keys(&self.query)
-                .map(|rows|{self.assignments=rows}),
+                .map(|rows|{self.inventory_assignments=rows}),
         };
         if let Err(err)=outcome {self.message=err.to_string();}
     }
@@ -428,6 +436,7 @@ impl InManApp {
             if previous!=self.selected_mode {self.query.clear();self.search();}
         });
         if self.selected_mode==InventoryMode::Employees {
+            let old_division=self.division_filter;
             ui.horizontal(|ui|{
                 egui::ComboBox::from_id_salt("division_filter")
                     .selected_text(self.divisions.iter()
@@ -441,6 +450,7 @@ impl InManApp {
                         }
                     });
             });
+            if old_division!=self.division_filter {self.search();}
         } else if self.selected_mode==InventoryMode::EmployeeItems {
             ui.horizontal(|ui|{
                 ui.label("Attribute Name:");
@@ -464,9 +474,9 @@ impl InManApp {
     fn draw_employees(&self,ui:&mut Ui) {
         ui.label(RichText::new("Employee ID         Name                         Division").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,34.0,self.employees.len(),|ui,range|{
+            .show_rows(ui,34.0,self.inventory_employees.len(),|ui,range|{
                 for index in range {
-                    let record=&self.employees[index];
+                    let record=&self.inventory_employees[index];
                     ui.horizontal(|ui|{
                         ui.label(&record.id);
                         ui.separator();
@@ -482,17 +492,17 @@ impl InManApp {
     fn draw_items(&self,ui:&mut Ui) {
         ui.label(RichText::new("Name").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,33.0,self.items.len(),|ui,range|{
-                for i in range {ui.label(&self.items[i].name);ui.separator();}
+            .show_rows(ui,33.0,self.inventory_items.len(),|ui,range|{
+                for i in range {ui.label(&self.inventory_items[i].name);ui.separator();}
             });
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
         ui.label(RichText::new("Division                        Employees       Items").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,35.0,self.divisions.len(),|ui,range|{
+            .show_rows(ui,35.0,self.inventory_divisions.len(),|ui,range|{
                 for i in range {
-                    let d=&self.divisions[i];
+                    let d=&self.inventory_divisions[i];
                     ui.horizontal(|ui|{
                         ui.label(&d.name);
                         ui.label(format!("{} Employees",d.employee_count));
@@ -506,9 +516,9 @@ impl InManApp {
     fn draw_assignments(&self,ui:&mut Ui) {
         ui.label(RichText::new("Employee ID          Employee          Item          Unique Key          Attributes").strong());
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,40.0,self.assignments.len(),|ui,range|{
+            .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
                 for i in range {
-                    let a=&self.assignments[i];
+                    let a=&self.inventory_assignments[i];
                     ui.horizontal(|ui|{
                         ui.label(&a.employee_id);
                         ui.separator();
@@ -547,21 +557,21 @@ impl InManApp {
         let (headers,rows): (Vec<&str>,Vec<Vec<String>>)=match self.selected_mode {
             InventoryMode::Employees=>(
                 vec!["Employee ID","Name","Division"],
-                self.employees.iter().map(|e|vec![e.id.clone(),e.name.clone(),e.division.clone()]).collect()
+                self.inventory_employees.iter().map(|e|vec![e.id.clone(),e.name.clone(),e.division.clone()]).collect()
             ),
             InventoryMode::Items=>(vec!["Name"],
-                self.items.iter().map(|i|vec![i.name.clone()]).collect()),
+                self.inventory_items.iter().map(|i|vec![i.name.clone()]).collect()),
             InventoryMode::Divisions=>(vec!["Division","Employees","Items"],
-                self.divisions.iter().map(|d|vec![
+                self.inventory_divisions.iter().map(|d|vec![
                     d.name.clone(),d.employee_count.to_string(),d.item_count.to_string()
                 ]).collect()),
             InventoryMode::UniqueKey=>(vec!["Employee ID","Employee Name","Item Name","Unique Key"],
-                self.assignments.iter().map(|a|vec![
+                self.inventory_assignments.iter().map(|a|vec![
                     a.employee_id.clone(),a.employee_name.clone(),
                     a.item_name.clone(),a.unique_key.clone()
                 ]).collect()),
             InventoryMode::EmployeeItems=>(vec!["Employee ID","Employee Name","Item Name","Unique Key","Attributes"],
-                self.assignments.iter().map(|a|vec![
+                self.inventory_assignments.iter().map(|a|vec![
                     a.employee_id.clone(),a.employee_name.clone(),a.item_name.clone(),a.unique_key.clone(),
                     a.attributes.iter().map(|attr|format!("{}: {}",attr.name,attr.value))
                         .collect::<Vec<_>>().join(", ")
