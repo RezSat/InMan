@@ -4,7 +4,7 @@ pub mod logging;
 pub mod reports;
 pub mod ui;
 
-pub const VERSION: &str = "2.0.0-rc.1";
+pub const VERSION: &str = "2.0.0-rc.2";
 pub const PALETTE: Palette = Palette {
     black: [0x2c, 0x36, 0x3f],
     pink: [0xe7, 0x5a, 0x7c],
