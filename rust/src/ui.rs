@@ -181,7 +181,7 @@ impl InManApp {
         self.open(Screen::Tool);
     }
 
-    fn notify(&mut self, result:anyhow::Result<impl std::fmt::Display>) {
+    fn notify(&mut self, result:anyhow::Result<()>) {
         match result {
             Ok(value)=>{
                 self.message=format!("{value}");
