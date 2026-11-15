@@ -521,45 +521,46 @@ impl InManApp {
     }
 
     fn manager(&mut self,ui:&mut Ui) {
-        theme::heading(ui, "MANAGEMENT", "Manager tools",
-            "Choose an operation. All inventory records and actions are preserved.");
+        theme::heading(ui,"OPERATIONS","Manager Tools",
+            "Inventory management, assignments, exports and backups.");
+        let sections: [(&str,&str,&[Tool]);5]=[
+            ("Inventory","Manage item types", &[
+                Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems]),
+            ("Employees","Manage people and their records", &[
+                Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,
+                Tool::RemoveEmployees,Tool::ViewEmployees]),
+            ("Divisions","Organize departments", &[
+                Tool::AddDivision,Tool::UpdateDivision,
+                Tool::RemoveDivisions,Tool::ViewDivisions]),
+            ("Assets","Assign and transfer physical items", &[
+                Tool::Assign,Tool::Transfer]),
+            ("Reports & backup","Export or protect your inventory", &[
+                Tool::ReportInventory,Tool::ReportEmployees,
+                Tool::ReportItems,Tool::BackupDatabase]),
+        ];
         egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
-            let sections: [(&str,&str,&[Tool]);5]=[
-                ("Inventory management","Manage the item catalogue",&[
-                    Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems
-                ]),
-                ("Employee management","People and ownership records",&[
-                    Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,
-                    Tool::RemoveEmployees,Tool::ViewEmployees
-                ]),
-                ("Division management","Department structure",&[
-                    Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions
-                ]),
-                ("Asset assignment","Issue, track and transfer equipment",&[
-                    Tool::Assign,Tool::Transfer
-                ]),
-                ("Reports & analytics","Export and safeguard your data",&[
-                    Tool::ReportInventory,Tool::ReportEmployees,
-                    Tool::ReportItems,Tool::BackupDatabase
-                ]),
-            ];
-            for (name,description,tools) in sections {
-                theme::section(ui,name,description);
-                ui.horizontal_wrapped(|ui|{
-                    ui.spacing_mut().item_spacing=egui::vec2(10.0,10.0);
-                    for tool in tools {
-                        if ui.add_sized([205.0,74.0],
-                            egui::Button::new(RichText::new(tool.name())
-                                .size(13.0).strong().color(theme::TEXT))
-                                .fill(theme::SURFACE)
-                                .stroke(egui::Stroke::new(1.0,theme::BORDER))
-                                .corner_radius(egui::CornerRadius::same(10))
-                        ).clicked() {
-                            self.open_tool(*tool);
+            for (heading,description,tools) in sections {
+                theme::section(ui,heading,description);
+                let available=ui.available_width();
+                let columns=if available>=940.0{4}
+                    else if available>=650.0{3}
+                    else if available>=350.0{2}else{1};
+                for row in tools.chunks(columns){
+                    ui.columns(columns,|cells|{
+                        for (cell,tool) in cells.iter_mut().zip(row.iter()){
+                            let width=(cell.available_width()-6.0).max(120.0);
+                            if cell.add_sized([width,60.0],
+                                egui::Button::new(RichText::new(tool.name())
+                                    .size(14.0).color(theme::TEXT))
+                                    .fill(theme::SURFACE)
+                                    .stroke(egui::Stroke::new(1.0,theme::BORDER))
+                                    .corner_radius(egui::CornerRadius::same(9))
+                            ).clicked(){self.open_tool(*tool);}
                         }
-                    }
-                });
-                ui.add_space(22.0);
+                    });
+                    ui.add_space(7.0);
+                }
+                ui.add_space(15.0);
             }
         });
     }
