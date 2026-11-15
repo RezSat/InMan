@@ -183,7 +183,7 @@ impl InManApp {
 
     fn notify(&mut self, result:anyhow::Result<()>) {
         match result {
-            Ok(value)=>{
+            Ok(())=>{
                 self.message="Changes saved successfully".into();
                 self.reload();
             }
@@ -559,11 +559,11 @@ impl eframe::App for InManApp {
             }
             return;
         }
-        egui::SidePanel::left("inman_sidebar").exact_width(205.0)
-            .resizable(false).show(ui.ctx(),|panel|{
+        egui::Panel::left("inman_sidebar").exact_width(205.0)
+            .resizable(false).show(ui,|panel|{
                 self.sidebar(panel);
             });
-        egui::CentralPanel::default().show(ui.ctx(),|main|{
+        egui::CentralPanel::default().show(ui,|main|{
             main.add_space(12.0);
             match self.screen {
                 Screen::Dashboard=>self.dashboard(main),
