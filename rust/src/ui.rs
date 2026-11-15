@@ -90,6 +90,7 @@ pub struct InManApp {
     username: String,
     password: String,
     manager_setup_needed: bool,
+    manager_logged_in: bool,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -136,6 +137,7 @@ impl Default for InManApp {
             screen:Screen::Dashboard, tool:Tool::AddItem,
             message:String::new(), username:String::new(),password:String::new(),
             manager_setup_needed:false,
+            manager_logged_in:false,
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
@@ -193,7 +195,10 @@ impl InManApp {
     }
 
     fn open(&mut self, screen:Screen) {
-        self.screen=screen;
+        self.screen=if !self.manager_logged_in &&
+            matches!(screen,Screen::Manager|Screen::Tool) {
+            Screen::Login
+        }else{screen};
         self.message.clear();
         if matches!(screen,Screen::Dashboard | Screen::Manager | Screen::Tool) {self.reload()}
     }
@@ -287,7 +292,9 @@ impl InManApp {
         ui.add_space(22.0);
         if control(ui,"Dashboard") {self.open(Screen::Dashboard)}
         ui.add_space(10.0);
-        if control(ui,"Login") {self.open(Screen::Login)}
+        if self.manager_logged_in {
+            if control(ui,"Manager Tools"){self.open(Screen::Manager)}
+        }else if control(ui,"Login"){self.open(Screen::Login)}
         ui.add_space(10.0);
         if control(ui,"View Inventory") {
             self.open(Screen::Inventory);
@@ -373,6 +380,7 @@ impl InManApp {
                         match self.db.as_mut().unwrap()
                             .create_first_manager(&self.username,&self.password) {
                             Ok(())=>{
+                                self.manager_logged_in=true;
                                 self.reload();
                                 self.open(Screen::Manager);
                             }
@@ -381,7 +389,10 @@ impl InManApp {
                     }
                 }else if control(ui,"Login") {
                     match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
-                        Some(Ok(true))=>self.open(Screen::Manager),
+                        Some(Ok(true))=>{
+                            self.manager_logged_in=true;
+                            self.open(Screen::Manager)
+                        },
                         Some(Ok(false))=>self.message="Invalid username or password".into(),
                         Some(Err(err))=>self.message=err.to_string(),
                         None=>self.message="Database unavailable".into(),
