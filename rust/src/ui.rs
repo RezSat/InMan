@@ -95,6 +95,23 @@ fn status_message(ui:&mut Ui,message:&str) {
     });
 }
 
+// Budget space for the focused view toolbar, title, count and card margins.
+fn expanded_results_height(window_height: f32) -> f32 {
+    (window_height - 250.0).clamp(300.0,950.0)
+}
+
+#[cfg(test)]
+mod expanded_view_tests {
+    use super::*;
+
+    #[test]
+    fn results_use_most_of_the_window_without_unbounded_height() {
+        assert_eq!(expanded_results_height(560.0),310.0);
+        assert_eq!(expanded_results_height(740.0),490.0);
+        assert_eq!(expanded_results_height(2160.0),950.0);
+    }
+}
+
 fn control(ui: &mut Ui, text: &str) -> bool {
     theme::primary(ui, text)
 }
@@ -769,7 +786,7 @@ impl InManApp {
     /// preview retains its original height for predictable scrolling.
     fn results_height(&self,ui:&Ui) -> f32 {
         if self.screen==Screen::InventoryResults {
-            (ui.ctx().content_rect().height()-250.0).clamp(300.0,950.0)
+            expanded_results_height(ui.ctx().content_rect().height())
         }else{
             ui.available_height().clamp(250.0,650.0)
         }
