@@ -321,34 +321,105 @@ impl InManApp {
 
     fn assign_ui(&mut self,ui:&mut Ui) {
         self.choose_employee(ui,"Employee");
-        self.choose_item(ui,"Item");
-        ui.label("Unique Key / Reference ID");
-        ui.add_sized([430.0,36.0],TextEdit::singleline(&mut self.form_key));
-        ui.label("Notes");
-        ui.add_sized([430.0,36.0],TextEdit::singleline(&mut self.form_notes));
-        ui.separator();
-        ui.label("Custom Attributes");
-        for (index,(name,value)) in self.form_attrs.iter_mut().enumerate() {
-            ui.horizontal(|ui|{
-                ui.label(format!("{}",index+1));
-                ui.add_sized([155.0,30.0],TextEdit::singleline(name));
-                ui.add_sized([155.0,30.0],TextEdit::singleline(value));
-            });
+        if self.selected_employee.is_empty() {
+            ui.label("Choose an employee before assigning assets.");
+        }
+        ui.label("Assign up to ten physical assets in one transaction.");
+        ui.label("Each item has its own key and custom attributes.");
+        ui.add_space(8.0);
+
+        let mut remove_item=None;
+        ScrollArea::vertical().max_height(365.0).show(ui,|ui|{
+            for (index,staged) in self.staged_assets.iter_mut().enumerate() {
+                egui::Frame::group(ui.style()).show(ui,|ui|{
+                    ui.horizontal(|ui|{
+                        ui.heading(format!("Asset {}",index+1));
+                        if ui.small_button("Remove Item").clicked() {
+                            remove_item=Some(index);
+                        }
+                    });
+                    let selected=self.items.iter().find(|item|Some(item.id)==staged.item_id)
+                        .map_or("Select Item Type",|item|item.name.as_str());
+                    egui::ComboBox::from_id_salt(("assignment_item",index))
+                        .selected_text(selected).show_ui(ui,|ui|{
+                            for item in &self.items {
+                                ui.selectable_value(&mut staged.item_id,Some(item.id),&item.name);
+                            }
+                        });
+                    ui.horizontal(|ui|{
+                        ui.label("Unique Key / Reference ID");
+                        ui.add_sized([300.0,32.0],
+                            TextEdit::singleline(&mut staged.unique_key)
+                                .hint_text("Enter Serial Key"));
+                    });
+                    let mut removed_attribute=None;
+                    for (attr_index,(name,value)) in staged.attributes.iter_mut().enumerate() {
+                        ui.horizontal(|ui|{
+                            ui.add_sized([165.0,30.0],
+                                TextEdit::singleline(name).hint_text("Attribute name"));
+                            ui.add_sized([165.0,30.0],
+                                TextEdit::singleline(value).hint_text("Value"));
+                            if ui.small_button("Remove").clicked() {
+                                removed_attribute=Some(attr_index);
+                            }
+                        });
+                    }
+                    if let Some(attr_index)=removed_attribute {
+                        staged.attributes.remove(attr_index);
+                    }
+                    if ui.small_button("+ Add Attribute").clicked() {
+                        staged.attributes.push((String::new(),String::new()));
+                    }
+                });
+                ui.add_space(7.0);
+            }
+        });
+        if let Some(index)=remove_item {
+            self.staged_assets.remove(index);
         }
         ui.horizontal(|ui|{
-            if secondary_control(ui,"Add Attribute") {
-                self.form_attrs.push((String::new(),String::new()));
+            if self.staged_assets.len()<10
+                && secondary_control(ui,"+ Add Item") {
+                self.staged_assets.push(StagedAsset::default());
             }
-            if secondary_control(ui,"Remove Last") {self.form_attrs.pop();}
+            ui.label(format!("{} / 10 items",self.staged_assets.len()));
         });
+        ui.label("Notes for this assignment");
+        ui.add_sized([440.0,34.0],TextEdit::singleline(&mut self.form_notes));
+
         if control(ui,"Assign Items to Employee") {
-            if let Some(item_id)=self.selected_item {
-                let result=self.db.as_mut().unwrap()
-                    .assign(&self.selected_employee,item_id,&self.form_key,
-                            &self.form_attrs,&self.form_notes)
-                    .map(|_|());
-                self.notify(result);
-            }else{self.message="Choose an item type".into();}
+            if self.selected_employee.is_empty() {
+                self.message="Select an employee first".into();
+                return;
+            }
+            let drafts: Result<Vec<AssignmentDraft>,String> = self.staged_assets.iter()
+                .enumerate().map(|(index,staged)|{
+                    let item_id=staged.item_id
+                        .ok_or_else(||format!("Choose an item type for asset {}",index+1))?;
+                    if staged.unique_key.trim().is_empty(){
+                        return Err(format!("Enter a serial/reference key for asset {}",index+1));
+                    }
+                    Ok(AssignmentDraft {
+                        item_id,unique_key:staged.unique_key.clone(),
+                        attributes:staged.attributes.clone(),notes:self.form_notes.clone(),
+                    })
+                }).collect();
+            match drafts {
+                Ok(drafts)=>{
+                    let result=self.db.as_mut().unwrap()
+                        .assign_many(&self.selected_employee,&drafts);
+                    match result {
+                        Ok(created)=>{
+                            self.message=format!("Successfully assigned {} item(s)",created.len());
+                            self.staged_assets=vec![StagedAsset::default()];
+                            self.form_notes.clear();
+                            self.reload();
+                        }
+                        Err(err)=>self.message=err.to_string(),
+                    }
+                }
+                Err(err)=>self.message=err,
+            }
         }
     }
 
