@@ -36,12 +36,12 @@ pub fn install(ctx: &egui::Context) {
     visuals.window_shadow = egui::Shadow::NONE;
     ctx.set_visuals(visuals);
 
-    let mut style = (*ctx.style()).clone();
+    let mut style = (*ctx.style_of(egui::Theme::Dark)).clone();
     style.spacing.item_spacing = Vec2::new(10.0, 10.0);
     style.spacing.button_padding = Vec2::new(14.0, 9.0);
     style.spacing.interact_size = Vec2::new(42.0, 36.0);
     style.spacing.window_margin = Margin::same(18);
-    ctx.set_style(style);
+    ctx.set_style_of(egui::Theme::Dark, style);
 }
 
 pub fn card() -> Frame {
