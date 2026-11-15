@@ -42,6 +42,18 @@ pub fn activate(_: &str) -> anyhow::Result<()> {
     anyhow::bail!("Activation is supported on Windows only")
 }
 
+/// Matches controllers/auth.py: 16 random salt bytes plus SHA256(salt || password).
+pub fn hash_password(password: &str) -> anyhow::Result<String> {
+    let mut salt = [0_u8;16];
+    getrandom::fill(&mut salt).map_err(|error| anyhow::anyhow!(
+        "Unable to generate a secure password salt: {error}"
+    ))?;
+    let mut hasher = Sha256::new();
+    hasher.update(salt);
+    hasher.update(password.as_bytes());
+    Ok(format!("{}:{}",hex::encode(salt),hex::encode(hasher.finalize())))
+}
+
 /// Python compatibility: os.urandom(16), SHA256(salt || password), hex salt:hex digest.
 pub fn verify_password(password: &str, stored: &str) -> bool {
     let Some((salt_hex, digest_hex)) = stored.split_once(':') else { return false };
