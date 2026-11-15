@@ -96,6 +96,53 @@ impl Database {
         Ok(())
     }
 
+    /// Commit the manager's employee-ID, name and division changes together.
+    /// Failed ID updates cannot leave a partially edited employee record.
+    pub fn update_employee_identity(
+        &mut self, old_id: &str, new_id: &str,
+        new_name: &str, new_division: Option<i64>
+    ) -> Result<()> {
+        ensure!(!new_id.trim().is_empty(), "Employee ID is required");
+        ensure!(!new_name.trim().is_empty(), "Employee name is required");
+        let id=new_id.trim();
+        let tx=self.conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        tx.execute_batch("PRAGMA defer_foreign_keys = ON")?;
+        ensure!(tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM employees WHERE emp_id=?1)",
+            [old_id],|r|r.get::<_,i64>(0)
+        )?!=0,"Original employee was not found");
+        if old_id!=id {
+            ensure!(tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM employees WHERE emp_id=?1)",
+                [id],|r|r.get::<_,i64>(0)
+            )?==0,"The new employee ID is already in use");
+            tx.execute(
+                "UPDATE employee_items SET emp_id=?1 WHERE emp_id=?2",
+                params![id,old_id]
+            )?;
+            tx.execute(
+                "UPDATE item_transfer_history SET from_emp_id=?1 WHERE from_emp_id=?2",
+                params![id,old_id]
+            )?;
+            tx.execute(
+                "UPDATE item_transfer_history SET to_emp_id=?1 WHERE to_emp_id=?2",
+                params![id,old_id]
+            )?;
+        }
+        ensure!(tx.execute(
+            "UPDATE employees SET emp_id=?1,name=?2,division_id=?3 WHERE emp_id=?4",
+            params![id,new_name.trim(),new_division,old_id]
+        )?==1,"Employee was not updated");
+        if old_id!=id {
+            audit(&tx,"update_employee_id",&format!(
+                "Changed employee ID from {old_id} to {id}"
+            ))?;
+        }
+        audit(&tx,"update_employee",&format!("Updated employee {id} details"))?;
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn change_employee_id(&mut self, old_id: &str, new_id: &str) -> Result<()> {
         ensure!(!new_id.trim().is_empty(), "New employee ID cannot be blank");
         let tx = self.conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -176,35 +223,59 @@ impl Database {
         &mut self, employee_id: &str, item_id: i64, unique_key: &str,
         attributes: &[(String,String)], notes: &str
     ) -> Result<i64> {
+        let draft=AssignmentDraft {
+            item_id, unique_key: unique_key.to_owned(),
+            notes: notes.to_owned(), attributes: attributes.to_owned(),
+        };
+        Ok(self.assign_many(employee_id,&[draft])?[0])
+    }
+
+    /// All of a manager's staged assets are saved or none of them are.
+    /// Assignment IDs, not unique_key, distinguish physical assets.
+    pub fn assign_many(
+        &mut self, employee_id: &str, drafts: &[AssignmentDraft]
+    ) -> Result<Vec<i64>> {
+        ensure!(!drafts.is_empty() && drafts.len() <= 10,
+                "Select between one and ten physical assets");
         let tx = self.conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         ensure!(
             tx.query_row("SELECT EXISTS(SELECT 1 FROM employees WHERE emp_id=?1)",
-                         [employee_id], |r| r.get::<_,i64>(0))? != 0, "Employee not found"
+                         [employee_id],|r|r.get::<_,i64>(0))?!=0,
+            "Employee not found"
         );
-        ensure!(
-            tx.query_row("SELECT EXISTS(SELECT 1 FROM items WHERE item_id=?1)",
-                         [item_id], |r| r.get::<_,i64>(0))? != 0, "Item not found"
-        );
-        tx.execute(
-            "INSERT INTO employee_items
-                (emp_id,item_id,unique_key,date_assigned,notes)
-             VALUES (?1,?2,?3,CURRENT_TIMESTAMP,?4)",
-            params![employee_id,item_id,unique_key,notes]
-        )?;
-        let assignment_id = tx.last_insert_rowid();
-        for (name,value) in attributes {
+        let mut created=Vec::with_capacity(drafts.len());
+        for (index,draft) in drafts.iter().enumerate() {
+            ensure!(!draft.unique_key.trim().is_empty(),
+                    "Asset {} needs a unique/reference key",index+1);
+            ensure!(
+                tx.query_row("SELECT EXISTS(SELECT 1 FROM items WHERE item_id=?1)",
+                             [draft.item_id],|r|r.get::<_,i64>(0))?!=0,
+                "Asset {} uses an unknown item type",index+1
+            );
             tx.execute(
-                "INSERT INTO employee_item_attributes(emp_item_id,name,value)
-                 VALUES (?1,?2,?3)",
-                params![assignment_id,name,value]
+                "INSERT INTO employee_items
+                   (emp_id,item_id,unique_key,date_assigned,notes)
+                 VALUES (?1,?2,?3,CURRENT_TIMESTAMP,?4)",
+                params![employee_id,draft.item_id,draft.unique_key.trim(),draft.notes]
             )?;
+            let assignment_id=tx.last_insert_rowid();
+            for (name,value) in &draft.attributes {
+                if name.trim().is_empty() || value.trim().is_empty() {continue;}
+                tx.execute(
+                    "INSERT INTO employee_item_attributes(emp_item_id,name,value)
+                     VALUES (?1,?2,?3)",
+                    params![assignment_id,name.trim(),value.trim()]
+                )?;
+            }
+            created.push(assignment_id);
         }
         tx.execute(
-            "UPDATE employees SET item_count=COALESCE(item_count,0)+1 WHERE emp_id=?1",
-            [employee_id]
+            "UPDATE employees
+                SET item_count=COALESCE(item_count,0)+?1 WHERE emp_id=?2",
+            params![created.len() as i64,employee_id]
         )?;
         tx.commit()?;
-        Ok(assignment_id)
+        Ok(created)
     }
 
     pub fn upsert_attribute(&mut self, assignment_id: i64, name: &str, value: &str) -> Result<()> {
