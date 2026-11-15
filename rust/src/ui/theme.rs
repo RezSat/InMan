@@ -36,7 +36,27 @@ pub fn install(ctx: &egui::Context) {
     visuals.window_shadow = egui::Shadow::NONE;
     ctx.set_visuals(visuals);
 
+    // Use the local Windows UI font. We do not ship proprietary font files.
+    #[cfg(windows)]
+    if let Some(windows) = std::env::var_os("WINDIR") {
+        let path = std::path::PathBuf::from(windows).join("Fonts").join("segoeui.ttf");
+        if let Ok(bytes) = std::fs::read(path) {
+            let mut fonts = egui::FontDefinitions::default();
+            fonts.font_data.insert(
+                "Segoe UI".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+            );
+            fonts.families.entry(egui::FontFamily::Proportional)
+                .or_default().insert(0, "Segoe UI".to_owned());
+            ctx.set_fonts(fonts);
+        }
+    }
+
     let mut style = (*ctx.style_of(egui::Theme::Dark)).clone();
+    style.text_styles.insert(egui::TextStyle::Body, egui::FontId::proportional(15.0));
+    style.text_styles.insert(egui::TextStyle::Button, egui::FontId::proportional(14.5));
+    style.text_styles.insert(egui::TextStyle::Small, egui::FontId::proportional(12.5));
+    style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::proportional(24.0));
     style.spacing.item_spacing = Vec2::new(10.0, 10.0);
     style.spacing.button_padding = Vec2::new(14.0, 9.0);
     style.spacing.interact_size = Vec2::new(42.0, 36.0);
@@ -61,10 +81,10 @@ pub fn subtle_card() -> Frame {
 }
 
 pub fn heading(ui: &mut Ui, kicker: &str, title: &str, description: &str) {
-    ui.label(RichText::new(kicker.to_uppercase()).size(10.0).strong().color(ACCENT));
+    ui.label(RichText::new(kicker.to_uppercase()).size(11.0).strong().color(ACCENT));
     ui.label(RichText::new(title).size(29.0).strong().color(TEXT));
     if !description.is_empty() {
-        ui.label(RichText::new(description).size(13.0).color(MUTED));
+        ui.label(RichText::new(description).size(14.0).color(MUTED));
     }
     ui.add_space(15.0);
 }
@@ -73,7 +93,7 @@ pub fn section(ui: &mut Ui, title: &str, supporting: &str) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(title).size(18.0).strong().color(TEXT));
         if !supporting.is_empty() {
-            ui.label(RichText::new(supporting).size(12.0).color(MUTED));
+            ui.label(RichText::new(supporting).size(13.0).color(MUTED));
         }
     });
     ui.add_space(5.0);
@@ -120,7 +140,7 @@ pub fn table_header_sized(ui:&mut Ui, columns:&[(&str,f32)]) {
                 ui.spacing_mut().item_spacing.x=9.0;
                 for (name,width) in columns {
                     ui.add_sized([*width,18.0],egui::Label::new(
-                        RichText::new(*name).size(10.0).strong().color(MUTED)
+                        RichText::new(*name).size(12.0).strong().color(MUTED)
                     ));
                 }
             });
@@ -132,7 +152,7 @@ pub fn table_row(ui:&mut Ui, columns:&[(&str,f32)]) {
         ui.spacing_mut().item_spacing.x=9.0;
         for (value,width) in columns {
             ui.add_sized([*width,25.0],egui::Label::new(
-                RichText::new(*value).size(12.0).color(TEXT)
+                RichText::new(*value).size(14.0).color(TEXT)
             ));
         }
     });
