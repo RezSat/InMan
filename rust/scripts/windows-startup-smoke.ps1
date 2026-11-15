@@ -285,14 +285,20 @@ try {
         Write-Host 'First launch used the supplied database copy.'
     }
     else {
-        Invoke-InManStartupCheck -Label 'fresh-database' -WorkingDirectory $testDirectory `
-            -ExpectedDatabase $databasePath
-        Write-Host 'First launch created a new inventory database.'
+        # The unactivated application must show its activation screen without
+        # creating a database or bypassing product-key verification. A database
+        # is initialized only after successful product activation.
+        Invoke-InManStartupCheck -Label 'first-launch-unactivated' -WorkingDirectory $testDirectory
+        Write-Host 'First launch displayed the activation screen without requiring a database.'
     }
 
-    Invoke-InManStartupCheck -Label 'reopen' -WorkingDirectory $testDirectory `
-        -ExpectedDatabase $databasePath
-    Write-Host 'InMan reopened the existing database and closed cleanly a second time.'
+    if ($DatabaseSource) {
+        Invoke-InManStartupCheck -Label 'reopen-existing-database' -WorkingDirectory $testDirectory `
+            -ExpectedDatabase $databasePath
+    } else {
+        Invoke-InManStartupCheck -Label 'reopen-unactivated' -WorkingDirectory $testDirectory
+    }
+    Write-Host 'InMan reopened and closed cleanly a second time.'
 }
 finally {
     if (Test-Path -LiteralPath $logPath) {
