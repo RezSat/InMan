@@ -84,7 +84,7 @@ jobs:
   publish-rc:
     needs: [windows-rust, linux-core]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v2.0.0-rc.3')
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v2.0.0-rc.4')
     runs-on: windows-latest
     permissions:
       contents: write
@@ -111,4 +111,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v2.0.0-rc.3 staging/InMan.exe staging/InMan-Inspect.exe staging/SHA256SUMS.txt --target "${{ github.sha }}" --prerelease --title "InMan 2.0 RC3 - Polished Rust Desktop" --notes "Native Rust release candidate with fixed Windows DX12 startup, persistent crash logs, refreshed dark/pink desktop UI, SQLite compatibility, manager tools, and Excel exports. Windows GUI smoke tests, Rust regression tests, Clippy and release build run before publication. Test using a COPY of inventory.db. Unsigned EXE; Windows SmartScreen may warn. Python v1.4 remains the rollback release."
+          gh release create v2.0.0-rc.4 staging/InMan.exe staging/InMan-Inspect.exe staging/SHA256SUMS.txt --target "${{ github.sha }}" --prerelease --title "InMan 2.0 RC4 - Accessible Rust Desktop" --notes "Native Rust release candidate with fixed Windows DX12 startup, persistent crash logs, restored original InMan branding, Segoe UI typography, 100-150 percent saved display scaling, responsive inventory and manager panels, direct Manager Tools access, SQLite compatibility, and Excel exports. Windows GUI smoke tests, Rust regression tests, Clippy and release build run before publication. Test using a COPY of inventory.db. Unsigned EXE; Windows SmartScreen may warn. Python v1.4 remains the rollback release."
