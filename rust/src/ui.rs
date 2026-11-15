@@ -293,49 +293,55 @@ impl InManApp {
         }
     }
 
-    fn license_screen(&mut self, ui:&mut Ui) {
+    fn license_screen(&mut self,ui:&mut Ui) {
         ui.vertical_centered(|ui|{
-            ui.add_space(75.0);
-            ui.horizontal(|ui|{
-                ui.heading(RichText::new("In").color(pink()).size(48.0));
-                ui.heading(RichText::new("Man").color(light()).size(48.0));
-            });
-            ui.label("Software by RezSat: http://rezsat.vercel.app");
-            ui.add_space(32.0);
-            ui.heading("Enter Product Key to Unlock");
-            ui.add_space(12.0);
-            ui.group(|ui|{
-                ui.set_width(410.0);
-                ui.label("Product Key");
-                let mut editor=egui::TextEdit::singleline(&mut self.key_input)
+            ui.add_space(62.0);
+            ui.label(RichText::new("INMAN DESKTOP").size(11.0)
+                .strong().color(theme::ACCENT));
+            ui.label(RichText::new("Welcome to InMan").size(34.0)
+                .strong().color(theme::TEXT));
+            ui.label(RichText::new("Activate your copy to access the inventory workspace.")
+                .size(13.0).color(theme::MUTED));
+            ui.add_space(27.0);
+            theme::card().show(ui,|ui|{
+                ui.set_width(400.0);
+                ui.label(RichText::new("PRODUCT ACTIVATION").size(11.0)
+                    .strong().color(theme::MUTED));
+                ui.add_space(8.0);
+                ui.label(RichText::new("Product key").strong());
+                let mut input=egui::TextEdit::singleline(&mut self.key_input)
                     .hint_text("Enter your product key");
-                if !self.show_key {editor=editor.password(true)}
-                ui.add_sized([350.0,42.0],editor);
-                if ui.small_button(if self.show_key {"Hide"}else{"Show"}).clicked(){
-                    self.show_key = !self.show_key;
-                }
-                if control(ui,"Unlock InMan") {
+                if !self.show_key {input=input.password(true);}
+                ui.add_sized([360.0,42.0],input);
+                ui.horizontal(|ui|{
+                    ui.checkbox(&mut self.show_key,"Show key");
+                });
+                ui.add_space(8.0);
+                if control(ui,"Activate InMan") {
                     if licensing::valid_product_key(&self.key_input) {
                         match licensing::activate(&self.key_input)
                             .and_then(|_|Database::open(&self.database_path)) {
                             Ok(db)=>{
-                                logging::startup("licensing", "product key accepted and stored");
+                                logging::startup("licensing","product key accepted and stored");
                                 self.db=Some(db);
                                 self.activated=true;
                                 self.reload();
                                 self.open(Screen::Dashboard);
                             }
                             Err(err)=>{
-                                logging::error("licensing", format!("activation failed: {err:#}"));
+                                logging::error("licensing",format!("activation failed: {err:#}"));
                                 self.message=format!("{err:#}");
                             }
                         }
-                    } else {
-                        logging::warn("licensing", "an invalid product key was entered");
+                    }else{
+                        logging::warn("licensing","an invalid product key was entered");
                         self.message="Invalid Product Key".into();
                     }
                 }
             });
+            ui.add_space(20.0);
+            ui.label(RichText::new("INVENTORY MANAGEMENT BY REZSAT")
+                .size(10.0).color(theme::MUTED));
         });
     }
 
@@ -451,26 +457,29 @@ impl InManApp {
 
     fn login(&mut self,ui:&mut Ui) {
         ui.vertical_centered(|ui|{
-            ui.add_space(70.0);
-            ui.heading(RichText::new("InMan").size(42.0).color(pink()));
-            ui.heading(if self.manager_setup_needed {
-                "Create your first Inventory Manager account"
-            }else{
-                "Login! to be the Inventory Manager"
-            });
-            ui.add_space(25.0);
-            ui.group(|ui|{
-                ui.set_width(360.0);
-                ui.label("Username");
-                ui.add_sized([300.0,40.0],egui::TextEdit::singleline(&mut self.username)
-                    .hint_text("Enter your username"));
-                ui.label("Password");
-                ui.add_sized([300.0,40.0],egui::TextEdit::singleline(&mut self.password)
-                    .hint_text("Enter your password").password(true));
-
+            ui.add_space(50.0);
+            theme::heading(ui,"SECURE ACCESS",
+                if self.manager_setup_needed {"Create manager account"} else {"Manager login"},
                 if self.manager_setup_needed {
-                    ui.label("This inventory database has no manager account yet.");
-                    if control(ui,"Create Manager Account") {
+                    "Set up the first manager for this inventory database."
+                }else{
+                    "Sign in to manage items, people and assignments."
+                });
+            theme::card().show(ui,|ui|{
+                ui.set_width(392.0);
+                ui.label(RichText::new("USERNAME").size(11.0).strong().color(theme::MUTED));
+                ui.add_sized([350.0,40.0],egui::TextEdit::singleline(&mut self.username)
+                    .hint_text("Enter your username"));
+                ui.add_space(8.0);
+                ui.label(RichText::new("PASSWORD").size(11.0).strong().color(theme::MUTED));
+                let response=ui.add_sized([350.0,40.0],
+                    egui::TextEdit::singleline(&mut self.password)
+                        .hint_text("Enter your password").password(true));
+                ui.add_space(14.0);
+                if self.manager_setup_needed {
+                    ui.label(RichText::new("No manager account is configured yet.")
+                        .size(12.0).color(theme::MUTED));
+                    if control(ui,"Create manager account") {
                         match self.db.as_mut().unwrap()
                             .create_first_manager(&self.username,&self.password) {
                             Ok(())=>{
@@ -481,15 +490,20 @@ impl InManApp {
                             Err(err)=>self.message=err.to_string(),
                         }
                     }
-                }else if control(ui,"Login") {
-                    match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
-                        Some(Ok(true))=>{
-                            self.manager_logged_in=true;
-                            self.open(Screen::Manager)
-                        },
-                        Some(Ok(false))=>self.message="Invalid username or password".into(),
-                        Some(Err(err))=>self.message=err.to_string(),
-                        None=>self.message="Database unavailable".into(),
+                }else{
+                    let submitted=control(ui,"Sign in") ||
+                        (response.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter)));
+                    if submitted {
+                        match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
+                            Some(Ok(true))=>{
+                                self.manager_logged_in=true;
+                                self.password.clear();
+                                self.open(Screen::Manager);
+                            }
+                            Some(Ok(false))=>self.message="Invalid username or password".into(),
+                            Some(Err(err))=>self.message=err.to_string(),
+                            None=>self.message="Database unavailable".into(),
+                        }
                     }
                 }
             });
