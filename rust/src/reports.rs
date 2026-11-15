@@ -1,4 +1,4 @@
-use crate::db::{Assignment, Database, Division, Employee, Item};
+use crate::db::{Assignment, Database, Division, Employee};
 use anyhow::{anyhow, ensure, Result};
 use calamine::{open_workbook_auto, Reader};
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook};
@@ -12,14 +12,14 @@ fn heading() -> Format {
         .set_font_size(12)
         .set_background_color(Color::RGB(HEADER_RGB))
         .set_align(FormatAlign::Center)
-        .set_vertical_align(FormatAlign::VerticalCenter)
+        .set_align(FormatAlign::VerticalCenter)
         .set_border(FormatBorder::Thin)
 }
 
 fn cell_style() -> Format {
     Format::new()
         .set_align(FormatAlign::Center)
-        .set_vertical_align(FormatAlign::VerticalCenter)
+        .set_align(FormatAlign::VerticalCenter)
         .set_border(FormatBorder::Thin)
 }
 
