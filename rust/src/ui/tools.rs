@@ -354,7 +354,7 @@ impl InManApp {
         }
     }
 
-    fn load_selected_assets(&mut self) {
+    pub(super) fn load_selected_assets(&mut self) {
         let Some(db)=self.db.as_ref() else{return};
         match db.assignments("",Some(&self.selected_employee),None,None) {
             Ok(records)=>self.assignments=records,
