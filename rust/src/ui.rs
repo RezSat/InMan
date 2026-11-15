@@ -22,7 +22,7 @@ fn record_first_frame() {
 
 fn color(rgb: [u8;3]) -> Color32 { Color32::from_rgb(rgb[0],rgb[1],rgb[2]) }
 fn pink() -> Color32 { color(PALETTE.pink) }
-fn light() -> Color32 { color(PALETTE.white) }
+
 
 /// A single item row, kept separate from the persisted inventory until Save.
 #[derive(Default)]
@@ -76,6 +76,22 @@ impl Tool {
             Self::ViewAssignmentLog=>"View Asset Assignments",
         }
     }
+}
+
+fn status_message(ui:&mut Ui,message:&str) {
+    if message.is_empty(){return}
+    let lower=message.to_ascii_lowercase();
+    let successful=["success","saved","created","assigned","transferred","exported",
+                    "backup","packaged","imported"].iter()
+        .any(|word|lower.contains(word));
+    let status_color=if successful{theme::SUCCESS}else{theme::DANGER};
+    theme::subtle_card().show(ui,|ui|{
+        ui.horizontal(|ui|{
+            ui.label(RichText::new(if successful{"COMPLETE"}else{"NOTICE"})
+                .size(10.0).strong().color(status_color));
+            ui.label(RichText::new(message).size(12.0).color(theme::TEXT));
+        });
+    });
 }
 
 fn control(ui: &mut Ui, text: &str) -> bool {
@@ -829,9 +845,7 @@ impl eframe::App for InManApp {
     fn ui(&mut self, ui:&mut Ui, _frame:&mut eframe::Frame) {
         if !self.activated {
             self.license_screen(ui);
-            if !self.message.is_empty(){
-                ui.colored_label(pink(),&self.message);
-            }
+            status_message(ui,&self.message);
             record_first_frame();
             return;
         }
@@ -849,8 +863,8 @@ impl eframe::App for InManApp {
                 Screen::Tool=>self.tool_screen(main),
             }
             if !self.message.is_empty() {
-                main.separator();
-                main.label(RichText::new(&self.message).color(pink()));
+                main.add_space(16.0);
+                status_message(main,&self.message);
             }
         });
 
