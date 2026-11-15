@@ -2,12 +2,19 @@
 
 Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 
-**Current version: 2.0.0-rc.1.** This is an unsigned release candidate, not a production replacement for Python v1.4. The initial Rust rewrite was merged into `main`; follow-on parity work is in [`rust-v2-completion`](https://github.com/RezSat/InMan/tree/rust-v2-completion). The last stable binary remains the Python v1.4 release. The old code is preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
+**Current version: 2.0.0-rc.4.** This is an unsigned release candidate. Product-key activation remains required; the additional manager username/password screen has been removed by design, so **Manager Tools** opens directly. The final stable Python v1.4 binary remains available for rollback, and its source is preserved at [`old/v1.4`](https://github.com/RezSat/InMan/tree/old/v1.4).
+
+## Display and layout
+
+- The sidebar uses the original split pink/cream **InMan** wordmark. The Windows executable retains the original pink/cream `IM` resource icon.
+- Windows loads Segoe UI from the local system font directory where available. No Windows font files are redistributed.
+- **Settings → Display size** adjusts text and interface scaling from 100% to 150%, in 5% increments. The selection is stored at `%LOCALAPPDATA%\\InMan\\ui-scale.txt`; it does not modify the inventory database.
+- Inventory tables use the available window width and horizontal scrolling when necessary. Manager tools and dashboard cards reflow into fewer columns in smaller windows.
 
 ## Current implementation
 
 - Original product-key SHA-256 verification and Windows `HKCU\Software\InMan` registry compatibility.
-- Existing Python salted-SHA-256 manager passwords; first-run manager setup for databases without users.
+- Compatible manager records and password hashes remain in the database; the Rust desktop UI no longer requires manager credentials.
 - Native egui dashboard, sidebar, inventory search, manager tools, forms, and confirmation dialogs.
 - All five inventory search modes: Employees, Items, Divisions, Unique Key, Employee Items.
 - Item types, divisions, employees, up to 10 staged physical assignments with independent attributes, single/bulk removals, multi-select transfers, and audit history.
@@ -20,7 +27,7 @@ Native Windows desktop rewrite of InMan using Rust, egui, and SQLite.
 1. Back up `inventory.db` and keep a copy completely outside the test folder.
 2. Put the Rust `InMan.exe` in a separate folder alongside **a copy** of `inventory.db`.
 3. Start `InMan.exe` from that folder. It uses the process working directory to resolve `inventory.db`, just like the existing Python version.
-4. Existing product-key registry activation should be recognized. For databases with no manager accounts, the login screen now asks for an initial username and password (at least eight characters).
+4. Existing product-key registry activation should be recognized. Choose **Manager Tools** from the sidebar; it now opens directly without a manager-account setup screen.
 
 Do not point this beta at your only copy of a live inventory database. The executable is **not digitally signed**, so Microsoft Defender SmartScreen can flag it as an unfamiliar download.
 
@@ -101,7 +108,7 @@ See [`docs/rust-parity.md`](../docs/rust-parity.md) for the full parity matrix. 
 Run these checks on a **copy** of your existing database, not on the only live file.
 
 1. Run `InMan-Inspect.exe "C:\\path\\to\\inventory.db"`. Confirm that integrity and foreign keys pass and that the reported employee, item, assignment and archive counts match your copy.
-2. Launch `InMan.exe` next to a copy named `inventory.db`; verify activation is recognized from the existing Windows user registry. If the database has no manager user, create the initial manager account.
+2. Launch `InMan.exe` next to a copy named `inventory.db`; verify activation is recognized from the existing Windows user registry, then open Manager Tools directly.
 3. Open the Dashboard, search every inventory mode, apply division and attribute filters, and export each result. Move between inventory and manager screens without losing the full employee/item selector lists.
 4. Assign two or more assets in one operation with separate serial numbers and attributes; verify they persist and the employee count increases by the number actually assigned.
 5. Transfer multiple physical assignments, including two with the same reference key, and confirm the intended IDs, attributes, history and counts.
