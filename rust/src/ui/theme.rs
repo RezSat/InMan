@@ -90,13 +90,11 @@ pub fn heading(ui: &mut Ui, kicker: &str, title: &str, description: &str) {
 }
 
 pub fn section(ui: &mut Ui, title: &str, supporting: &str) {
-    ui.horizontal(|ui| {
-        ui.label(RichText::new(title).size(18.0).strong().color(TEXT));
-        if !supporting.is_empty() {
-            ui.label(RichText::new(supporting).size(13.0).color(MUTED));
-        }
-    });
-    ui.add_space(5.0);
+    ui.label(RichText::new(title).size(19.0).strong().color(TEXT));
+    if !supporting.is_empty() {
+        ui.label(RichText::new(supporting).size(13.0).color(MUTED));
+    }
+    ui.add_space(9.0);
 }
 
 pub fn primary(ui: &mut Ui, label: &str) -> bool {
@@ -130,31 +128,54 @@ pub fn sidebar_item(ui: &mut Ui, text: &str, active: bool) -> bool {
     ).clicked()
 }
 
-/// Fixed column widths keep virtualized rows aligned with their headers.
+/// Widths follow the window size and never shrink below a readable minimum.
+pub fn column_widths(available: f32, proportions: &[f32], minimum: f32) -> Vec<f32> {
+    let width=available.max(minimum).max(0.0);
+    let gaps=proportions.len().saturating_sub(1) as f32 * 9.0;
+    let content=(width-24.0-gaps).max(proportions.len() as f32*65.0);
+    let sum=proportions.iter().sum::<f32>().max(0.001);
+    proportions.iter().map(|weight|content*weight/sum).collect()
+}
+
 pub fn table_header_sized(ui:&mut Ui, columns:&[(&str,f32)]) {
     Frame::new().fill(SURFACE_RAISED)
         .corner_radius(egui::CornerRadius::same(6))
-        .inner_margin(Margin::symmetric(10,9))
+        .inner_margin(Margin::symmetric(12,9))
         .show(ui,|ui|{
             ui.horizontal(|ui|{
                 ui.spacing_mut().item_spacing.x=9.0;
                 for (name,width) in columns {
-                    ui.add_sized([*width,18.0],egui::Label::new(
+                    ui.add_sized([*width,22.0],egui::Label::new(
                         RichText::new(*name).size(12.0).strong().color(MUTED)
-                    ));
+                    ).truncate());
                 }
             });
         });
 }
 
 pub fn table_row(ui:&mut Ui, columns:&[(&str,f32)]) {
-    ui.horizontal(|ui|{
-        ui.spacing_mut().item_spacing.x=9.0;
-        for (value,width) in columns {
-            ui.add_sized([*width,25.0],egui::Label::new(
-                RichText::new(*value).size(14.0).color(TEXT)
-            ));
-        }
+    Frame::new().inner_margin(Margin::symmetric(12,4)).show(ui,|ui|{
+        ui.horizontal(|ui|{
+            ui.spacing_mut().item_spacing.x=9.0;
+            for (value,width) in columns {
+                ui.add_sized([*width,24.0],egui::Label::new(
+                    RichText::new(*value).size(14.0).color(TEXT)
+                ).truncate()).on_hover_text(*value);
+            }
+        });
     });
 }
 
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+    #[test]
+    fn table_columns_fill_space_and_respect_minimum() {
+        let widths=column_widths(1200.0,&[0.2,0.4,0.4],580.0);
+        assert_eq!(widths.len(),3);
+        assert!(widths[1]>widths[0]);
+        assert!((widths.iter().sum::<f32>()+24.0+18.0-1200.0).abs()<0.01);
+        let narrow=column_widths(200.0,&[1.0,1.0],480.0);
+        assert!(narrow.iter().sum::<f32>()>400.0);
+    }
+}
