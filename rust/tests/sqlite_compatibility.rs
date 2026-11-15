@@ -149,6 +149,67 @@ fn original_python_salted_manager_password_is_compatible() -> Result<()> {
 }
 
 #[test]
+fn attribute_reads_scale_past_sqlite_parameter_limits() -> Result<()> {
+    let db=fixture()?;
+    db.db_connection().execute_batch(
+        "WITH RECURSIVE seq(n) AS (
+             SELECT 10 UNION ALL SELECT n+1 FROM seq WHERE n<950
+         )
+         INSERT INTO employee_items(id,emp_id,item_id,unique_key)
+           SELECT n,'E01',1,printf('STRESS-%04d',n) FROM seq;
+         INSERT INTO employee_item_attributes(emp_item_id,name,value)
+           SELECT id,'Serial',unique_key FROM employee_items WHERE id>=10;"
+    )?;
+    let matches=db.assignments("",None,None,None)?;
+    assert_eq!(matches.len(),943);
+    assert!(matches.iter().find(|a|a.unique_key=="STRESS-0950")
+        .is_some_and(|a|a.attributes.iter().any(|x|x.value=="STRESS-0950")));
+    let filtered=db.unique_keys("STRESS-0945")?;
+    assert_eq!(filtered.len(),1);
+    assert_eq!(filtered[0].attributes[0].value,"STRESS-0945");
+    Ok(())
+}
+
+#[test]
+fn spreadsheet_import_reads_original_python_column_names() -> Result<()> {
+    let mut db=fixture()?;
+    let folder=tempdir()?;
+    let path=folder.path().join("import.xlsx");
+    let mut book=rust_xlsxwriter::Workbook::new();
+    let sheet=book.add_worksheet();
+    for (column,title) in ["EMP_ID","Name","Division"].iter().enumerate() {
+        sheet.write_string(0,column as u16,*title)?;
+    }
+    for (column,value) in ["E04","New Employee","Operations"].iter().enumerate() {
+        sheet.write_string(1,column as u16,*value)?;
+    }
+    book.save(&path)?;
+    let staged=reports::read_employee_import(&path,&db.divisions("")?)?;
+    assert_eq!(staged,vec![("E04".into(),"New Employee".into(),1)]);
+    assert_eq!(db.import_employees(&staged)?,1);
+    assert_eq!(db.employees("E04",None)?[0].division,"Operations");
+    Ok(())
+}
+
+#[test]
+fn package_contains_the_executable_and_database() -> Result<()> {
+    use std::{fs,io::Read};
+    let folder=tempdir()?;
+    let executable=folder.path().join("InMan.exe");
+    let database=folder.path().join("inventory.db");
+    let output=folder.path().join("InMan.zip");
+    fs::write(&executable,b"test executable")?;
+    fs::write(&database,b"test SQLite file")?;
+    reports::package_app(&output,&executable,&database)?;
+    let mut archive=zip::ZipArchive::new(fs::File::open(output)?)?;
+    assert_eq!(archive.len(),2);
+    let mut contents=Vec::new();
+    archive.by_name("inventory.db")?.read_to_end(&mut contents)?;
+    assert_eq!(contents,b"test SQLite file");
+    Ok(())
+}
+
+#[test]
 fn three_excel_exports_have_the_expected_columns() -> Result<()> {
     let db=fixture()?;
     let dir=tempdir()?;
