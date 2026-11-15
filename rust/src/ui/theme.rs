@@ -138,16 +138,3 @@ pub fn table_row(ui:&mut Ui, columns:&[(&str,f32)]) {
     });
 }
 
-pub fn table_header(ui: &mut Ui, columns: &[&str]) {
-    Frame::new().fill(SURFACE_RAISED)
-        .corner_radius(egui::CornerRadius::same(6))
-        .inner_margin(Margin::symmetric(12, 10))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for column in columns {
-                    ui.label(RichText::new(*column).size(11.0).strong().color(MUTED));
-                    ui.add_space(10.0);
-                }
-            });
-        });
-}
