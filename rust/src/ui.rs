@@ -497,34 +497,45 @@ impl InManApp {
     }
 
     fn manager(&mut self,ui:&mut Ui) {
-        ui.heading("Manager Tools");
-        egui::ScrollArea::vertical().show(ui,|ui|{
-            let sections: [(&str,&[Tool]);5]=[
-                ("Inventory Management",&[Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems]),
-                ("Employee Management",&[Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,Tool::RemoveEmployees,Tool::ViewEmployees]),
-                ("Division Management",&[Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions]),
-                ("Asset Assignment",&[Tool::Assign,Tool::Transfer]),
-                ("Reports & Analytics",&[
+        theme::heading(ui, "MANAGEMENT", "Manager tools",
+            "Choose an operation. All inventory records and actions are preserved.");
+        egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
+            let sections: [(&str,&str,&[Tool]);5]=[
+                ("Inventory management","Manage the item catalogue",&[
+                    Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems
+                ]),
+                ("Employee management","People and ownership records",&[
+                    Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,
+                    Tool::RemoveEmployees,Tool::ViewEmployees
+                ]),
+                ("Division management","Department structure",&[
+                    Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions
+                ]),
+                ("Asset assignment","Issue, track and transfer equipment",&[
+                    Tool::Assign,Tool::Transfer
+                ]),
+                ("Reports & analytics","Export and safeguard your data",&[
                     Tool::ReportInventory,Tool::ReportEmployees,
                     Tool::ReportItems,Tool::BackupDatabase
                 ]),
             ];
-            for (section,tools) in sections {
-                ui.add_space(10.0);
-                ui.heading(RichText::new(section).size(20.0).color(light()));
-                ui.separator();
-                for chunk in tools.chunks(3){
-                    ui.horizontal(|ui|{
-                        for tool in chunk{
-                            if ui.add_sized([190.0,70.0],
-                                egui::Button::new(RichText::new(tool.name()).color(light()))
-                                    .fill(color(PALETTE.black))
-                            ).clicked() {
-                                self.open_tool(*tool);
-                            }
+            for (name,description,tools) in sections {
+                theme::section(ui,name,description);
+                ui.horizontal_wrapped(|ui|{
+                    ui.spacing_mut().item_spacing=egui::vec2(10.0,10.0);
+                    for tool in tools {
+                        if ui.add_sized([205.0,74.0],
+                            egui::Button::new(RichText::new(tool.name())
+                                .size(13.0).strong().color(theme::TEXT))
+                                .fill(theme::SURFACE)
+                                .stroke(egui::Stroke::new(1.0,theme::BORDER))
+                                .corner_radius(egui::CornerRadius::same(10))
+                        ).clicked() {
+                            self.open_tool(*tool);
                         }
-                    });
-                }
+                    }
+                });
+                ui.add_space(22.0);
             }
         });
     }
@@ -551,11 +562,17 @@ impl InManApp {
     }
 
     fn inventory(&mut self,ui:&mut Ui) {
+        theme::heading(ui,"ASSET DIRECTORY","Inventory",
+            "Search employees, item types, divisions and assigned assets.");
         ui.horizontal(|ui|{
-            ui.heading("Inventory Search");
-            if ui.button("Export Results").clicked() {self.export_search();}
+            ui.label(RichText::new(self.selected_mode.label()).color(theme::MUTED).size(12.0));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                if secondary_control(ui,"Export Results"){self.export_search();}
+            });
         });
-        ui.add_space(10.0);
+        ui.add_space(12.0);
+        theme::card().show(ui,|ui|{
+        ui.label(RichText::new("SEARCH & FILTER").size(11.0).strong().color(theme::MUTED));
         ui.horizontal(|ui|{
             let previous=self.selected_mode;
             egui::ComboBox::from_id_salt("search_type")
@@ -595,8 +612,16 @@ impl InManApp {
                 ui.text_edit_singleline(&mut self.attr_value);
             });
         }
-        ui.add_space(12.0);
-        egui::Frame::group(ui.style()).fill(color(PALETTE.black)).show(ui,|ui|{
+        });
+        ui.add_space(20.0);
+        let result_count=match self.selected_mode {
+            InventoryMode::Employees=>self.inventory_employees.len(),
+            InventoryMode::Items=>self.inventory_items.len(),
+            InventoryMode::Divisions=>self.inventory_divisions.len(),
+            _=>self.inventory_assignments.len(),
+        };
+        theme::section(ui,"Search results",&format!("{result_count} records"));
+        theme::card().show(ui,|ui|{
             ui.set_min_height(380.0);
             match self.selected_mode {
                 InventoryMode::Employees=>self.draw_employees(ui),
@@ -608,7 +633,7 @@ impl InManApp {
     }
 
     fn draw_employees(&self,ui:&mut Ui) {
-        ui.label(RichText::new("Employee ID         Name                         Division").strong());
+        theme::table_header(ui,&["EMPLOYEE ID", "NAME", "DIVISION"]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
             .show_rows(ui,34.0,self.inventory_employees.len(),|ui,range|{
                 for index in range {
@@ -626,7 +651,7 @@ impl InManApp {
     }
 
     fn draw_items(&self,ui:&mut Ui) {
-        ui.label(RichText::new("Name").strong());
+        theme::table_header(ui,&["ITEM TYPE"]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
             .show_rows(ui,33.0,self.inventory_items.len(),|ui,range|{
                 for i in range {ui.label(&self.inventory_items[i].name);ui.separator();}
@@ -634,7 +659,7 @@ impl InManApp {
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
-        ui.label(RichText::new("Division                        Employees       Items").strong());
+        theme::table_header(ui,&["DIVISION", "EMPLOYEES", "ASSETS"]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
             .show_rows(ui,35.0,self.inventory_divisions.len(),|ui,range|{
                 for i in range {
@@ -650,7 +675,7 @@ impl InManApp {
     }
 
     fn draw_assignments(&self,ui:&mut Ui) {
-        ui.label(RichText::new("Employee ID          Employee          Item          Unique Key          Attributes").strong());
+        theme::table_header(ui,&["EMPLOYEE", "ASSET", "REFERENCE KEY", "ATTRIBUTES"]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
             .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
                 for i in range {
