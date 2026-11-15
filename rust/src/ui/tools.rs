@@ -2,7 +2,7 @@ use super::*;
 use eframe::egui::{ComboBox, ScrollArea, TextEdit};
 
 impl InManApp {
-    fn tool_screen(&mut self,ui:&mut Ui) {
+    pub(super) fn tool_screen(&mut self,ui:&mut Ui) {
         ui.horizontal(|ui|{
             if secondary_control(ui,"← Back to Manager Tools") {
                 self.open(Screen::Manager);
