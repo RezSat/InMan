@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 
 pub const MIN_ZOOM: f32 = 1.0;
 pub const MAX_ZOOM: f32 = 1.5;
-pub const DEFAULT_ZOOM: f32 = 1.12;
+pub const DEFAULT_ZOOM: f32 = 1.10;
 
 fn preference_file() -> PathBuf {
     std::env::var_os("LOCALAPPDATA")
