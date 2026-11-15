@@ -6,6 +6,7 @@ on:
       - main
       - rust-refactor
       - rust-v2-completion
+      - ui/desktop-polish-v2
     paths:
       - 'rust/**'
       - '.github/workflows/rust-ci.yml'
@@ -46,6 +47,16 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Build optimized Windows EXEs
         run: cargo build --release --bins
+      - name: Windows GUI startup smoke test
+        shell: pwsh
+        run: ./scripts/windows-startup-smoke.ps1 -Executable target/release/inman.exe
+      - name: Upload startup diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: InMan-startup-diagnostics
+          path: rust/target/startup-smoke/**
+          if-no-files-found: ignore
       - name: Upload Rust test executable
         uses: actions/upload-artifact@v4
         with:
@@ -73,7 +84,7 @@ jobs:
   publish-rc:
     needs: [windows-rust, linux-core]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/rust-v2-completion' && contains(github.event.head_commit.message, 'release: v2.0.0-rc.1')
+      github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'release: v2.0.0-rc.2')
     runs-on: windows-latest
     permissions:
       contents: write
@@ -100,4 +111,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v2.0.0-rc.1 staging/InMan.exe staging/InMan-Inspect.exe staging/SHA256SUMS.txt --target "${{ github.sha }}" --prerelease --title "InMan 2.0 RC1 - Native Rust" --notes "Native Rust development release with preserved SQLite schema, Windows product-key licensing, manager workflows, multi-item assignment, bulk transfers, verified SQLite snapshots and Excel compatibility checks. Automated tests and optimized Windows build must pass before publishing. Manual Windows UI parity and real-machine performance validation are still required before the stable v2.0 tag. TEST ON A COPY of inventory.db. Unsigned EXE; Windows SmartScreen may warn."
+          gh release create v2.0.0-rc.2 staging/InMan.exe staging/InMan-Inspect.exe staging/SHA256SUMS.txt --target "${{ github.sha }}" --prerelease --title "InMan 2.0 RC2 - Redesigned Rust Desktop" --notes "Native Rust release candidate with fixed Windows DX12 startup, persistent crash logs, refreshed dark/pink desktop UI, SQLite compatibility, manager tools, and Excel exports. Windows GUI smoke tests, Rust regression tests, Clippy and release build run before publication. Test using a COPY of inventory.db. Unsigned EXE; Windows SmartScreen may warn. Python v1.4 remains the rollback release."
