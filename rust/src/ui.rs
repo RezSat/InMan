@@ -663,69 +663,72 @@ impl InManApp {
     }
 
     fn draw_employees(&self,ui:&mut Ui) {
-        theme::table_header(ui,&["EMPLOYEE ID", "NAME", "DIVISION"]);
+        theme::table_header_sized(ui,&[
+            ("EMPLOYEE ID",135.0),("EMPLOYEE NAME",225.0),("DIVISION",210.0)
+        ]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,34.0,self.inventory_employees.len(),|ui,range|{
+            .show_rows(ui,36.0,self.inventory_employees.len(),|ui,range|{
                 for index in range {
                     let record=&self.inventory_employees[index];
-                    ui.horizontal(|ui|{
-                        ui.label(&record.id);
-                        ui.separator();
-                        ui.label(&record.name);
-                        ui.separator();
-                        ui.label(&record.division);
-                    });
+                    theme::table_row(ui,&[
+                        (&record.id,135.0),(&record.name,225.0),(&record.division,210.0)
+                    ]);
                     ui.separator();
                 }
             });
     }
 
     fn draw_items(&self,ui:&mut Ui) {
-        theme::table_header(ui,&["ITEM TYPE"]);
+        theme::table_header_sized(ui,&[("ITEM TYPE",560.0)]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,33.0,self.inventory_items.len(),|ui,range|{
-                for i in range {ui.label(&self.inventory_items[i].name);ui.separator();}
+            .show_rows(ui,35.0,self.inventory_items.len(),|ui,range|{
+                for index in range {
+                    theme::table_row(ui,&[(&self.inventory_items[index].name,560.0)]);
+                    ui.separator();
+                }
             });
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
-        theme::table_header(ui,&["DIVISION", "EMPLOYEES", "ASSETS"]);
+        theme::table_header_sized(ui,&[
+            ("DIVISION",300.0),("EMPLOYEES",130.0),("ASSETS",130.0)
+        ]);
         egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,35.0,self.inventory_divisions.len(),|ui,range|{
-                for i in range {
-                    let d=&self.inventory_divisions[i];
-                    ui.horizontal(|ui|{
-                        ui.label(&d.name);
-                        ui.label(format!("{} Employees",d.employee_count));
-                        ui.label(format!("{} Items",d.item_count));
-                    });
+            .show_rows(ui,36.0,self.inventory_divisions.len(),|ui,range|{
+                for index in range {
+                    let division=&self.inventory_divisions[index];
+                    let employees=division.employee_count.to_string();
+                    let items=division.item_count.to_string();
+                    theme::table_row(ui,&[
+                        (&division.name,300.0),(&employees,130.0),(&items,130.0)
+                    ]);
                     ui.separator();
                 }
             });
     }
 
     fn draw_assignments(&self,ui:&mut Ui) {
-        theme::table_header(ui,&["EMPLOYEE", "ASSET", "REFERENCE KEY", "ATTRIBUTES"]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
-                for i in range {
-                    let a=&self.inventory_assignments[i];
-                    ui.horizontal(|ui|{
-                        ui.label(&a.employee_id);
+        theme::table_header_sized(ui,&[
+            ("EMPLOYEE ID",105.0),("EMPLOYEE",155.0),("ASSET",155.0),
+            ("REFERENCE KEY",160.0),("ATTRIBUTES",250.0)
+        ]);
+        egui::ScrollArea::horizontal().show(ui,|ui|{
+            egui::ScrollArea::vertical().auto_shrink([false,false])
+                .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
+                    for index in range {
+                        let asset=&self.inventory_assignments[index];
+                        let attributes=asset.attributes.iter()
+                            .map(|item|format!("{}: {}",item.name,item.value))
+                            .collect::<Vec<_>>().join(", ");
+                        theme::table_row(ui,&[
+                            (&asset.employee_id,105.0),(&asset.employee_name,155.0),
+                            (&asset.item_name,155.0),(&asset.unique_key,160.0),
+                            (&attributes,250.0)
+                        ]);
                         ui.separator();
-                        ui.label(&a.employee_name);
-                        ui.separator();
-                        ui.label(&a.item_name);
-                        ui.separator();
-                        ui.label(&a.unique_key);
-                        ui.separator();
-                        ui.label(a.attributes.iter()
-                            .map(|x|format!("{}: {}",x.name,x.value))
-                            .collect::<Vec<_>>().join(", "));
-                    });
-                    ui.separator();
-                }
-            });
+                    }
+                });
+        });
     }
 
     fn export_report(&mut self,tool:Tool) {
