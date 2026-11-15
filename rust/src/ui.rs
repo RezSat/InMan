@@ -3,6 +3,7 @@ use eframe::egui::{self, Color32, RichText, Ui};
 use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf, sync::atomic::{AtomicBool, Ordering}};
 
 mod tools;
+mod theme;
 
 /// Set once the UI has produced its first frame. Used to distinguish a startup
 /// failure (safe to retry on another graphics backend) from a late event-loop
@@ -78,19 +79,11 @@ impl Tool {
 }
 
 fn control(ui: &mut Ui, text: &str) -> bool {
-    ui.add_sized(
-        [178.0,38.0],
-        egui::Button::new(RichText::new(text).color(color(PALETTE.black)).strong())
-            .fill(pink())
-    ).clicked()
+    theme::primary(ui, text)
 }
 
 fn secondary_control(ui: &mut Ui, text: &str) -> bool {
-    ui.add_sized(
-        [190.0,34.0],
-        egui::Button::new(RichText::new(text).color(light()))
-            .fill(color(PALETTE.black))
-    ).clicked()
+    theme::secondary(ui, text)
 }
 
 pub struct InManApp {
@@ -209,14 +202,7 @@ impl InManApp {
         }else{
             logging::warn("graphics", "eframe did not provide a wgpu render state");
         }
-        let mut visuals=egui::Visuals::dark();
-        visuals.panel_fill=color(PALETTE.secondary_bg);
-        visuals.window_fill=color(PALETTE.black);
-        visuals.widgets.inactive.bg_fill=color(PALETTE.black);
-        visuals.widgets.hovered.bg_fill=color(PALETTE.darker_pink);
-        visuals.selection.bg_fill=pink();
-        cc.egui_ctx.set_visuals(visuals);
-        cc.egui_ctx.set_pixels_per_point(1.0);
+        theme::install(&cc.egui_ctx);
         Self::default()
     }
 
@@ -354,68 +340,106 @@ impl InManApp {
     }
 
     fn sidebar(&mut self, ui:&mut Ui) {
-        ui.add_space(20.0);
+        ui.add_space(12.0);
         ui.horizontal(|ui|{
-            ui.label(RichText::new("In").size(38.0).strong().color(pink()));
-            ui.label(RichText::new("Man").size(38.0).strong().color(light()));
+            theme::subtle_card().show(ui, |ui| {
+                ui.label(RichText::new("IM").strong().size(18.0).color(theme::ACCENT));
+            });
+            ui.vertical(|ui|{
+                ui.label(RichText::new("InMan").strong().size(20.0).color(theme::TEXT));
+                ui.label(RichText::new("INVENTORY MANAGER").size(9.0).color(theme::MUTED));
+            });
         });
-        ui.add_space(22.0);
-        if control(ui,"Dashboard") {self.open(Screen::Dashboard)}
-        ui.add_space(10.0);
-        if self.manager_logged_in {
-            if control(ui,"Manager Tools"){self.open(Screen::Manager)}
-        }else if control(ui,"Login"){self.open(Screen::Login)}
-        ui.add_space(10.0);
-        if control(ui,"View Inventory") {
+        ui.add_space(32.0);
+        ui.label(RichText::new("WORKSPACE").size(10.0).strong().color(theme::MUTED));
+        ui.add_space(7.0);
+        if theme::sidebar_item(ui, "  Dashboard", self.screen==Screen::Dashboard) {
+            self.open(Screen::Dashboard)
+        }
+        if theme::sidebar_item(ui, "  View Inventory", self.screen==Screen::Inventory) {
             self.open(Screen::Inventory);
             self.search();
         }
-        ui.add_space(10.0);
-        if control(ui,"Package to Share") {self.package()}
-        ui.add_space(90.0);
-        ui.small(format!("v{}",VERSION.trim_start_matches('v')));
+        ui.add_space(20.0);
+        ui.label(RichText::new("MANAGEMENT").size(10.0).strong().color(theme::MUTED));
+        ui.add_space(7.0);
+        if self.manager_logged_in {
+            if theme::sidebar_item(ui, "  Manager Tools",
+                matches!(self.screen,Screen::Manager|Screen::Tool)) {
+                self.open(Screen::Manager)
+            }
+        } else if theme::sidebar_item(ui, "  Manager Login", self.screen==Screen::Login) {
+            self.open(Screen::Login)
+        }
+        if theme::sidebar_item(ui, "  Package to Share", false) { self.package() }
+        ui.add_space(30.0);
+        ui.separator();
+        ui.add_space(12.0);
+        ui.label(RichText::new("INMAN DESKTOP").size(10.0).color(theme::MUTED));
+        ui.label(RichText::new(format!("Version {}", VERSION)).size(12.0).color(theme::TEXT));
     }
 
     fn dashboard(&mut self,ui:&mut Ui) {
-        ui.heading(RichText::new("Dashboard").color(light()).size(26.0));
-        ui.hyperlink_to("Office Inventory Management System by RezSat",
-                        "http://rezsat.vercel.app");
-        ui.add_space(10.0);
+        theme::heading(ui, "OVERVIEW", "Dashboard", "Your inventory at a glance.");
         ui.horizontal(|ui|{
-            for (title,count) in [
-                ("Total Employees",self.counts.0),
-                ("Total Items",self.counts.1),
-                ("Divisions",self.counts.2)
-            ]{
-                egui::Frame::group(ui.style()).fill(color(PALETTE.black)).show(ui,|ui|{
-                    ui.set_min_width(185.0);
-                    ui.label(title);
-                    ui.heading(RichText::new(count.to_string()).color(light()).size(22.0));
+            ui.spacing_mut().item_spacing.x=14.0;
+            for (label,number,subtitle) in [
+                ("EMPLOYEES",self.counts.0,"People in the system"),
+                ("ITEM TYPES",self.counts.1,"Catalogued categories"),
+                ("DIVISIONS",self.counts.2,"Active departments"),
+            ] {
+                theme::card().show(ui,|ui|{
+                    ui.set_min_width(190.0);
+                    ui.set_min_height(120.0);
+                    ui.label(RichText::new(label).size(11.0).strong().color(theme::MUTED));
+                    ui.add_space(5.0);
+                    ui.label(RichText::new(number.to_string()).size(34.0)
+                        .strong().color(theme::TEXT));
+                    ui.label(RichText::new(subtitle).size(11.0).color(theme::MUTED));
                 });
             }
         });
-        ui.add_space(18.0);
-        ui.heading("Division Overview");
-        egui::ScrollArea::vertical().show(ui,|ui|{
+        ui.add_space(28.0);
+        theme::section(ui, "Quick actions", "Jump directly into the workflows you use most.");
+        ui.horizontal(|ui|{
+            if secondary_control(ui,"Browse inventory") {
+                self.open(Screen::Inventory);
+                self.search();
+            }
+            if secondary_control(ui,"Manager tools") {
+                self.open(if self.manager_logged_in {Screen::Manager} else {Screen::Login});
+            }
+        });
+        ui.add_space(28.0);
+        theme::section(ui,"Division overview","Assignments grouped by department.");
+        egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
             for division in &self.divisions {
-                egui::Frame::group(ui.style()).fill(color(PALETTE.black)).show(ui,|ui|{
+                theme::card().show(ui,|ui|{
+                    ui.set_min_width(560.0);
                     ui.horizontal(|ui|{
-                        ui.heading(&division.name);
-                        ui.label(format!("{} Employees | {} Items",
-                            division.employee_count,division.item_count));
+                        ui.vertical(|ui|{
+                            ui.label(RichText::new(&division.name).size(15.0).strong());
+                            ui.label(RichText::new(format!("{} employees", division.employee_count))
+                                .size(12.0).color(theme::MUTED));
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                            ui.label(RichText::new(format!("{} ASSETS",division.item_count))
+                                .size(11.0).strong().color(theme::ACCENT));
+                        });
                     });
                     if let Some(db)=self.db.as_ref() {
-                        // Do not run SQLite queries on every paint frame.
-                        // Load a division's item breakdown only on first expansion.
-                        egui::CollapsingHeader::new("Item types").id_salt(division.id)
+                        egui::CollapsingHeader::new("View assigned item types").id_salt(division.id)
                             .show(ui,|ui|{
                                 let items=self.division_item_cache.entry(division.id)
-                                    .or_insert_with(||{
-                                        db.division_item_types(division.id).unwrap_or_default()
+                                    .or_insert_with(||db.division_item_types(division.id)
+                                        .unwrap_or_default());
+                                if items.is_empty(){ui.label("No items assigned yet.");}
+                                for (name,count) in items.iter(){
+                                    ui.horizontal(|ui|{
+                                        ui.label(name);
+                                        ui.label(RichText::new(format!("× {count}"))
+                                            .color(theme::MUTED));
                                     });
-                                if items.is_empty() {ui.label("No items assigned");}
-                                for (name,count) in items.iter() {
-                                    ui.label(format!("{name} — {count}"));
                                 }
                             });
                     }
