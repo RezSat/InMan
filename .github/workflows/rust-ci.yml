@@ -62,3 +62,27 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libx11-dev libxkbcommon-dev libasound2-dev libudev-dev libssl-dev pkg-config
       - name: Core tests
         run: cargo test --lib
+
+  publish-beta:
+    needs: [windows-rust, linux-core]
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/rust-refactor' && contains(github.event.head_commit.message, 'Publish Rust v2.0.0-beta.1')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: InMan-Rust-Development
+          path: build
+      - name: Prepare the release executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path staging | Out-Null
+          Copy-Item build/inman.exe staging/InMan.exe
+      - name: Publish Rust development prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v2.0.0-beta.1 staging/InMan.exe --target "${{ github.sha }}" --prerelease --title "InMan 2.0 Beta 1 - Native Rust" --notes "Native Rust rewrite test build. Preserves the SQLite schema and product-key format, with inventory and manager workflow implementations. This is NOT the final v2.0 production release: full Windows UI parity and real-machine performance measurements are still pending. Test only with a BACKUP COPY of inventory.db. The executable is not Authenticode signed; SmartScreen warnings may appear."
