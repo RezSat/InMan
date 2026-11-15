@@ -11,6 +11,23 @@ fn audit(tx: &Transaction<'_>, action: &str, details: &str) -> Result<()> {
 }
 
 impl Database {
+    /// No account migration: create a manager only if the database has no users.
+    pub fn create_first_manager(&mut self, username: &str, password: &str) -> Result<()> {
+        ensure!(!username.trim().is_empty(), "Username is required");
+        ensure!(password.chars().count() >= 8, "Password must be at least eight characters");
+        let tx = self.conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let count:i64=tx.query_row("SELECT COUNT(*) FROM users",[],|r|r.get(0))?;
+        ensure!(count==0,"Manager account setup is already complete");
+        let hash=crate::licensing::hash_password(password)?;
+        tx.execute(
+            "INSERT INTO users(username,password,role) VALUES (?1,?2,'manager')",
+            params![username.trim(),hash]
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+
     pub fn add_division(&mut self, name: &str) -> Result<i64> {
         ensure!(!name.trim().is_empty(), "Division name cannot be blank");
         self.conn.execute("INSERT INTO divisions(name) VALUES (?1)", [name.trim()])?;
