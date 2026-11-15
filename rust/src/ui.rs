@@ -4,6 +4,7 @@ use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf, sync::atomic::{Atomic
 
 mod tools;
 mod theme;
+mod preferences;
 
 /// Set once the UI has produced its first frame. Used to distinguish a startup
 /// failure (safe to retry on another graphics backend) from a late event-loop
@@ -40,7 +41,7 @@ pub(super) enum PendingRemoval {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Screen { Dashboard, Login, Inventory, Manager, Tool }
+enum Screen { Dashboard, Inventory, Manager, Tool, Settings }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Tool {
     AddItem, UpdateItem, RemoveItems, ViewItems,
@@ -111,10 +112,7 @@ pub struct InManApp {
     screen: Screen,
     tool: Tool,
     message: String,
-    username: String,
-    password: String,
-    manager_setup_needed: bool,
-    manager_logged_in: bool,
+    ui_scale: f32,
     pub(super) selected_mode: InventoryMode,
     pub(super) query: String,
     pub(super) attr_name: String,
@@ -182,9 +180,7 @@ impl Default for InManApp {
         let mut state=Self {
             db, database_path, activated, key_input:String::new(), show_key:false,
             screen:Screen::Dashboard, tool:Tool::AddItem,
-            message:String::new(), username:String::new(),password:String::new(),
-            manager_setup_needed:false,
-            manager_logged_in:false,
+            message:String::new(),ui_scale:preferences::load(),
             selected_mode:InventoryMode::Employees,query:String::new(),
             attr_name:String::new(),attr_value:String::new(),division_filter:None,
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
@@ -219,19 +215,14 @@ impl InManApp {
             logging::warn("graphics", "eframe did not provide a wgpu render state");
         }
         theme::install(&cc.egui_ctx);
-        Self::default()
+        let app=Self::default();
+        cc.egui_ctx.set_zoom_factor(app.ui_scale);
+        app
     }
 
     fn reload(&mut self) {
         self.division_item_cache.clear();
         let Some(db)=self.db.as_ref() else{return};
-        self.manager_setup_needed=match db.manager_count() {
-            Ok(count)=>count==0,
-            Err(error)=>{
-                logging::error("database", format!("manager account check failed: {error:#}"));
-                false
-            }
-        };
         let data=(
             db.dashboard_counts(), db.divisions(""),
             db.employees("",None),db.items(""),
@@ -260,10 +251,7 @@ impl InManApp {
     }
 
     fn open(&mut self, screen:Screen) {
-        self.screen=if !self.manager_logged_in &&
-            matches!(screen,Screen::Manager|Screen::Tool) {
-            Screen::Login
-        }else{screen};
+        self.screen=screen;
         self.message.clear();
         if matches!(screen,Screen::Dashboard | Screen::Manager | Screen::Tool) {self.reload()}
     }
@@ -362,105 +350,161 @@ impl InManApp {
     }
 
     fn sidebar(&mut self, ui:&mut Ui) {
-        ui.add_space(12.0);
+        ui.add_space(15.0);
+        // Restore the original pink "In" and cream "Man" wordmark.
         ui.horizontal(|ui|{
-            theme::subtle_card().show(ui, |ui| {
-                ui.label(RichText::new("IM").strong().size(18.0).color(theme::ACCENT));
-            });
-            ui.vertical(|ui|{
-                ui.label(RichText::new("InMan").strong().size(20.0).color(theme::TEXT));
-                ui.label(RichText::new("INVENTORY MANAGER").size(9.0).color(theme::MUTED));
-            });
+            ui.spacing_mut().item_spacing.x=0.0;
+            ui.label(RichText::new("In").size(30.0).strong().color(theme::ACCENT));
+            ui.label(RichText::new("Man").size(30.0).strong().color(theme::TEXT));
         });
-        ui.add_space(32.0);
-        ui.label(RichText::new("WORKSPACE").size(10.0).strong().color(theme::MUTED));
-        ui.add_space(7.0);
-        if theme::sidebar_item(ui, "  Dashboard", self.screen==Screen::Dashboard) {
+        ui.label(RichText::new("INVENTORY MANAGEMENT").size(10.0).color(theme::MUTED));
+        ui.add_space(28.0);
+        ui.label(RichText::new("WORKSPACE").size(11.0).strong().color(theme::MUTED));
+        ui.add_space(8.0);
+        if theme::sidebar_item(ui,"Dashboard",self.screen==Screen::Dashboard){
             self.open(Screen::Dashboard)
         }
-        if theme::sidebar_item(ui, "  View Inventory", self.screen==Screen::Inventory) {
+        if theme::sidebar_item(ui,"View Inventory",self.screen==Screen::Inventory){
             self.open(Screen::Inventory);
             self.search();
         }
-        ui.add_space(20.0);
-        ui.label(RichText::new("MANAGEMENT").size(10.0).strong().color(theme::MUTED));
-        ui.add_space(7.0);
-        if self.manager_logged_in {
-            if theme::sidebar_item(ui, "  Manager Tools",
-                matches!(self.screen,Screen::Manager|Screen::Tool)) {
-                self.open(Screen::Manager)
-            }
-        } else if theme::sidebar_item(ui, "  Manager Login", self.screen==Screen::Login) {
-            self.open(Screen::Login)
+        ui.add_space(18.0);
+        ui.label(RichText::new("OPERATIONS").size(11.0).strong().color(theme::MUTED));
+        ui.add_space(8.0);
+        if theme::sidebar_item(ui,"Manager Tools",
+            matches!(self.screen,Screen::Manager|Screen::Tool)) {
+            self.open(Screen::Manager)
         }
-        if theme::sidebar_item(ui, "  Package to Share", false) { self.package() }
-        ui.add_space(30.0);
+        if theme::sidebar_item(ui,"Package to Share",false){self.package()}
+        ui.add_space(16.0);
+        if theme::sidebar_item(ui,"Settings",self.screen==Screen::Settings){
+            self.open(Screen::Settings)
+        }
+        ui.add_space(18.0);
         ui.separator();
-        ui.add_space(12.0);
-        ui.label(RichText::new("INMAN DESKTOP").size(10.0).color(theme::MUTED));
-        ui.label(RichText::new(format!("Version {}", VERSION)).size(12.0).color(theme::TEXT));
+        ui.label(RichText::new(format!("InMan {}",VERSION)).size(12.0).color(theme::MUTED));
+    }
+
+    fn settings(&mut self,ui:&mut Ui) {
+        theme::heading(ui,"PREFERENCES","Settings",
+            "Adjust readability without changing your inventory data.");
+        let available=ui.available_width();
+        theme::card().show(ui,|ui|{
+            ui.set_min_width((available-40.0).max(240.0));
+            theme::section(ui,"Display size","Changes apply to the entire interface.");
+            ui.add_space(7.0);
+            let mut percentage=(self.ui_scale*100.0).round();
+            let mut changed=false;
+            ui.horizontal_wrapped(|ui|{
+                ui.label(RichText::new("Minimum 100%").color(theme::MUTED));
+                let width=(ui.available_width()-180.0).clamp(130.0,430.0);
+                changed|=ui.add_sized([width,35.0],
+                    egui::Slider::new(&mut percentage,100.0..=150.0)
+                        .step_by(5.0).suffix("%")
+                ).changed();
+                ui.label(RichText::new("Maximum 150%").color(theme::MUTED));
+            });
+            ui.horizontal_wrapped(|ui|{
+                if ui.add_enabled(percentage>100.0,egui::Button::new("A−  Smaller")).clicked(){
+                    percentage=(percentage-5.0).max(100.0);
+                    changed=true;
+                }
+                if ui.add_enabled(percentage<150.0,egui::Button::new("A+  Larger")).clicked(){
+                    percentage=(percentage+5.0).min(150.0);
+                    changed=true;
+                }
+                if ui.button("Restore default (110%)").clicked(){
+                    percentage=110.0;
+                    changed=true;
+                }
+            });
+            if changed {
+                self.ui_scale=(percentage/100.0)
+                    .clamp(preferences::MIN_ZOOM,preferences::MAX_ZOOM);
+                ui.ctx().set_zoom_factor(self.ui_scale);
+                if let Err(error)=preferences::save(self.ui_scale) {
+                    self.message=format!("Could not save display size: {error}");
+                } else {
+                    self.message=format!("Display size set to {}%",percentage.round() as i32);
+                }
+            }
+            ui.add_space(12.0);
+            ui.label(RichText::new("Font: Segoe UI on Windows, with a built-in fallback.")
+                .color(theme::MUTED));
+            ui.label(RichText::new("The display setting is saved on this computer. Database contents are unaffected.")
+                .color(theme::MUTED));
+        });
     }
 
     fn dashboard(&mut self,ui:&mut Ui) {
-        theme::heading(ui, "OVERVIEW", "Dashboard", "Your inventory at a glance.");
-        ui.horizontal(|ui|{
-            ui.spacing_mut().item_spacing.x=14.0;
-            for (label,number,subtitle) in [
-                ("EMPLOYEES",self.counts.0,"People in the system"),
-                ("ITEM TYPES",self.counts.1,"Catalogued categories"),
-                ("DIVISIONS",self.counts.2,"Active departments"),
-            ] {
-                theme::card().show(ui,|ui|{
-                    // A card inherits its parent's horizontal layout unless
-                    // its own vertical content layout is explicitly established.
-                    ui.vertical(|ui|{
-                        ui.set_min_width(190.0);
-                        ui.set_min_height(120.0);
-                        ui.label(RichText::new(label).size(11.0).strong().color(theme::MUTED));
-                        ui.add_space(11.0);
-                        ui.label(RichText::new(number.to_string()).size(34.0)
-                            .strong().color(theme::TEXT));
-                        ui.add_space(3.0);
-                        ui.label(RichText::new(subtitle).size(11.0).color(theme::MUTED));
+        theme::heading(ui,"OVERVIEW","Dashboard","A clear view of the current inventory.");
+        let stats=[
+            ("EMPLOYEES",self.counts.0,"People in the inventory"),
+            ("ITEM TYPES",self.counts.1,"Distinct catalogue items"),
+            ("DIVISIONS",self.counts.2,"Registered departments")
+        ];
+        let columns=if ui.available_width()>800.0{3}
+            else if ui.available_width()>440.0{2}else{1};
+        for row in stats.chunks(columns) {
+            ui.columns(columns,|cells|{
+                for (cell,(title,value,caption)) in cells.iter_mut().zip(row.iter()){
+                    let width=(cell.available_width()-6.0).max(100.0);
+                    theme::card().show(cell,|ui|{
+                        ui.vertical(|ui|{
+                            ui.set_width((width-36.0).max(100.0));
+                            ui.set_min_height(112.0);
+                            ui.label(RichText::new(*title).size(12.0)
+                                .strong().color(theme::MUTED));
+                            ui.add_space(5.0);
+                            ui.label(RichText::new(value.to_string()).size(34.0)
+                                .strong().color(theme::TEXT));
+                            ui.label(RichText::new(*caption).size(13.0)
+                                .color(theme::MUTED));
+                        });
                     });
-                });
-            }
-        });
-        ui.add_space(28.0);
-        theme::section(ui, "Quick actions", "Jump directly into the workflows you use most.");
-        ui.horizontal(|ui|{
-            if secondary_control(ui,"Browse inventory") {
+                }
+            });
+            ui.add_space(8.0);
+        }
+        ui.add_space(17.0);
+        theme::section(ui,"Quick actions","Go straight to a task.");
+        ui.horizontal_wrapped(|ui|{
+            if secondary_control(ui,"Browse inventory"){
                 self.open(Screen::Inventory);
                 self.search();
             }
-            if secondary_control(ui,"Manager tools") {
-                self.open(if self.manager_logged_in {Screen::Manager} else {Screen::Login});
-            }
+            if secondary_control(ui,"Manager Tools"){self.open(Screen::Manager);}
         });
-        ui.add_space(28.0);
-        theme::section(ui,"Division overview","Assignments grouped by department.");
-        egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
-            for division in &self.divisions {
-                theme::card().show(ui,|ui|{
-                    ui.set_min_width(560.0);
-                    ui.horizontal(|ui|{
-                        ui.vertical(|ui|{
-                            ui.label(RichText::new(&division.name).size(15.0).strong());
-                            ui.label(RichText::new(format!("{} employees", division.employee_count))
-                                .size(12.0).color(theme::MUTED));
+        ui.add_space(23.0);
+        theme::section(ui,"Division overview","Departments and assigned assets");
+        egui::ScrollArea::vertical().auto_shrink([false,false])
+            .max_height(ui.available_height().clamp(220.0,600.0))
+            .show(ui,|ui|{
+                for division in &self.divisions {
+                    let width=ui.available_width();
+                    theme::card().show(ui,|ui|{
+                        ui.set_min_width((width-37.0).max(200.0));
+                        ui.horizontal_wrapped(|ui|{
+                            ui.vertical(|ui|{
+                                ui.label(RichText::new(&division.name)
+                                    .size(15.0).strong().color(theme::TEXT));
+                                ui.label(RichText::new(format!(
+                                    "{} employees",division.employee_count))
+                                    .size(13.0).color(theme::MUTED));
+                            });
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                                ui.label(RichText::new(format!(
+                                    "{} ASSETS",division.item_count))
+                                    .size(12.0).strong().color(theme::ACCENT));
+                            });
                         });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
-                            ui.label(RichText::new(format!("{} ASSETS",division.item_count))
-                                .size(11.0).strong().color(theme::ACCENT));
-                        });
-                    });
-                    if let Some(db)=self.db.as_ref() {
-                        egui::CollapsingHeader::new("View assigned item types").id_salt(division.id)
-                            .show(ui,|ui|{
+                        if let Some(db)=self.db.as_ref(){
+                            egui::CollapsingHeader::new("Assigned item types")
+                                .id_salt(division.id).show(ui,|ui|{
                                 let items=self.division_item_cache.entry(division.id)
                                     .or_insert_with(||db.division_item_types(division.id)
                                         .unwrap_or_default());
-                                if items.is_empty(){ui.label("No items assigned yet.");}
+                                if items.is_empty(){ui.label("No items assigned");}
                                 for (name,count) in items.iter(){
                                     ui.horizontal(|ui|{
                                         ui.label(name);
@@ -469,108 +513,54 @@ impl InManApp {
                                     });
                                 }
                             });
-                    }
-                });
-                ui.add_space(8.0);
-            }
-        });
-    }
-
-    fn login(&mut self,ui:&mut Ui) {
-        ui.vertical_centered(|ui|{
-            ui.add_space(50.0);
-            theme::heading(ui,"SECURE ACCESS",
-                if self.manager_setup_needed {"Create manager account"} else {"Manager login"},
-                if self.manager_setup_needed {
-                    "Set up the first manager for this inventory database."
-                }else{
-                    "Sign in to manage items, people and assignments."
-                });
-            theme::card().show(ui,|ui|{
-                ui.set_width(392.0);
-                ui.label(RichText::new("USERNAME").size(11.0).strong().color(theme::MUTED));
-                ui.add_sized([350.0,40.0],egui::TextEdit::singleline(&mut self.username)
-                    .hint_text("Enter your username"));
-                ui.add_space(8.0);
-                ui.label(RichText::new("PASSWORD").size(11.0).strong().color(theme::MUTED));
-                let response=ui.add_sized([350.0,40.0],
-                    egui::TextEdit::singleline(&mut self.password)
-                        .hint_text("Enter your password").password(true));
-                ui.add_space(14.0);
-                if self.manager_setup_needed {
-                    ui.label(RichText::new("No manager account is configured yet.")
-                        .size(12.0).color(theme::MUTED));
-                    if control(ui,"Create manager account") {
-                        match self.db.as_mut().unwrap()
-                            .create_first_manager(&self.username,&self.password) {
-                            Ok(())=>{
-                                self.manager_logged_in=true;
-                                self.reload();
-                                self.open(Screen::Manager);
-                            }
-                            Err(err)=>self.message=err.to_string(),
                         }
-                    }
-                }else{
-                    let submitted=control(ui,"Sign in") ||
-                        (response.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter)));
-                    if submitted {
-                        match self.db.as_ref().map(|d|d.authenticate(&self.username,&self.password)){
-                            Some(Ok(true))=>{
-                                self.manager_logged_in=true;
-                                self.password.clear();
-                                self.open(Screen::Manager);
-                            }
-                            Some(Ok(false))=>self.message="Invalid username or password".into(),
-                            Some(Err(err))=>self.message=err.to_string(),
-                            None=>self.message="Database unavailable".into(),
-                        }
-                    }
+                    });
+                    ui.add_space(8.0);
                 }
             });
-        });
     }
 
     fn manager(&mut self,ui:&mut Ui) {
-        theme::heading(ui, "MANAGEMENT", "Manager tools",
-            "Choose an operation. All inventory records and actions are preserved.");
+        theme::heading(ui,"OPERATIONS","Manager Tools",
+            "Inventory management, assignments, exports and backups.");
+        let sections: [(&str,&str,&[Tool]);5]=[
+            ("Inventory","Manage item types", &[
+                Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems]),
+            ("Employees","Manage people and their records", &[
+                Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,
+                Tool::RemoveEmployees,Tool::ViewEmployees]),
+            ("Divisions","Organize departments", &[
+                Tool::AddDivision,Tool::UpdateDivision,
+                Tool::RemoveDivisions,Tool::ViewDivisions]),
+            ("Assets","Assign and transfer physical items", &[
+                Tool::Assign,Tool::Transfer]),
+            ("Reports & backup","Export or protect your inventory", &[
+                Tool::ReportInventory,Tool::ReportEmployees,
+                Tool::ReportItems,Tool::BackupDatabase]),
+        ];
         egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
-            let sections: [(&str,&str,&[Tool]);5]=[
-                ("Inventory management","Manage the item catalogue",&[
-                    Tool::AddItem,Tool::UpdateItem,Tool::RemoveItems,Tool::ViewItems
-                ]),
-                ("Employee management","People and ownership records",&[
-                    Tool::AddEmployee,Tool::BulkEmployees,Tool::UpdateEmployee,
-                    Tool::RemoveEmployees,Tool::ViewEmployees
-                ]),
-                ("Division management","Department structure",&[
-                    Tool::AddDivision,Tool::UpdateDivision,Tool::RemoveDivisions,Tool::ViewDivisions
-                ]),
-                ("Asset assignment","Issue, track and transfer equipment",&[
-                    Tool::Assign,Tool::Transfer
-                ]),
-                ("Reports & analytics","Export and safeguard your data",&[
-                    Tool::ReportInventory,Tool::ReportEmployees,
-                    Tool::ReportItems,Tool::BackupDatabase
-                ]),
-            ];
-            for (name,description,tools) in sections {
-                theme::section(ui,name,description);
-                ui.horizontal_wrapped(|ui|{
-                    ui.spacing_mut().item_spacing=egui::vec2(10.0,10.0);
-                    for tool in tools {
-                        if ui.add_sized([205.0,74.0],
-                            egui::Button::new(RichText::new(tool.name())
-                                .size(13.0).strong().color(theme::TEXT))
-                                .fill(theme::SURFACE)
-                                .stroke(egui::Stroke::new(1.0,theme::BORDER))
-                                .corner_radius(egui::CornerRadius::same(10))
-                        ).clicked() {
-                            self.open_tool(*tool);
+            for (heading,description,tools) in sections {
+                theme::section(ui,heading,description);
+                let available=ui.available_width();
+                let columns=if available>=940.0{4}
+                    else if available>=650.0{3}
+                    else if available>=350.0{2}else{1};
+                for row in tools.chunks(columns){
+                    ui.columns(columns,|cells|{
+                        for (cell,tool) in cells.iter_mut().zip(row.iter()){
+                            let width=(cell.available_width()-6.0).max(120.0);
+                            if cell.add_sized([width,60.0],
+                                egui::Button::new(RichText::new(tool.name())
+                                    .size(14.0).color(theme::TEXT))
+                                    .fill(theme::SURFACE)
+                                    .stroke(egui::Stroke::new(1.0,theme::BORDER))
+                                    .corner_radius(egui::CornerRadius::same(9))
+                            ).clicked(){self.open_tool(*tool);}
                         }
-                    }
-                });
-                ui.add_space(22.0);
+                    });
+                    ui.add_space(7.0);
+                }
+                ui.add_space(15.0);
             }
         });
     }
@@ -597,58 +587,73 @@ impl InManApp {
     }
 
     fn inventory(&mut self,ui:&mut Ui) {
-        theme::heading(ui,"ASSET DIRECTORY","Inventory",
-            "Search employees, item types, divisions and assigned assets.");
+        theme::heading(ui,"DIRECTORY","Inventory",
+            "Search employees, catalogue items, divisions and assigned assets.");
         ui.horizontal(|ui|{
-            ui.label(RichText::new(self.selected_mode.label()).color(theme::MUTED).size(12.0));
+            ui.label(RichText::new(self.selected_mode.label())
+                .size(14.0).color(theme::MUTED));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
                 if secondary_control(ui,"Export Results"){self.export_search();}
             });
         });
         ui.add_space(12.0);
+        let width=ui.available_width();
         theme::card().show(ui,|ui|{
-        ui.label(RichText::new("SEARCH & FILTER").size(11.0).strong().color(theme::MUTED));
-        ui.horizontal(|ui|{
+            ui.set_min_width((width-38.0).max(235.0));
+            ui.label(RichText::new("SEARCH & FILTER")
+                .size(12.0).strong().color(theme::MUTED));
+            ui.add_space(4.0);
             let previous=self.selected_mode;
-            egui::ComboBox::from_id_salt("search_type")
-                .selected_text(self.selected_mode.label())
-                .show_ui(ui,|ui|{
-                    for mode in InventoryMode::ALL {
-                        ui.selectable_value(&mut self.selected_mode,mode,mode.label());
-                    }
-                });
-            let response=ui.add_sized([360.0,36.0],
-                egui::TextEdit::singleline(&mut self.query).hint_text("Search..."));
-            let entered=response.lost_focus() && ui.input(|i|i.key_pressed(egui::Key::Enter));
-            if control(ui,"Search") || entered {self.search();}
-            if previous!=self.selected_mode {self.query.clear();self.search();}
-        });
-        if self.selected_mode==InventoryMode::Employees {
-            let old_division=self.division_filter;
+            let mut search_clicked=false;
             ui.horizontal(|ui|{
+                egui::ComboBox::from_id_salt("search_type")
+                    .selected_text(self.selected_mode.label())
+                    .show_ui(ui,|ui|{
+                        for mode in InventoryMode::ALL {
+                            ui.selectable_value(&mut self.selected_mode,mode,mode.label());
+                        }
+                    });
+                let input_width=(ui.available_width()-132.0).max(100.0);
+                let response=ui.add_sized([input_width,38.0],
+                    egui::TextEdit::singleline(&mut self.query).hint_text(
+                        "Search inventory records…"
+                    ));
+                let entered=response.lost_focus() &&
+                    ui.input(|input|input.key_pressed(egui::Key::Enter));
+                if control(ui,"Search") || entered{search_clicked=true;}
+            });
+            if previous!=self.selected_mode {
+                self.query.clear();
+                self.search();
+            } else if search_clicked { self.search(); }
+            if self.selected_mode==InventoryMode::Employees {
+                let before=self.division_filter;
                 egui::ComboBox::from_id_salt("division_filter")
                     .selected_text(self.divisions.iter()
                         .find(|d|Some(d.id)==self.division_filter)
                         .map_or("All Divisions",|d|d.name.as_str()))
                     .show_ui(ui,|ui|{
                         ui.selectable_value(&mut self.division_filter,None,"All Divisions");
-                        for division in &self.divisions{
+                        for division in &self.divisions {
                             ui.selectable_value(&mut self.division_filter,
                                 Some(division.id),&division.name);
                         }
                     });
-            });
-            if old_division!=self.division_filter {self.search();}
-        } else if self.selected_mode==InventoryMode::EmployeeItems {
-            ui.horizontal(|ui|{
-                ui.label("Attribute Name:");
-                ui.text_edit_singleline(&mut self.attr_name);
-                ui.label("Attribute Value:");
-                ui.text_edit_singleline(&mut self.attr_value);
-            });
-        }
+                if before!=self.division_filter { self.search(); }
+            }else if self.selected_mode==InventoryMode::EmployeeItems {
+                ui.horizontal_wrapped(|ui|{
+                    ui.label("Attribute");
+                    ui.add_sized([160.0,36.0],
+                        egui::TextEdit::singleline(&mut self.attr_name)
+                            .hint_text("Name"));
+                    ui.label("Value");
+                    ui.add_sized([160.0,36.0],
+                        egui::TextEdit::singleline(&mut self.attr_value)
+                            .hint_text("Value"));
+                });
+            }
         });
-        ui.add_space(20.0);
+        ui.add_space(22.0);
         let result_count=match self.selected_mode {
             InventoryMode::Employees=>self.inventory_employees.len(),
             InventoryMode::Items=>self.inventory_items.len(),
@@ -656,79 +661,119 @@ impl InManApp {
             _=>self.inventory_assignments.len(),
         };
         theme::section(ui,"Search results",&format!("{result_count} records"));
+        let width=ui.available_width();
         theme::card().show(ui,|ui|{
-            ui.set_min_height(380.0);
-            match self.selected_mode {
-                InventoryMode::Employees=>self.draw_employees(ui),
-                InventoryMode::Items=>self.draw_items(ui),
-                InventoryMode::Divisions=>self.draw_divisions(ui),
-                InventoryMode::EmployeeItems|InventoryMode::UniqueKey=>self.draw_assignments(ui),
+            ui.set_min_width((width-38.0).max(235.0));
+            ui.set_min_height(300.0);
+            if result_count==0 {
+                ui.add_space(38.0);
+                ui.vertical_centered(|ui|{
+                    ui.label(RichText::new("No matching records").size(17.0)
+                        .strong().color(theme::TEXT));
+                    ui.label(RichText::new("Try a different search or filter.")
+                        .color(theme::MUTED));
+                });
+            } else {
+                match self.selected_mode {
+                    InventoryMode::Employees=>self.draw_employees(ui),
+                    InventoryMode::Items=>self.draw_items(ui),
+                    InventoryMode::Divisions=>self.draw_divisions(ui),
+                    InventoryMode::EmployeeItems|InventoryMode::UniqueKey=>
+                        self.draw_assignments(ui),
+                }
             }
         });
     }
 
     fn draw_employees(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("EMPLOYEE ID",135.0),("EMPLOYEE NAME",225.0),("DIVISION",210.0)
-        ]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,36.0,self.inventory_employees.len(),|ui,range|{
-                for index in range {
-                    let record=&self.inventory_employees[index];
-                    theme::table_row(ui,&[
-                        (&record.id,135.0),(&record.name,225.0),(&record.division,210.0)
-                    ]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(585.0);
+        let sizes=theme::column_widths(width,&[0.22,0.38,0.40],585.0);
+        let height=ui.available_height().clamp(250.0,650.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("EMPLOYEE ID",sizes[0]),("NAME",sizes[1]),("DIVISION",sizes[2])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_employees.len(),|ui,range|{
+                    for index in range {
+                        let employee=&self.inventory_employees[index];
+                        theme::table_row(ui,&[
+                            (&employee.id,sizes[0]),(&employee.name,sizes[1]),
+                            (&employee.division,sizes[2])
+                        ]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_items(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[("ITEM TYPE",560.0)]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,35.0,self.inventory_items.len(),|ui,range|{
-                for index in range {
-                    theme::table_row(ui,&[(&self.inventory_items[index].name,560.0)]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(370.0);
+        let sizes=theme::column_widths(width,&[1.0],370.0);
+        let height=ui.available_height().clamp(250.0,650.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[("ITEM TYPE",sizes[0])]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_items.len(),|ui,range|{
+                    for index in range {
+                        theme::table_row(ui,&[(&self.inventory_items[index].name,sizes[0])]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("DIVISION",300.0),("EMPLOYEES",130.0),("ASSETS",130.0)
-        ]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,36.0,self.inventory_divisions.len(),|ui,range|{
-                for index in range {
-                    let division=&self.inventory_divisions[index];
-                    let employees=division.employee_count.to_string();
-                    let items=division.item_count.to_string();
-                    theme::table_row(ui,&[
-                        (&division.name,300.0),(&employees,130.0),(&items,130.0)
-                    ]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(580.0);
+        let sizes=theme::column_widths(width,&[0.55,0.22,0.23],580.0);
+        let height=ui.available_height().clamp(250.0,650.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("DIVISION",sizes[0]),("EMPLOYEES",sizes[1]),("ASSETS",sizes[2])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_divisions.len(),|ui,range|{
+                    for index in range {
+                        let division=&self.inventory_divisions[index];
+                        let employees=division.employee_count.to_string();
+                        let assets=division.item_count.to_string();
+                        theme::table_row(ui,&[
+                            (&division.name,sizes[0]),(&employees,sizes[1]),
+                            (&assets,sizes[2])
+                        ]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_assignments(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("EMPLOYEE ID",105.0),("EMPLOYEE",155.0),("ASSET",155.0),
-            ("REFERENCE KEY",160.0),("ATTRIBUTES",250.0)
-        ]);
-        egui::ScrollArea::horizontal().show(ui,|ui|{
-            egui::ScrollArea::vertical().auto_shrink([false,false])
-                .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
+        let width=ui.available_width().max(940.0);
+        let sizes=theme::column_widths(width,&[0.13,0.20,0.19,0.20,0.28],940.0);
+        let height=ui.available_height().clamp(250.0,650.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("EMPLOYEE ID",sizes[0]),("EMPLOYEE",sizes[1]),
+                ("ITEM TYPE",sizes[2]),("REFERENCE KEY",sizes[3]),
+                ("ATTRIBUTES",sizes[4])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_assignments.len(),|ui,range|{
                     for index in range {
-                        let asset=&self.inventory_assignments[index];
-                        let attributes=asset.attributes.iter()
-                            .map(|item|format!("{}: {}",item.name,item.value))
+                        let assignment=&self.inventory_assignments[index];
+                        let attributes=assignment.attributes.iter()
+                            .map(|attribute|format!("{}: {}",attribute.name,attribute.value))
                             .collect::<Vec<_>>().join(", ");
                         theme::table_row(ui,&[
-                            (&asset.employee_id,105.0),(&asset.employee_name,155.0),
-                            (&asset.item_name,155.0),(&asset.unique_key,160.0),
-                            (&attributes,250.0)
+                            (&assignment.employee_id,sizes[0]),
+                            (&assignment.employee_name,sizes[1]),
+                            (&assignment.item_name,sizes[2]),
+                            (&assignment.unique_key,sizes[3]),
+                            (&attributes,sizes[4])
                         ]);
                         ui.separator();
                     }
@@ -857,24 +902,33 @@ impl eframe::App for InManApp {
             record_first_frame();
             return;
         }
-        egui::Panel::left("inman_sidebar").exact_size(205.0)
+        egui::Panel::left("inman_sidebar").exact_size(230.0)
             .resizable(false).show(ui,|panel|{
-                self.sidebar(panel);
+                egui::ScrollArea::vertical().auto_shrink([false,false])
+                    .show(panel,|sidebar|{
+                        sidebar.add_space(6.0);
+                        self.sidebar(sidebar);
+                    });
             });
-        egui::CentralPanel::default().show(ui,|main|{
-            main.add_space(12.0);
-            match self.screen {
-                Screen::Dashboard=>self.dashboard(main),
-                Screen::Login=>self.login(main),
-                Screen::Inventory=>self.inventory(main),
-                Screen::Manager=>self.manager(main),
-                Screen::Tool=>self.tool_screen(main),
-            }
-            if !self.message.is_empty() {
-                main.add_space(16.0);
-                status_message(main,&self.message);
-            }
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(theme::BACKGROUND)
+                .inner_margin(egui::Margin::symmetric(22,18)))
+            .show(ui,|panel|{
+                if !self.message.is_empty() {
+                    status_message(panel,&self.message);
+                    panel.add_space(12.0);
+                }
+                egui::ScrollArea::vertical().auto_shrink([false,false])
+                    .show(panel,|main|{
+                        match self.screen {
+                            Screen::Dashboard=>self.dashboard(main),
+                            Screen::Inventory=>self.inventory(main),
+                            Screen::Manager=>self.manager(main),
+                            Screen::Tool=>self.tool_screen(main),
+                            Screen::Settings=>self.settings(main),
+                        }
+                    });
+            });
 
         if let Some(removal)=self.pending_removal.as_ref() {
             let (count,description)=match removal {
