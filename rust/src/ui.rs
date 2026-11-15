@@ -902,24 +902,30 @@ impl eframe::App for InManApp {
             record_first_frame();
             return;
         }
-        egui::Panel::left("inman_sidebar").exact_size(205.0)
+        egui::Panel::left("inman_sidebar").exact_size(230.0)
             .resizable(false).show(ui,|panel|{
+                panel.add_space(6.0);
                 self.sidebar(panel);
             });
-        egui::CentralPanel::default().show(ui,|main|{
-            main.add_space(12.0);
-            match self.screen {
-                Screen::Dashboard=>self.dashboard(main),
-                Screen::Inventory=>self.inventory(main),
-                Screen::Manager=>self.manager(main),
-                Screen::Tool=>self.tool_screen(main),
-                Screen::Settings=>self.settings(main),
-            }
-            if !self.message.is_empty() {
-                main.add_space(16.0);
-                status_message(main,&self.message);
-            }
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(theme::BACKGROUND)
+                .inner_margin(egui::Margin::symmetric(22,18)))
+            .show(ui,|panel|{
+                if !self.message.is_empty() {
+                    status_message(panel,&self.message);
+                    panel.add_space(12.0);
+                }
+                egui::ScrollArea::vertical().auto_shrink([false,false])
+                    .show(panel,|main|{
+                        match self.screen {
+                            Screen::Dashboard=>self.dashboard(main),
+                            Screen::Inventory=>self.inventory(main),
+                            Screen::Manager=>self.manager(main),
+                            Screen::Tool=>self.tool_screen(main),
+                            Screen::Settings=>self.settings(main),
+                        }
+                    });
+            });
 
         if let Some(removal)=self.pending_removal.as_ref() {
             let (count,description)=match removal {
