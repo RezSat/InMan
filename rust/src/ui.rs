@@ -1,6 +1,6 @@
 use crate::{db::{self,Assignment, AssignmentDraft, Database, Division, Employee, InventoryMode, Item}, licensing, reports, VERSION, PALETTE};
 use eframe::egui::{self, Color32, RichText, Ui};
-use std::{collections::BTreeSet, path::PathBuf};
+use std::{collections::{BTreeMap,BTreeSet}, path::PathBuf};
 
 mod tools;
 
@@ -104,6 +104,7 @@ pub struct InManApp {
     inventory_items: Vec<Item>,
     inventory_divisions: Vec<Division>,
     inventory_assignments: Vec<Assignment>,
+    division_item_cache: BTreeMap<i64,Vec<(String,i64)>>,
     pub(super) counts: (i64,i64,i64),
     pub(super) selected_employee: String,
     pub(super) selected_item: Option<i64>,
@@ -140,7 +141,7 @@ impl Default for InManApp {
             divisions:vec![],employees:vec![],items:vec![],assignments:vec![],
             inventory_employees:vec![],inventory_items:vec![],
             inventory_divisions:vec![],inventory_assignments:vec![],
-            counts:(0,0,0),
+            division_item_cache:BTreeMap::new(),counts:(0,0,0),
             selected_employee:String::new(),selected_item:None,selected_division:None,
             selected_assignment:None,destination:String::new(),form_id:String::new(),
             form_name:String::new(),form_notes:String::new(),
@@ -173,6 +174,7 @@ impl InManApp {
     }
 
     fn reload(&mut self) {
+        self.division_item_cache.clear();
         let Some(db)=self.db.as_ref() else{return};
         self.manager_setup_needed=db.manager_count().unwrap_or(-1)==0;
         let data=(
@@ -326,13 +328,17 @@ impl InManApp {
                             division.employee_count,division.item_count));
                     });
                     if let Some(db)=self.db.as_ref() {
-                        // Only expand the type breakdown for the opened card.
+                        // Do not run SQLite queries on every paint frame.
+                        // Load a division's item breakdown only on first expansion.
                         egui::CollapsingHeader::new("Item types").id_salt(division.id)
                             .show(ui,|ui|{
-                                if let Ok(items)=db.division_item_types(division.id) {
-                                    for (name,count) in items {
-                                        ui.label(format!("{name} — {count}"));
-                                    }
+                                let items=self.division_item_cache.entry(division.id)
+                                    .or_insert_with(||{
+                                        db.division_item_types(division.id).unwrap_or_default()
+                                    });
+                                if items.is_empty() {ui.label("No items assigned");}
+                                for (name,count) in items.iter() {
+                                    ui.label(format!("{name} — {count}"));
                                 }
                             });
                     }
