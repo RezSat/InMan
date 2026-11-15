@@ -686,67 +686,94 @@ impl InManApp {
     }
 
     fn draw_employees(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("EMPLOYEE ID",135.0),("EMPLOYEE NAME",225.0),("DIVISION",210.0)
-        ]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,36.0,self.inventory_employees.len(),|ui,range|{
-                for index in range {
-                    let record=&self.inventory_employees[index];
-                    theme::table_row(ui,&[
-                        (&record.id,135.0),(&record.name,225.0),(&record.division,210.0)
-                    ]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(585.0);
+        let sizes=theme::column_widths(width,&[0.22,0.38,0.40],585.0);
+        let height=ui.available_height().max(250.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("EMPLOYEE ID",sizes[0]),("NAME",sizes[1]),("DIVISION",sizes[2])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_employees.len(),|ui,range|{
+                    for index in range {
+                        let employee=&self.inventory_employees[index];
+                        theme::table_row(ui,&[
+                            (&employee.id,sizes[0]),(&employee.name,sizes[1]),
+                            (&employee.division,sizes[2])
+                        ]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_items(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[("ITEM TYPE",560.0)]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,35.0,self.inventory_items.len(),|ui,range|{
-                for index in range {
-                    theme::table_row(ui,&[(&self.inventory_items[index].name,560.0)]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(370.0);
+        let sizes=theme::column_widths(width,&[1.0],370.0);
+        let height=ui.available_height().max(250.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[("ITEM TYPE",sizes[0])]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_items.len(),|ui,range|{
+                    for index in range {
+                        theme::table_row(ui,&[(&self.inventory_items[index].name,sizes[0])]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_divisions(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("DIVISION",300.0),("EMPLOYEES",130.0),("ASSETS",130.0)
-        ]);
-        egui::ScrollArea::vertical().auto_shrink([false,false])
-            .show_rows(ui,36.0,self.inventory_divisions.len(),|ui,range|{
-                for index in range {
-                    let division=&self.inventory_divisions[index];
-                    let employees=division.employee_count.to_string();
-                    let items=division.item_count.to_string();
-                    theme::table_row(ui,&[
-                        (&division.name,300.0),(&employees,130.0),(&items,130.0)
-                    ]);
-                    ui.separator();
-                }
-            });
+        let width=ui.available_width().max(580.0);
+        let sizes=theme::column_widths(width,&[0.55,0.22,0.23],580.0);
+        let height=ui.available_height().max(250.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("DIVISION",sizes[0]),("EMPLOYEES",sizes[1]),("ASSETS",sizes[2])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_divisions.len(),|ui,range|{
+                    for index in range {
+                        let division=&self.inventory_divisions[index];
+                        let employees=division.employee_count.to_string();
+                        let assets=division.item_count.to_string();
+                        theme::table_row(ui,&[
+                            (&division.name,sizes[0]),(&employees,sizes[1]),
+                            (&assets,sizes[2])
+                        ]);
+                        ui.separator();
+                    }
+                });
+        });
     }
 
     fn draw_assignments(&self,ui:&mut Ui) {
-        theme::table_header_sized(ui,&[
-            ("EMPLOYEE ID",105.0),("EMPLOYEE",155.0),("ASSET",155.0),
-            ("REFERENCE KEY",160.0),("ATTRIBUTES",250.0)
-        ]);
-        egui::ScrollArea::horizontal().show(ui,|ui|{
-            egui::ScrollArea::vertical().auto_shrink([false,false])
-                .show_rows(ui,40.0,self.inventory_assignments.len(),|ui,range|{
+        let width=ui.available_width().max(940.0);
+        let sizes=theme::column_widths(width,&[0.13,0.20,0.19,0.20,0.28],940.0);
+        let height=ui.available_height().max(250.0);
+        egui::ScrollArea::horizontal().auto_shrink([false,false]).show(ui,|ui|{
+            ui.set_min_width(width);
+            theme::table_header_sized(ui,&[
+                ("EMPLOYEE ID",sizes[0]),("EMPLOYEE",sizes[1]),
+                ("ITEM TYPE",sizes[2]),("REFERENCE KEY",sizes[3]),
+                ("ATTRIBUTES",sizes[4])
+            ]);
+            egui::ScrollArea::vertical().max_height(height).auto_shrink([false,false])
+                .show_rows(ui,44.0,self.inventory_assignments.len(),|ui,range|{
                     for index in range {
-                        let asset=&self.inventory_assignments[index];
-                        let attributes=asset.attributes.iter()
-                            .map(|item|format!("{}: {}",item.name,item.value))
+                        let assignment=&self.inventory_assignments[index];
+                        let attributes=assignment.attributes.iter()
+                            .map(|attribute|format!("{}: {}",attribute.name,attribute.value))
                             .collect::<Vec<_>>().join(", ");
                         theme::table_row(ui,&[
-                            (&asset.employee_id,105.0),(&asset.employee_name,155.0),
-                            (&asset.item_name,155.0),(&asset.unique_key,160.0),
-                            (&attributes,250.0)
+                            (&assignment.employee_id,sizes[0]),
+                            (&assignment.employee_name,sizes[1]),
+                            (&assignment.item_name,sizes[2]),
+                            (&assignment.unique_key,sizes[3]),
+                            (&attributes,sizes[4])
                         ]);
                         ui.separator();
                     }
