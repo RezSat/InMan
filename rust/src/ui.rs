@@ -437,65 +437,74 @@ impl InManApp {
     }
 
     fn dashboard(&mut self,ui:&mut Ui) {
-        theme::heading(ui, "OVERVIEW", "Dashboard", "Your inventory at a glance.");
-        ui.horizontal(|ui|{
-            ui.spacing_mut().item_spacing.x=14.0;
-            for (label,number,subtitle) in [
-                ("EMPLOYEES",self.counts.0,"People in the system"),
-                ("ITEM TYPES",self.counts.1,"Catalogued categories"),
-                ("DIVISIONS",self.counts.2,"Active departments"),
-            ] {
-                theme::card().show(ui,|ui|{
-                    // A card inherits its parent's horizontal layout unless
-                    // its own vertical content layout is explicitly established.
-                    ui.vertical(|ui|{
-                        ui.set_min_width(190.0);
-                        ui.set_min_height(120.0);
-                        ui.label(RichText::new(label).size(11.0).strong().color(theme::MUTED));
-                        ui.add_space(11.0);
-                        ui.label(RichText::new(number.to_string()).size(34.0)
-                            .strong().color(theme::TEXT));
-                        ui.add_space(3.0);
-                        ui.label(RichText::new(subtitle).size(11.0).color(theme::MUTED));
+        theme::heading(ui,"OVERVIEW","Dashboard","A clear view of the current inventory.");
+        let stats=[
+            ("EMPLOYEES",self.counts.0,"People in the inventory"),
+            ("ITEM TYPES",self.counts.1,"Distinct catalogue items"),
+            ("DIVISIONS",self.counts.2,"Registered departments")
+        ];
+        let columns=if ui.available_width()>800.0{3}
+            else if ui.available_width()>440.0{2}else{1};
+        for row in stats.chunks(columns) {
+            ui.columns(columns,|cells|{
+                for (cell,(title,value,caption)) in cells.iter_mut().zip(row.iter()){
+                    let width=(cell.available_width()-6.0).max(100.0);
+                    theme::card().show(cell,|ui|{
+                        ui.vertical(|ui|{
+                            ui.set_width((width-36.0).max(100.0));
+                            ui.set_min_height(112.0);
+                            ui.label(RichText::new(*title).size(12.0)
+                                .strong().color(theme::MUTED));
+                            ui.add_space(5.0);
+                            ui.label(RichText::new(value.to_string()).size(34.0)
+                                .strong().color(theme::TEXT));
+                            ui.label(RichText::new(*caption).size(13.0)
+                                .color(theme::MUTED));
+                        });
                     });
-                });
-            }
-        });
-        ui.add_space(28.0);
-        theme::section(ui, "Quick actions", "Jump directly into the workflows you use most.");
-        ui.horizontal(|ui|{
-            if secondary_control(ui,"Browse inventory") {
+                }
+            });
+            ui.add_space(8.0);
+        }
+        ui.add_space(17.0);
+        theme::section(ui,"Quick actions","Go straight to a task.");
+        ui.horizontal_wrapped(|ui|{
+            if secondary_control(ui,"Browse inventory"){
                 self.open(Screen::Inventory);
                 self.search();
             }
-            if secondary_control(ui,"Manager tools") {
-                self.open(Screen::Manager);
-            }
+            if secondary_control(ui,"Manager Tools"){self.open(Screen::Manager);}
         });
-        ui.add_space(28.0);
-        theme::section(ui,"Division overview","Assignments grouped by department.");
-        egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui,|ui|{
-            for division in &self.divisions {
-                theme::card().show(ui,|ui|{
-                    ui.set_min_width(560.0);
-                    ui.horizontal(|ui|{
-                        ui.vertical(|ui|{
-                            ui.label(RichText::new(&division.name).size(15.0).strong());
-                            ui.label(RichText::new(format!("{} employees", division.employee_count))
-                                .size(12.0).color(theme::MUTED));
+        ui.add_space(23.0);
+        theme::section(ui,"Division overview","Departments and assigned assets");
+        egui::ScrollArea::vertical().auto_shrink([false,false])
+            .max_height(ui.available_height().max(220.0))
+            .show(ui,|ui|{
+                for division in &self.divisions {
+                    let width=ui.available_width();
+                    theme::card().show(ui,|ui|{
+                        ui.set_min_width((width-37.0).max(200.0));
+                        ui.horizontal_wrapped(|ui|{
+                            ui.vertical(|ui|{
+                                ui.label(RichText::new(&division.name)
+                                    .size(15.0).strong().color(theme::TEXT));
+                                ui.label(RichText::new(format!(
+                                    "{} employees",division.employee_count))
+                                    .size(13.0).color(theme::MUTED));
+                            });
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+                                ui.label(RichText::new(format!(
+                                    "{} ASSETS",division.item_count))
+                                    .size(12.0).strong().color(theme::ACCENT));
+                            });
                         });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
-                            ui.label(RichText::new(format!("{} ASSETS",division.item_count))
-                                .size(11.0).strong().color(theme::ACCENT));
-                        });
-                    });
-                    if let Some(db)=self.db.as_ref() {
-                        egui::CollapsingHeader::new("View assigned item types").id_salt(division.id)
-                            .show(ui,|ui|{
+                        if let Some(db)=self.db.as_ref(){
+                            egui::CollapsingHeader::new("Assigned item types")
+                                .id_salt(division.id).show(ui,|ui|{
                                 let items=self.division_item_cache.entry(division.id)
                                     .or_insert_with(||db.division_item_types(division.id)
                                         .unwrap_or_default());
-                                if items.is_empty(){ui.label("No items assigned yet.");}
+                                if items.is_empty(){ui.label("No items assigned");}
                                 for (name,count) in items.iter(){
                                     ui.horizontal(|ui|{
                                         ui.label(name);
@@ -504,11 +513,11 @@ impl InManApp {
                                     });
                                 }
                             });
-                    }
-                });
-                ui.add_space(8.0);
-            }
-        });
+                        }
+                    });
+                    ui.add_space(8.0);
+                }
+            });
     }
 
     fn manager(&mut self,ui:&mut Ui) {
