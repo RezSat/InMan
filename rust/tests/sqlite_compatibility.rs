@@ -115,6 +115,20 @@ fn assignment_and_bulk_import_are_atomic() -> Result<()> {
 }
 
 #[test]
+fn legacy_database_without_manager_can_create_one_securely() -> Result<()> {
+    let mut db=fixture()?;
+    assert_eq!(db.manager_count()?, 0);
+    assert!(db.create_first_manager("administrator", "short").is_err());
+    assert_eq!(db.manager_count()?, 0);
+    db.create_first_manager("administrator", "secure-password-123")?;
+    assert_eq!(db.manager_count()?, 1);
+    assert!(db.authenticate("administrator", "secure-password-123")?);
+    assert!(!db.authenticate("administrator", "incorrect")?);
+    assert!(db.create_first_manager("another", "another-strong-password").is_err());
+    db.verify_integrity()
+}
+
+#[test]
 fn original_python_salted_manager_password_is_compatible() -> Result<()> {
     let db=fixture()?;
     let salt=[0x44_u8;16];
