@@ -211,19 +211,20 @@ impl InManApp {
         ui.add_sized([440.0,38.0],TextEdit::singleline(&mut self.form_name));
         self.choose_division(ui,"Division");
         if control(ui,"Update Employee") {
-            let original=self.selected_employee.clone();
-            let new_id=self.form_id.clone();
-            let result=(||->anyhow::Result<()> {
-                self.db.as_mut().unwrap().update_employee(
-                    &original,&self.form_name,self.selected_division
-                )?;
-                if new_id!=original {
-                    self.db.as_mut().unwrap().change_employee_id(&original,&new_id)?;
+            if self.selected_employee.is_empty() {
+                self.message="Select an employee to update".into();
+            }else{
+                let original=self.selected_employee.clone();
+                let new_id=self.form_id.trim().to_owned();
+                let result=self.db.as_mut().unwrap().update_employee_identity(
+                    &original,&new_id,&self.form_name,self.selected_division
+                );
+                if result.is_ok() {
+                    self.selected_employee=new_id;
+                    self.load_selected_assets();
                 }
-                Ok(())
-            })();
-            self.notify(result);
-            self.selected_employee=new_id;
+                self.notify(result);
+            }
         }
         ui.separator();
         ui.label("Assigned items and attributes");
